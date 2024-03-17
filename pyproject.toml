@@ -14,6 +14,8 @@ packages = [
 python = ">=3.12"
 
 [tool.poetry.dev-dependencies]
+fastapi = "*"
+httpx = "*"
 pytest = "*"
 pytest-asyncio = "*"
 pytest-cov = "*"
