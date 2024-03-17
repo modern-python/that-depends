@@ -19,6 +19,10 @@ class AbstractProvider(typing.Generic[T], abc.ABC):
     async def __call__(self) -> T:
         return await self.resolve()
 
+    @property
+    def lazy(self) -> T:
+        return typing.cast(T, self)
+
 
 class Resource(AbstractProvider[T]):
     def __init__(
