@@ -16,8 +16,8 @@ class AbstractProvider(typing.Generic[T], abc.ABC):
     async def resolve(self) -> T:
         """Resolve dependency."""
 
-    def __call__(self) -> typing.Awaitable[T]:
-        return self.resolve()
+    async def __call__(self) -> T:
+        return await self.resolve()
 
 
 class Resource(AbstractProvider[T]):

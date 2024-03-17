@@ -14,7 +14,7 @@ app = fastapi.FastAPI()
 async def read_root(
     sync_dependency: typing.Annotated[
         container.AsyncDependentFactory,
-        fastapi.Depends(container.DIContainer.async_dependent_factory.resolve),
+        fastapi.Depends(container.DIContainer.async_dependent_factory),
     ],
 ) -> str:
     return sync_dependency.async_resource

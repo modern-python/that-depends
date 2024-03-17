@@ -20,3 +20,8 @@ def test_wrong_providers_init() -> None:
 
     with pytest.raises(RuntimeError, match="AsyncResource must be async generator function"):
         providers.AsyncResource[str](lambda: None)  # type: ignore[arg-type,return-value]
+
+
+def test_container_init_error() -> None:
+    with pytest.raises(RuntimeError, match="DIContainer should not be instantiated"):
+        DIContainer()

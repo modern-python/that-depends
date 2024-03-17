@@ -2,7 +2,7 @@ import dataclasses
 import logging
 import typing
 
-from modern_di import providers
+from modern_di import BaseContainer, providers
 
 
 logger = logging.getLogger(__name__)
@@ -38,7 +38,7 @@ class AsyncDependentFactory:
     async_resource: str
 
 
-class DIContainer:
+class DIContainer(BaseContainer):
     sync_resource = providers.Resource[str](create_sync_resource)
     async_resource = providers.AsyncResource[str](create_async_resource)
 
