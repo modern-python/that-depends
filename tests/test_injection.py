@@ -13,8 +13,8 @@ def create_fixture_one() -> int:
 @inject
 async def test_injection(
     fixture_one: int,
-    independent_factory: container.IndependentFactory = container.DIContainer.independent_factory.lazy,
-    async_dependent_factory: container.AsyncDependentFactory = container.DIContainer.async_dependent_factory.lazy,
+    independent_factory: container.IndependentFactory = container.DIContainer.independent_factory.inject,
+    async_dependent_factory: container.AsyncDependentFactory = container.DIContainer.async_dependent_factory.inject,
     default_zero: int = 0,
 ) -> None:
     assert independent_factory.dep1
@@ -27,7 +27,7 @@ async def test_injection(
 async def test_wrong_injection() -> None:
     @inject
     async def inner(
-        _: container.IndependentFactory = container.DIContainer.independent_factory.lazy,
+        _: container.IndependentFactory = container.DIContainer.independent_factory.inject,
     ) -> None:
         """Do nothing."""
 

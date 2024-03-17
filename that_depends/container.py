@@ -1,7 +1,7 @@
 import inspect
 import typing
 
-from that_depends.providers import AbstractResource
+from that_depends.providers import AbstractProvider, AbstractResource
 
 
 class BaseContainer:
@@ -13,3 +13,9 @@ class BaseContainer:
         for _k, v in inspect.getmembers(cls):
             if isinstance(v, AbstractResource):
                 await v.tear_down()
+
+    @classmethod
+    def reset_override(cls) -> None:
+        for _k, v in inspect.getmembers(cls):
+            if isinstance(v, AbstractProvider):
+                v.reset_override()

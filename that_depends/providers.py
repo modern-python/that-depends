@@ -10,8 +10,6 @@ T = typing.TypeVar("T")
 class AbstractProvider(typing.Generic[T], abc.ABC):
     """Abstract Provider Class."""
 
-    _is_async: bool
-
     @abc.abstractmethod
     async def resolve(self) -> T:
         """Resolve dependency."""
@@ -20,8 +18,14 @@ class AbstractProvider(typing.Generic[T], abc.ABC):
         return await self.resolve()
 
     @property
-    def lazy(self) -> T:
+    def inject(self) -> T:
         return typing.cast(T, self)
+
+    def override(self, mock: object) -> None:
+        self._override = mock
+
+    def reset_override(self) -> None:
+        self._override = None
 
 
 class AbstractResource(AbstractProvider[T], abc.ABC):
@@ -48,6 +52,7 @@ class Resource(AbstractResource[T]):
         self._args = args
         self._kwargs = kwargs
         self._instance: T | None = None
+        self._override = None
 
     async def tear_down(self) -> None:
         if self._context_stack:
@@ -56,6 +61,9 @@ class Resource(AbstractResource[T]):
             self._instance = None
 
     async def resolve(self) -> T:
+        if self._override:
+            return typing.cast(T, self._override)
+
         if not self._instance:
             self._instance = typing.cast(
                 T,
@@ -82,6 +90,7 @@ class AsyncResource(AbstractResource[T]):
         self._args = args
         self._kwargs = kwargs
         self._instance: T | None = None
+        self._override = None
 
     async def tear_down(self) -> None:
         if self._context_stack:
@@ -90,6 +99,9 @@ class AsyncResource(AbstractResource[T]):
             self._instance = None
 
     async def resolve(self) -> T:
+        if self._override:
+            return typing.cast(T, self._override)
+
         if not self._instance:
             self._instance = typing.cast(
                 T,
@@ -105,8 +117,12 @@ class Factory(AbstractProvider[T]):
         self._factory = factory
         self._args = args
         self._kwargs = kwargs
+        self._override = None
 
     async def resolve(self) -> T:
+        if self._override:
+            return typing.cast(T, self._override)
+
         return self._factory(
             *[await x() if isinstance(x, AbstractProvider) else x for x in self._args],
             **{k: await v() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
