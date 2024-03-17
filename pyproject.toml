@@ -1,13 +1,13 @@
 [tool.poetry]
-name = "modern-di"
+name = "that-depends"
 version = "0.0.1"
-description = "Modern Dependency Injection framework"
+description = "Opinniated Dependency Injection framework"
 authors = ["Artur Shiriev <me@shiriev.ru>"]
 readme = "README.md"
 classifiers = ["Programming Language :: Python :: 3.12", "Framework :: Pytest"]
-homepage = "https://github.com/modern-python/modern-di"
+homepage = "https://github.com/modern-python/that-depends"
 packages = [
-    { include = "modern_di" },
+    { include = "that_depends" },
 ]
 
 [tool.poetry.dependencies]

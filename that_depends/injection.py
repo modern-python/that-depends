@@ -2,7 +2,7 @@ import functools
 import inspect
 import typing
 
-from modern_di.providers import AbstractProvider
+from that_depends.providers import AbstractProvider
 
 
 P = typing.ParamSpec("P")

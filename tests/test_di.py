@@ -1,7 +1,7 @@
 import pytest
 
-from modern_di import providers
 from tests.container import DIContainer
+from that_depends import providers
 
 
 @pytest.mark.asyncio()

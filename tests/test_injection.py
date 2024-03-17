@@ -1,7 +1,7 @@
 import pytest
 
-from modern_di import inject
 from tests import container
+from that_depends import inject
 
 
 @pytest.fixture(name="fixture_one")

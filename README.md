@@ -1,8 +1,8 @@
-Modern DI
+"That Depends"
 ==
-This package is dependency injection framework for Python
+This package is dependency injection framework for Python, mostly inspired by python-dependency-injector.
 
-# Main principles:
+# Main decisions:
 1. Every dependency resolving is async, so you should construct with `await` keyword:
 ```python
 some_dependency = await DIContainer.some_dependency()

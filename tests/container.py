@@ -2,7 +2,7 @@ import dataclasses
 import logging
 import typing
 
-from modern_di import BaseContainer, providers
+from that_depends import BaseContainer, providers
 
 
 logger = logging.getLogger(__name__)
