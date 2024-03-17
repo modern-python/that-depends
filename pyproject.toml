@@ -40,6 +40,7 @@ ignore = [
     "TCH", # ignore flake8-type-checking
     "FBT", # allow boolean args
     "ANN101", # missing-type-self
+    "ANN102", # missing-type-cls
 ]
 
 [tool.ruff.lint.isort]

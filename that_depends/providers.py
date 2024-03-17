@@ -24,7 +24,15 @@ class AbstractProvider(typing.Generic[T], abc.ABC):
         return typing.cast(T, self)
 
 
-class Resource(AbstractProvider[T]):
+class AbstractResource(AbstractProvider[T], abc.ABC):
+    """Abstract Resource Class."""
+
+    @abc.abstractmethod
+    async def tear_down(self) -> None:
+        """Tear down dependency."""
+
+
+class Resource(AbstractResource[T]):
     def __init__(
         self,
         creator: typing.Callable[[], typing.Iterator[typing.Any]],
@@ -41,6 +49,12 @@ class Resource(AbstractProvider[T]):
         self._kwargs = kwargs
         self._instance: T | None = None
 
+    async def tear_down(self) -> None:
+        if self._context_stack:
+            self._context_stack.close()
+        if self._instance:
+            self._instance = None
+
     async def resolve(self) -> T:
         if not self._instance:
             self._instance = typing.cast(
@@ -52,7 +66,7 @@ class Resource(AbstractProvider[T]):
         return self._instance
 
 
-class AsyncResource(typing.Generic[T], AbstractProvider[T]):
+class AsyncResource(AbstractResource[T]):
     def __init__(
         self,
         creator: typing.Callable[[], typing.AsyncIterator[typing.Any]],
@@ -69,6 +83,12 @@ class AsyncResource(typing.Generic[T], AbstractProvider[T]):
         self._kwargs = kwargs
         self._instance: T | None = None
 
+    async def tear_down(self) -> None:
+        if self._context_stack:
+            await self._context_stack.aclose()
+        if self._instance:
+            self._instance = None
+
     async def resolve(self) -> T:
         if not self._instance:
             self._instance = typing.cast(
@@ -80,7 +100,7 @@ class AsyncResource(typing.Generic[T], AbstractProvider[T]):
         return self._instance
 
 
-class Factory(typing.Generic[T], AbstractProvider[T]):
+class Factory(AbstractProvider[T]):
     def __init__(self, factory: type[T], *args: typing.Any, **kwargs: typing.Any) -> None:  # noqa: ANN401
         self._factory = factory
         self._args = args

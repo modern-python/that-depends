@@ -22,3 +22,14 @@ async def test_injection(
     assert True
     assert default_zero == 0
     assert fixture_one == 1
+
+
+async def test_wrong_injection() -> None:
+    @inject
+    async def inner(
+        _: container.IndependentFactory = container.DIContainer.independent_factory.lazy,
+    ) -> None:
+        """Do nothing."""
+
+    with pytest.raises(RuntimeError, match="Injected arguments must not be redefined"):
+        await inner(_=container.IndependentFactory(dep1="1", dep2=2))
