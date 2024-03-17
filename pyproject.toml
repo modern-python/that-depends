@@ -4,27 +4,33 @@ version = "0.0.1"
 description = "Modern Dependency Injection framework"
 authors = ["Artur Shiriev <me@shiriev.ru>"]
 readme = "README.md"
-classifiers = ["Programming Language :: Python :: 3.11", "Framework :: Pytest"]
+classifiers = ["Programming Language :: Python :: 3.12", "Framework :: Pytest"]
 homepage = "https://github.com/modern-python/modern-di"
 packages = [
     { include = "modern_di" },
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.8,<=3.12"
+python = ">=3.12"
 
 [tool.poetry.dev-dependencies]
 pytest = "*"
 pytest-asyncio = "*"
 pytest-cov = "*"
+ruff = "*"
+mypy = "*"
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 strict = true
 
 [tool.ruff]
+fix = true
+unsafe-fixes = true
 line-length = 120
-target-version = "py311"
+target-version = "py312"
+
+[tool.ruff.lint]
 select = ["ALL"]
 ignore = [
     "D1", # allow missing docstrings
@@ -34,7 +40,7 @@ ignore = [
     "ANN101", # missing-type-self
 ]
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 lines-after-imports = 2
 no-lines-before = ["standard-library", "local-folder"]
 

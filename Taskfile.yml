@@ -9,6 +9,6 @@ tasks:
   lint:
     desc: "run linters"
     cmds:
-      - poetry run black .
-      - poetry run ruff . --fix
-      - poetry run mypy --python-executable=$(which python) .
+      - poetry run ruff format .
+      - poetry run ruff check . --fix
+      - poetry run mypy .
