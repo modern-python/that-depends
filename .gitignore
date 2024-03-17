@@ -1,0 +1,21 @@
+# Generic things
+*.pyc
+*~
+__pycache__/*
+*.swp
+*.sqlite3
+*.map
+.vscode
+.idea
+.DS_Store
+.env
+.mypy_cache
+.pytest_cache
+.ruff_cache
+.coverage
+htmlcov/
+coverage.xml
+pytest.xml
+dist/
+.python-version
+.venv

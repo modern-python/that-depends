@@ -1,0 +1,14 @@
+version: "3"
+
+tasks:
+  install:
+    desc: "install local dependencies"
+    cmds:
+      - poetry install --sync --no-root --all-extras
+
+  lint:
+    desc: "run linters"
+    cmds:
+      - poetry run black .
+      - poetry run ruff . --fix
+      - poetry run mypy --python-executable=$(which python) .

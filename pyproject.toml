@@ -1,0 +1,47 @@
+[tool.poetry]
+name = "modern-di"
+version = "0.0.1"
+description = "Modern Dependency Injection framework"
+authors = ["Artur Shiriev <me@shiriev.ru>"]
+readme = "README.md"
+classifiers = ["Programming Language :: Python :: 3.11", "Framework :: Pytest"]
+homepage = "https://github.com/modern-python/modern-di"
+packages = [
+    { include = "modern_di" },
+]
+
+[tool.poetry.dependencies]
+python = ">=3.8,<=3.12"
+
+[tool.poetry.dev-dependencies]
+pytest = "*"
+pytest-asyncio = "*"
+pytest-cov = "*"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+select = ["ALL"]
+ignore = [
+    "D1", # allow missing docstrings
+    "S101", # allow asserts
+    "TCH", # ignore flake8-type-checking
+    "FBT", # allow boolean args
+    "ANN101", # missing-type-self
+]
+
+[tool.ruff.isort]
+lines-after-imports = 2
+no-lines-before = ["standard-library", "local-folder"]
+
+[tool.pytest.ini_options]
+addopts = "--cov=. --cov-report term-missing"
+asyncio_mode = "auto"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
