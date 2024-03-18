@@ -1,17 +1,16 @@
 [tool.poetry]
 name = "that-depends"
-version = "0.0.2"
-description = "Opinniated Dependency Injection framework"
+version = "1.0.0"
+description = "Simple Dependency Injection framework"
 authors = ["Artur Shiriev <me@shiriev.ru>"]
 readme = "README.md"
-classifiers = ["Programming Language :: Python :: 3.12", "Framework :: Pytest"]
 homepage = "https://github.com/modern-python/that-depends"
 packages = [
     { include = "that_depends" },
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.12"
+python = ">=3.10,<=4"
 
 [tool.poetry.dev-dependencies]
 fastapi = "*"
