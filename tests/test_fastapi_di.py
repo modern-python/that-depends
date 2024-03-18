@@ -5,6 +5,7 @@ from starlette import status
 from starlette.testclient import TestClient
 
 from tests import container
+from that_depends import Provide
 
 
 app = fastapi.FastAPI()
@@ -14,7 +15,7 @@ app = fastapi.FastAPI()
 async def read_root(
     sync_dependency: typing.Annotated[
         container.AsyncDependentFactory,
-        fastapi.Depends(container.DIContainer.async_dependent_factory),
+        fastapi.Depends(Provide[container.DIContainer.async_dependent_factory]),
     ],
 ) -> str:
     return sync_dependency.async_resource

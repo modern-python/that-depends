@@ -17,10 +17,6 @@ class AbstractProvider(typing.Generic[T], abc.ABC):
     async def __call__(self) -> T:
         return await self.resolve()
 
-    @property
-    def inject(self) -> T:
-        return typing.cast(T, self)
-
     def override(self, mock: object) -> None:
         self._override = mock
 

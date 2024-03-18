@@ -25,3 +25,11 @@ def inject(func: typing.Callable[P, typing.Awaitable[T]]) -> typing.Callable[P, 
         return await func(*args, **kwargs)
 
     return inner
+
+
+class ClassGetItemMeta(type):
+    def __getitem__(cls, provider: AbstractProvider[T]) -> T:
+        return typing.cast(T, provider)
+
+
+class Provide(metaclass=ClassGetItemMeta): ...

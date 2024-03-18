@@ -1,7 +1,7 @@
 import pytest
 
 from tests import container
-from that_depends import inject
+from that_depends import Provide, inject
 
 
 @pytest.fixture(name="fixture_one")
@@ -13,8 +13,8 @@ def create_fixture_one() -> int:
 @inject
 async def test_injection(
     fixture_one: int,
-    independent_factory: container.IndependentFactory = container.DIContainer.independent_factory.inject,
-    async_dependent_factory: container.AsyncDependentFactory = container.DIContainer.async_dependent_factory.inject,
+    independent_factory: container.IndependentFactory = Provide[container.DIContainer.independent_factory],
+    async_dependent_factory: container.AsyncDependentFactory = Provide[container.DIContainer.async_dependent_factory],
     default_zero: int = 0,
 ) -> None:
     assert independent_factory.dep1
@@ -27,7 +27,7 @@ async def test_injection(
 async def test_wrong_injection() -> None:
     @inject
     async def inner(
-        _: container.IndependentFactory = container.DIContainer.independent_factory.inject,
+        _: container.IndependentFactory = Provide[container.DIContainer.independent_factory],
     ) -> None:
         """Do nothing."""
 
