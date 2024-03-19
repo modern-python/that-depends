@@ -137,4 +137,4 @@ from tests.container import DIContainer
 async def main():
     some_dependency = await DIContainer.independent_factory()
 ```
-2. No containers initialization to avoid wiring
+2. No containers initialization to avoid wiring -> only one global instance of container is supported
