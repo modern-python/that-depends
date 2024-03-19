@@ -103,16 +103,6 @@ assert response.json() == "async resource"
 
 ```
 
-# Main decisions:
-1. Every dependency resolving is async, so you should construct with `await` keyword:
-```python
-from tests.container import DIContainer
-
-async def main():
-    some_dependency = await DIContainer.independent_factory()
-```
-2. No containers initialization to avoid wiring
-
 ### Usage with `Litestar`:
 ```python
 from litestar import Litestar, get
@@ -138,3 +128,13 @@ def test_litestar_di() -> None:
         assert response.text == "async resource"
 
 ```
+
+# Main decisions:
+1. Every dependency resolving is async, so you should construct with `await` keyword:
+```python
+from tests.container import DIContainer
+
+async def main():
+    some_dependency = await DIContainer.independent_factory()
+```
+2. No containers initialization to avoid wiring
