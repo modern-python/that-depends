@@ -118,7 +118,10 @@ async def index(injected: str) -> str:
     return injected
 
 
-app = Litestar([index], dependencies={"injected": Provide(container.DIContainer.async_resource)})
+app = Litestar(
+    route_handlers=[index],
+    dependencies={"injected": Provide(container.DIContainer.async_resource)},
+)
 
 
 def test_litestar_di() -> None:
