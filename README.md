@@ -79,7 +79,6 @@ from starlette import status
 from starlette.testclient import TestClient
 
 from tests import container
-from that_depends import Provide
 
 
 app = fastapi.FastAPI()
@@ -89,7 +88,7 @@ app = fastapi.FastAPI()
 async def read_root(
     sync_dependency: typing.Annotated[
         container.AsyncDependentFactory,
-        fastapi.Depends(Provide[container.DIContainer.async_dependent_factory]),
+        fastapi.Depends(container.DIContainer.async_dependent_factory),
     ],
 ) -> str:
     return sync_dependency.async_resource
@@ -114,3 +113,28 @@ async def main():
 ```
 2. No containers initialization to avoid wiring
 
+### Usage with `Litestar`:
+```python
+from litestar import Litestar, get
+from litestar.di import Provide
+from litestar.status_codes import HTTP_200_OK
+from litestar.testing import TestClient
+
+from tests import container
+
+
+@get("/")
+async def index(injected: str) -> str:
+    return injected
+
+
+app = Litestar([index], dependencies={"injected": Provide(container.DIContainer.async_resource)})
+
+
+def test_litestar_di() -> None:
+    with (TestClient(app=app) as client):
+        response = client.get("/")
+        assert response.status_code == HTTP_200_OK, response.text
+        assert response.text == "async resource"
+
+```

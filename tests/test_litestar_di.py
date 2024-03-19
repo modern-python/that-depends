@@ -62,7 +62,7 @@ app = Litestar(route_handlers=[my_router], dependencies={"app_dependency": Provi
 
 
 def test_litestar_di() -> None:
-    with TestClient(app=app, raise_server_exceptions=True) as client:
+    with TestClient(app=app) as client:
         response = client.get("/router/controller/handler")
         assert response.status_code == HTTP_200_OK, response.text
         assert response.json() == {
