@@ -5,6 +5,7 @@ import typing
 
 
 T = typing.TypeVar("T")
+P = typing.ParamSpec("P")
 
 
 class AbstractProvider(typing.Generic[T], abc.ABC):
@@ -109,7 +110,7 @@ class AsyncResource(AbstractResource[T]):
 
 
 class Factory(AbstractProvider[T]):
-    def __init__(self, factory: type[T], *args: typing.Any, **kwargs: typing.Any) -> None:  # noqa: ANN401
+    def __init__(self, factory: type[T] | typing.Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> None:
         self._factory = factory
         self._args = args
         self._kwargs = kwargs

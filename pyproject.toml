@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "that-depends"
-version = "1.0.0"
+version = "1.1.0"
 description = "Simple Dependency Injection framework"
 authors = ["Artur Shiriev <me@shiriev.ru>"]
 readme = "README.md"
@@ -10,10 +10,11 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.10,<=4"
+python = ">=3.10,<4"
 
 [tool.poetry.dev-dependencies]
 fastapi = "*"
+litestar = "*"
 httpx = "*"
 pytest = "*"
 pytest-asyncio = "*"
