@@ -38,6 +38,11 @@ class AsyncDependentFactory:
     async_resource: str
 
 
+@dataclasses.dataclass(kw_only=True, slots=True)
+class SingletonFactory:
+    dep1: bool
+
+
 class DIContainer(BaseContainer):
     sync_resource = providers.Resource[str](create_sync_resource)
     async_resource = providers.AsyncResource[str](create_async_resource)
@@ -54,3 +59,4 @@ class DIContainer(BaseContainer):
         independent_factory=independent_factory,
         async_resource=async_resource,
     )
+    singleton = providers.Singleton(SingletonFactory, dep1=True)
