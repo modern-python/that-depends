@@ -124,3 +124,14 @@ class Factory(AbstractProvider[T]):
             *[await x() if isinstance(x, AbstractProvider) else x for x in self._args],
             **{k: await v() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
         )
+
+
+class List(AbstractProvider[T]):
+    def __init__(self, *providers: AbstractProvider[typing.Any]) -> None:
+        self._providers = providers
+
+    async def resolve(self) -> list[T]:  # type: ignore[override]
+        return [await x.resolve() for x in self._providers]
+
+    async def __call__(self) -> list[T]:  # type: ignore[override]
+        return await self.resolve()
