@@ -71,7 +71,9 @@ class DIContainer(BaseContainer):
 ```
 
 ### Usage with `Fastapi`:
+
 ```python
+import contextlib
 import typing
 
 import fastapi
@@ -81,21 +83,26 @@ from starlette.testclient import TestClient
 from tests import container
 
 
-app = fastapi.FastAPI()
+@contextlib.asynccontextmanager
+async def lifespan_manager(_: fastapi.FastAPI) -> typing.AsyncIterator[None]:
+    yield
+    await container.DIContainer.tear_down()
+
+
+app = fastapi.FastAPI(lifespan=lifespan_manager)
 
 
 @app.get("/")
 async def read_root(
-    sync_dependency: typing.Annotated[
-        container.AsyncDependentFactory,
-        fastapi.Depends(container.DIContainer.async_dependent_factory),
-    ],
+        sync_dependency: typing.Annotated[
+            container.AsyncDependentFactory,
+            fastapi.Depends(container.DIContainer.async_dependent_factory),
+        ],
 ) -> str:
     return sync_dependency.async_resource
 
 
 client = TestClient(app)
-
 
 response = client.get("/")
 assert response.status_code == status.HTTP_200_OK
@@ -105,6 +112,9 @@ assert response.json() == "async resource"
 
 ### Usage with `Litestar`:
 ```python
+import typing
+import fastapi
+import contextlib
 from litestar import Litestar, get
 from litestar.di import Provide
 from litestar.status_codes import HTTP_200_OK
@@ -118,9 +128,16 @@ async def index(injected: str) -> str:
     return injected
 
 
+@contextlib.asynccontextmanager
+async def lifespan_manager(_: fastapi.FastAPI) -> typing.AsyncIterator[None]:
+    yield
+    await container.DIContainer.tear_down()
+
+
 app = Litestar(
     route_handlers=[index],
     dependencies={"injected": Provide(container.DIContainer.async_resource)},
+    lifespan=[lifespan_manager],
 )
 
 
@@ -129,7 +146,6 @@ def test_litestar_di() -> None:
         response = client.get("/")
         assert response.status_code == HTTP_200_OK, response.text
         assert response.text == "async resource"
-
 ```
 
 # Main decisions:
