@@ -9,7 +9,6 @@ def create_fixture_one() -> int:
     return 1
 
 
-@pytest.mark.asyncio()
 @inject
 async def test_injection(
     fixture_one: int,

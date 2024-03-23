@@ -1,10 +1,7 @@
-import pytest
-
 from tests import container
 from that_depends import inject
 
 
-@pytest.mark.asyncio()
 @inject
 async def test_overriding() -> None:
     async_resource_mock = "async overriding"

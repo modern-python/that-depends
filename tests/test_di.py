@@ -4,7 +4,6 @@ from tests.container import DIContainer
 from that_depends import providers
 
 
-@pytest.mark.asyncio()
 async def test_di() -> None:
     independent_factory = await DIContainer.independent_factory()
     sync_dependent_factory = await DIContainer.sync_dependent_factory()
