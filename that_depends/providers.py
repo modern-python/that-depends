@@ -155,3 +155,7 @@ class Singleton(AbstractProvider[T]):
                 **{k: await v() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
             )
         return self._instance
+
+    async def tear_down(self) -> None:
+        if self._instance:
+            self._instance = None

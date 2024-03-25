@@ -1,7 +1,7 @@
 import inspect
 import typing
 
-from that_depends.providers import AbstractProvider, AbstractResource
+from that_depends.providers import AbstractProvider, AbstractResource, Singleton
 
 
 class BaseContainer:
@@ -11,7 +11,7 @@ class BaseContainer:
     @classmethod
     async def tear_down(cls) -> None:
         for _k, v in inspect.getmembers(cls):
-            if isinstance(v, AbstractResource):
+            if isinstance(v, AbstractResource | Singleton):
                 await v.tear_down()
 
     @classmethod
