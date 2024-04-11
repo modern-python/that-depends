@@ -21,6 +21,7 @@ pytest-asyncio = "*"
 pytest-cov = "*"
 ruff = "*"
 mypy = "*"
+typing-extensions = "*"
 
 [tool.mypy]
 python_version = "3.12"
@@ -41,6 +42,10 @@ ignore = [
     "FBT", # allow boolean args
     "ANN101", # missing-type-self
     "ANN102", # missing-type-cls
+    "D203", # "one-blank-line-before-class" conflicting with D211
+    "D213", # "multi-line-summary-second-line" conflicting with D212
+    "COM812", # flake8-commas "Trailing comma missing"
+    "ISC001", # flake8-implicit-str-concat
 ]
 
 [tool.ruff.lint.isort]
@@ -50,6 +55,9 @@ no-lines-before = ["standard-library", "local-folder"]
 [tool.pytest.ini_options]
 addopts = "--cov=. --cov-report term-missing"
 asyncio_mode = "auto"
+
+[tool.coverage.report]
+exclude_also = ["if typing.TYPE_CHECKING:"]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

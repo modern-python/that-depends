@@ -36,7 +36,7 @@ class AbstractResource(AbstractProvider[T], abc.ABC):
 class Resource(AbstractResource[T]):
     def __init__(
         self,
-        creator: typing.Callable[[], typing.Iterator[typing.Any]],
+        creator: typing.Callable[[], typing.Iterator[T]],
         *args: typing.Any,  # noqa: ANN401
         **kwargs: typing.Any,  # noqa: ANN401
     ) -> None:
@@ -74,7 +74,7 @@ class Resource(AbstractResource[T]):
 class AsyncResource(AbstractResource[T]):
     def __init__(
         self,
-        creator: typing.Callable[[], typing.AsyncIterator[typing.Any]],
+        creator: typing.Callable[[], typing.AsyncIterator[T]],
         *args: typing.Any,  # noqa: ANN401
         **kwargs: typing.Any,  # noqa: ANN401
     ) -> None:
@@ -127,7 +127,7 @@ class Factory(AbstractProvider[T]):
 
 
 class List(AbstractProvider[T]):
-    def __init__(self, *providers: AbstractProvider[typing.Any]) -> None:
+    def __init__(self, *providers: AbstractProvider[T]) -> None:
         self._providers = providers
 
     async def resolve(self) -> list[T]:  # type: ignore[override]
