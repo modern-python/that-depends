@@ -12,3 +12,8 @@ tasks:
       - poetry run ruff format .
       - poetry run ruff check . --fix
       - poetry run mypy .
+
+  tests:
+    desc: "run tests"
+    cmds:
+      - poetry run pytest
