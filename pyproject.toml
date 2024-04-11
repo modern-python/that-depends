@@ -21,6 +21,7 @@ pytest-asyncio = "*"
 pytest-cov = "*"
 ruff = "*"
 mypy = "*"
+typing-extensions = "*"
 
 [tool.mypy]
 python_version = "3.12"
@@ -54,6 +55,9 @@ no-lines-before = ["standard-library", "local-folder"]
 [tool.pytest.ini_options]
 addopts = "--cov=. --cov-report term-missing"
 asyncio_mode = "auto"
+
+[tool.coverage.report]
+exclude_also = ["if typing.TYPE_CHECKING:"]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

@@ -4,8 +4,12 @@ import typing
 from that_depends.providers import AbstractProvider, AbstractResource, Singleton
 
 
+if typing.TYPE_CHECKING:
+    import typing_extensions
+
+
 class BaseContainer:
-    def __new__(cls, *_: typing.Any, **__: typing.Any) -> typing.Self:  # noqa: ANN401
+    def __new__(cls, *_: typing.Any, **__: typing.Any) -> "typing_extensions.Self":  # noqa: ANN401
         raise RuntimeError("%s should not be instantiated" % cls.__name__)
 
     @classmethod
