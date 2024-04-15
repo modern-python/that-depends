@@ -36,7 +36,7 @@ class MyController(Controller):
     dependencies = {"controller_dependency": Provide(DIContainer.list_fn)}  # noqa: RUF012
 
     @get(path="/handler", dependencies={"local_dependency": Provide(DIContainer.int_fn)})
-    def my_route_handler(
+    async def my_route_handler(
         self,
         app_dependency: bool,
         router_dependency: str,

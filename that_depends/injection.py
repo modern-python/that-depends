@@ -10,9 +10,10 @@ T = typing.TypeVar("T")
 
 
 def inject(func: typing.Callable[P, typing.Awaitable[T]]) -> typing.Callable[P, typing.Awaitable[T]]:
+    signature = inspect.signature(func)
+
     @functools.wraps(func)
     async def inner(*args: P.args, **kwargs: P.kwargs) -> T:
-        signature = inspect.signature(func)
         for field_name, field_value in signature.parameters.items():
             if not isinstance(field_value.default, AbstractProvider):
                 continue
