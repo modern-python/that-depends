@@ -148,6 +148,108 @@ def test_litestar_di() -> None:
         assert response.text == "async resource"
 ```
 
+# Docs
+## Providers
+### Resource
+- Resource initialized only once and have teardown logic.
+- Generator function is required.
+```python
+import typing
+
+from that_depends import BaseContainer, providers
+
+
+def create_sync_resource() -> typing.Iterator[str]:
+    # resource initialization
+    yield "sync resource"
+    # resource teardown
+
+class DIContainer(BaseContainer):
+    sync_resource = providers.Resource(create_sync_resource)
+```
+
+### AsyncResource
+- Same as but async generator function is required.
+```python
+import typing
+
+from that_depends import BaseContainer, providers
+
+
+async def create_async_resource() -> typing.AsyncIterator[str]:
+    # resource initialization
+    yield "async resource"
+    # resource teardown
+
+
+class DIContainer(BaseContainer):
+    async_resource = providers.AsyncResource(create_async_resource)
+```
+### Singleton
+- Initialized only once, but without teardown logic.
+- Class or simple function is allowed.
+```python
+import dataclasses
+
+from that_depends import BaseContainer, providers
+
+
+@dataclasses.dataclass(kw_only=True, slots=True)
+class SingletonFactory:
+    dep1: bool
+
+
+class DIContainer(BaseContainer):
+    singleton = providers.Singleton(SingletonFactory, dep1=True)
+```
+### Factory
+- Initialized on every call.
+- Class or simple function is allowed.
+```python
+import dataclasses
+
+from that_depends import BaseContainer, providers
+
+
+@dataclasses.dataclass(kw_only=True, slots=True)
+class IndependentFactory:
+    dep1: str
+    dep2: int
+
+
+class DIContainer(BaseContainer):
+    independent_factory = providers.Factory(IndependentFactory, dep1="text", dep2=123)
+```
+### AsyncFactory
+- Initialized on every call, as Factory.
+- Async function is required.
+```python
+import datetime
+
+from that_depends import BaseContainer, providers
+
+
+async def async_factory() -> datetime.datetime:
+    return datetime.datetime.now(tz=datetime.UTC)
+
+
+class DIContainer(BaseContainer):
+    async_factory = providers.Factory(async_factory)
+```
+### List
+- List provider contains other providers.
+- Resolves into list of dependencies.
+
+```python
+import random
+from that_depends import BaseContainer, providers
+
+
+class DIContainer(BaseContainer):
+    random_number = providers.Factory(random.random)
+    numbers_sequence = providers.List(random_number, random_number)
+```
+
 # Main decisions:
 1. Every dependency resolving is async, so you should construct with `await` keyword:
 ```python

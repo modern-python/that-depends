@@ -1,3 +1,5 @@
+import datetime
+
 import pytest
 
 from tests.container import DIContainer
@@ -11,12 +13,14 @@ async def test_di() -> None:
     sequence = await DIContainer.sequence()
     singleton1 = await DIContainer.singleton()
     singleton2 = await DIContainer.singleton()
+    async_factory = await DIContainer.async_factory()
 
     assert sync_dependent_factory.independent_factory is not independent_factory
     assert sync_dependent_factory.sync_resource == "sync resource"
     assert async_dependent_factory.async_resource == "async resource"
     assert sequence == ["sync resource", "async resource"]
     assert singleton1 is singleton2
+    assert isinstance(async_factory, datetime.datetime)
 
 
 def test_wrong_providers_init() -> None:

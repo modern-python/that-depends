@@ -1,4 +1,5 @@
 import dataclasses
+import datetime
 import logging
 import typing
 
@@ -26,6 +27,10 @@ class IndependentFactory:
     dep2: int
 
 
+async def async_factory() -> datetime.datetime:
+    return datetime.datetime.now(tz=datetime.UTC)
+
+
 @dataclasses.dataclass(kw_only=True, slots=True)
 class SyncDependentFactory:
     independent_factory: IndependentFactory
@@ -49,6 +54,7 @@ class DIContainer(BaseContainer):
     sequence = providers.List(sync_resource, async_resource)
 
     independent_factory = providers.Factory(IndependentFactory, dep1="text", dep2=123)
+    async_factory = providers.AsyncFactory(async_factory)
     sync_dependent_factory = providers.Factory(
         SyncDependentFactory,
         independent_factory=independent_factory,
