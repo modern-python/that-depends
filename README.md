@@ -22,7 +22,6 @@ async def main():
 ```python
 from tests import container
 from that_depends import Provide, inject
-```
 
 
 @inject
