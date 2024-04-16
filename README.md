@@ -2,6 +2,36 @@
 ==
 This package is dependency injection framework for Python, mostly inspired by `python-dependency-injector`.
 
+It is production-ready and gives you the following:
+- Fully-async simple DI framework with IOC-container.
+- Python 3.10-3.12 support.
+- Full coverage by types annotations (mypy in strict mode).
+- FastAPI and Litestar compatibility.
+- Zero dependencies.
+- Overriding dependencies for tests.
+
+# Main characteristics:
+1. Fully async -> means every dependency resolving is async, so you should construct with `await` keyword:
+```python
+from tests.container import DIContainer
+
+async def main():
+    some_dependency = await DIContainer.independent_factory()
+```
+2. No wiring for injections in function arguments -> achieved by decision that only one instance of container is supported
+```python
+from tests import container
+from that_depends import Provide, inject
+```
+
+
+@inject
+async def some_function(
+    independent_factory: container.IndependentFactory = Provide[container.DIContainer.independent_factory],
+) -> None:
+    assert independent_factory.dep1
+```
+
 # Quickstart
 ## Install
 
@@ -169,7 +199,7 @@ class DIContainer(BaseContainer):
 ```
 
 ### AsyncResource
-- Same as but async generator function is required.
+- Same as `Resource` but async generator function is required.
 ```python
 import typing
 
@@ -221,7 +251,7 @@ class DIContainer(BaseContainer):
     independent_factory = providers.Factory(IndependentFactory, dep1="text", dep2=123)
 ```
 ### AsyncFactory
-- Initialized on every call, as Factory.
+- Initialized on every call, as `Factory`.
 - Async function is required.
 ```python
 import datetime
@@ -249,13 +279,3 @@ class DIContainer(BaseContainer):
     random_number = providers.Factory(random.random)
     numbers_sequence = providers.List(random_number, random_number)
 ```
-
-# Main decisions:
-1. Every dependency resolving is async, so you should construct with `await` keyword:
-```python
-from tests.container import DIContainer
-
-async def main():
-    some_dependency = await DIContainer.independent_factory()
-```
-2. No containers initialization to avoid wiring -> only one global instance of container is supported
