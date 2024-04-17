@@ -30,14 +30,14 @@ class Resource(AbstractResource[T]):
     async def tear_down(self) -> None:
         if self._context_stack:
             self._context_stack.close()
-        if self._instance:
+        if self._instance is not None:
             self._instance = None
 
     async def resolve(self) -> T:
         if self._override:
             return typing.cast(T, self._override)
 
-        if not self._instance:
+        if self._instance is None:
             self._instance = typing.cast(
                 T,
                 self._context_stack.enter_context(
@@ -68,14 +68,14 @@ class AsyncResource(AbstractResource[T]):
     async def tear_down(self) -> None:
         if self._context_stack:
             await self._context_stack.aclose()
-        if self._instance:
+        if self._instance is not None:
             self._instance = None
 
     async def resolve(self) -> T:
         if self._override:
             return typing.cast(T, self._override)
 
-        if not self._instance:
+        if self._instance is None:
             self._instance = typing.cast(
                 T,
                 await self._context_stack.enter_async_context(
