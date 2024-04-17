@@ -16,10 +16,10 @@ class Singleton(AbstractProvider[T]):
         self._instance: T | None = None
 
     async def resolve(self) -> T:
-        if self._override:
+        if self._override is not None:
             return typing.cast(T, self._override)
 
-        if not self._instance:
+        if self._instance is None:
             self._instance = self._factory(
                 *[await x() if isinstance(x, AbstractProvider) else x for x in self._args],
                 **{k: await v() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
@@ -27,5 +27,5 @@ class Singleton(AbstractProvider[T]):
         return self._instance
 
     async def tear_down(self) -> None:
-        if self._instance:
+        if self._instance is not None:
             self._instance = None

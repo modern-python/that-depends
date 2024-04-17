@@ -16,4 +16,4 @@ tasks:
   tests:
     desc: "run pytest (pass args after '--')"
     cmds:
-      - poetry run pytest {{.CLI_ARGS}}"
+      - poetry run pytest {{.CLI_ARGS}}
