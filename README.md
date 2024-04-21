@@ -1,5 +1,10 @@
 "That Depends"
 ==
+[![GitHub issues](https://img.shields.io/github/issues/modern-python/that-depends)](https://github.com/modern-python/that-depends/issues)
+[![GitHub forks](https://img.shields.io/github/forks/modern-python/that-depends)](https://github.com/modern-python/that-depends/network)
+[![GitHub stars](https://img.shields.io/github/stars/modern-python/that-depends)](https://github.com/modern-python/that-depends/stargazers)
+[![GitHub license](https://img.shields.io/github/license/modern-python/that-depends)](https://github.com/modern-python/that-depends/blob/main/LICENSE)
+
 This package is dependency injection framework for Python, mostly inspired by `python-dependency-injector`.
 
 It is production-ready and gives you the following:
