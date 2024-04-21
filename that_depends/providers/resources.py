@@ -2,7 +2,7 @@ import contextlib
 import inspect
 import typing
 
-from that_depends.providers.base import AbstractResource
+from that_depends.providers.base import AbstractProvider, AbstractResource
 
 
 T = typing.TypeVar("T")
@@ -41,7 +41,10 @@ class Resource(AbstractResource[T]):
             self._instance = typing.cast(
                 T,
                 self._context_stack.enter_context(
-                    contextlib.contextmanager(self._creator)(*self._args, **self._kwargs),
+                    contextlib.contextmanager(self._creator)(
+                        *[await x() if isinstance(x, AbstractProvider) else x for x in self._args],
+                        **{k: await v() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
+                    ),
                 ),
             )
         return self._instance
@@ -79,7 +82,10 @@ class AsyncResource(AbstractResource[T]):
             self._instance = typing.cast(
                 T,
                 await self._context_stack.enter_async_context(
-                    contextlib.asynccontextmanager(self._creator)(*self._args, **self._kwargs),
+                    contextlib.asynccontextmanager(self._creator)(
+                        *[await x() if isinstance(x, AbstractProvider) else x for x in self._args],
+                        **{k: await v() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
+                    ),
                 ),
             )
         return self._instance
