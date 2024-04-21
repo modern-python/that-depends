@@ -27,7 +27,7 @@ async def container_context() -> typing.AsyncIterator[None]:
 class ContextResource(AbstractProvider[T]):
     def __init__(
         self,
-        creator: typing.Callable[[], typing.Iterator[T]],
+        creator: typing.Callable[..., typing.Iterator[T]],
         *args: typing.Any,  # noqa: ANN401
         **kwargs: typing.Any,  # noqa: ANN401
     ) -> None:
@@ -61,7 +61,7 @@ class ContextResource(AbstractProvider[T]):
 class AsyncContextResource(AbstractProvider[T]):
     def __init__(
         self,
-        creator: typing.Callable[[], typing.AsyncIterator[T]],
+        creator: typing.Callable[..., typing.AsyncIterator[T]],
         *args: typing.Any,  # noqa: ANN401
         **kwargs: typing.Any,  # noqa: ANN401
     ) -> None:
