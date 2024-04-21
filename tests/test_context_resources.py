@@ -76,7 +76,7 @@ async def test_context_resources_overriding(context_resource: providers.Abstract
 
 def test_context_resources_wrong_providers_init() -> None:
     with pytest.raises(RuntimeError, match="ContextResource must be generator function"):
-        providers.ContextResource[str](lambda: None)  # type: ignore[arg-type,return-value]
+        providers.ContextResource(lambda: None)  # type: ignore[arg-type,return-value]
 
     with pytest.raises(RuntimeError, match="AsyncContextResource must be async generator function"):
-        providers.AsyncContextResource[str](lambda: None)  # type: ignore[arg-type,return-value]
+        providers.AsyncContextResource(lambda: None)  # type: ignore[arg-type,return-value]

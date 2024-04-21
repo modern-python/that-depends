@@ -13,8 +13,8 @@ class Resource(AbstractResource[T]):
     def __init__(
         self,
         creator: typing.Callable[..., typing.Iterator[T]],
-        *args: typing.Any,  # noqa: ANN401
-        **kwargs: typing.Any,  # noqa: ANN401
+        *args: P.args,
+        **kwargs: P.kwargs,
     ) -> None:
         if not inspect.isgeneratorfunction(creator):
             msg = "Resource must be generator function"
@@ -50,9 +50,9 @@ class Resource(AbstractResource[T]):
 class AsyncResource(AbstractResource[T]):
     def __init__(
         self,
-        creator: typing.Callable[..., typing.AsyncIterator[T]],
-        *args: typing.Any,  # noqa: ANN401
-        **kwargs: typing.Any,  # noqa: ANN401
+        creator: typing.Callable[P, typing.AsyncIterator[T]],
+        *args: P.args,
+        **kwargs: P.kwargs,
     ) -> None:
         if not inspect.isasyncgenfunction(creator):
             msg = "AsyncResource must be async generator function"

@@ -56,10 +56,10 @@ async def test_main_providers_overriding() -> None:
 
 def test_wrong_providers_init() -> None:
     with pytest.raises(RuntimeError, match="Resource must be generator function"):
-        providers.Resource[str](lambda: None)  # type: ignore[arg-type,return-value]
+        providers.Resource(lambda: None)  # type: ignore[arg-type,return-value]
 
     with pytest.raises(RuntimeError, match="AsyncResource must be async generator function"):
-        providers.AsyncResource[str](lambda: None)  # type: ignore[arg-type,return-value]
+        providers.AsyncResource(lambda: None)  # type: ignore[arg-type,return-value]
 
 
 def test_container_init_error() -> None:
