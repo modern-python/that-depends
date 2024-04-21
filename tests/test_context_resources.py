@@ -50,15 +50,27 @@ async def test_context_resource(context_resource: providers.AbstractResource[dat
 async def test_context_resource_different_context(
     context_resource: providers.AbstractResource[datetime.datetime],
 ) -> None:
-    @container_context()
-    async def _first_context() -> datetime.datetime:
-        return await context_resource()
+    async with container_context():
+        context_resource_instance1 = await context_resource()
 
-    @container_context()
-    async def _second_context() -> datetime.datetime:
-        return await context_resource()
+    async with container_context():
+        context_resource_instance2 = await context_resource()
 
-    assert await _first_context() is not await _second_context()
+    assert context_resource_instance1 is not context_resource_instance2
+
+
+async def test_context_resource_included_context(
+    context_resource: providers.AbstractResource[datetime.datetime],
+) -> None:
+    async with container_context():
+        context_resource_instance1 = await context_resource()
+        async with container_context():
+            context_resource_instance2 = await context_resource()
+
+        context_resource_instance3 = await context_resource()
+
+    assert context_resource_instance1 is not context_resource_instance2
+    assert context_resource_instance1 is context_resource_instance3
 
 
 @inject
