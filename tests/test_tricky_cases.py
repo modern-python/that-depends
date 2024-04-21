@@ -7,13 +7,13 @@ from that_depends import BaseContainer, providers
 logger = logging.getLogger(__name__)
 
 
-def create_sync_resource() -> typing.Iterator[list]:
+def create_sync_resource() -> typing.Iterator[list[typing.Any]]:
     logger.debug("Resource initiated")
     yield []
     logger.debug("Resource destructed")
 
 
-async def create_async_resource() -> typing.AsyncIterator[dict]:
+async def create_async_resource() -> typing.AsyncIterator[dict[str, typing.Any]]:
     logger.debug("Async resource initiated")
     yield {}
     logger.debug("Async resource destructed")
