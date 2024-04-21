@@ -87,8 +87,8 @@ class AsyncDependentFactory:
 
 
 class DIContainer(BaseContainer):
-    sync_resource = providers.Resource[str](create_sync_resource)
-    async_resource = providers.AsyncResource[str](create_async_resource)
+    sync_resource = providers.Resource(create_sync_resource)
+    async_resource = providers.AsyncResource(create_async_resource)
 
     independent_factory = providers.Factory(IndependentFactory, dep1="text", dep2=123)
     sync_dependent_factory = providers.Factory(
