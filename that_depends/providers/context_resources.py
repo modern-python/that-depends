@@ -13,6 +13,13 @@ T = typing.TypeVar("T")
 P = typing.ParamSpec("P")
 context: ContextVar[dict[str, AbstractResource[typing.Any]]] = ContextVar("context")
 
+AppType = typing.TypeVar("AppType")
+Scope = typing.MutableMapping[str, typing.Any]
+Message = typing.MutableMapping[str, typing.Any]
+Receive = typing.Callable[[], typing.Awaitable[Message]]
+Send = typing.Callable[[Message], typing.Awaitable[None]]
+ASGIApp = typing.Callable[[Scope, Receive, Send], typing.Awaitable[None]]
+
 
 @contextlib.asynccontextmanager
 async def container_context() -> typing.AsyncIterator[None]:
@@ -22,6 +29,15 @@ async def container_context() -> typing.AsyncIterator[None]:
     finally:
         await asyncio.gather(*[provider.tear_down() for _, provider in context.get().items()], return_exceptions=True)
         context.reset(token)
+
+
+class DIContextMiddleware:
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    @container_context()
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        return await self.app(scope, receive, send)
 
 
 class ContextResource(AbstractProvider[T]):

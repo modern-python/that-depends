@@ -5,9 +5,11 @@ from starlette import status
 from starlette.testclient import TestClient
 
 from tests import container
+from that_depends.providers import DIContextMiddleware
 
 
 app = fastapi.FastAPI()
+app.add_middleware(DIContextMiddleware)
 
 
 @app.get("/")
