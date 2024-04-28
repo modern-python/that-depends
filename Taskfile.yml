@@ -24,3 +24,18 @@ tasks:
     desc: "run pytest (pass args after '--')"
     cmds:
       - poetry run pytest {{.CLI_ARGS}}
+
+  release:
+    desc: "bump version, create tag and release, publish to PYPI"
+    cmds:
+      - rm -rf ./dist
+      - poetry version {{.CLI_ARGS}}
+      - git add pyproject.toml
+      - git commit -m "bump version to {{.CLI_ARGS}}"
+      - poetry build
+      - twine upload dist/*
+      - git tag {{.CLI_ARGS}}
+      - git push
+      - git push --tags
+      - gh release create --generate-notes {{.CLI_ARGS}}
+      - gh release upload {{.CLI_ARGS}} ./dist/*
