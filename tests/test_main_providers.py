@@ -28,7 +28,7 @@ async def test_main_providers() -> None:
 async def test_main_providers_overriding() -> None:
     async_resource_mock = "async overriding"
     sync_resource_mock = "sync overriding"
-    async_factory_mock = datetime.datetime.now(tz=datetime.UTC)
+    async_factory_mock = datetime.datetime.now(tz=datetime.timezone.utc)
     independent_factory_mock = container.IndependentFactory(dep1="override", dep2=999)
     singleton_mock = container.SingletonFactory(dep1=False)
     container.DIContainer.async_resource.override(async_resource_mock)

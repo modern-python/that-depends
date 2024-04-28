@@ -264,7 +264,7 @@ from that_depends import BaseContainer, providers
 
 
 async def async_factory() -> datetime.datetime:
-    return datetime.datetime.now(tz=datetime.UTC)
+    return datetime.datetime.now(tz=datetime.timezone.utc)
 
 
 class DIContainer(BaseContainer):
