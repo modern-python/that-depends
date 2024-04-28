@@ -22,7 +22,7 @@ jobs:
       - uses: arduino/setup-task@v1
         with:
           repo-token: ${{ github.token }}
-      - run: python -m poetry install
+      - run: pip install poetry
       - run: task lint-ci
 
   pytest:
@@ -42,5 +42,5 @@ jobs:
       - uses: arduino/setup-task@v1
         with:
           repo-token: ${{ github.token }}
-      - run: python -m poetry install
+      - run: pip install poetry
       - run: task tests
