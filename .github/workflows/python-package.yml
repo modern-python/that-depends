@@ -23,6 +23,7 @@ jobs:
         with:
           repo-token: ${{ github.token }}
       - run: pip install poetry
+      - run: task install
       - run: task lint-ci
 
   pytest:
@@ -43,4 +44,5 @@ jobs:
         with:
           repo-token: ${{ github.token }}
       - run: pip install poetry
+      - run: task install
       - run: task tests
