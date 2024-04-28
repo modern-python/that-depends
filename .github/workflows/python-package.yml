@@ -46,3 +46,26 @@ jobs:
       - run: pip install poetry
       - run: task install
       - run: task tests
+
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.12
+      - run: pip install poetry python-semantic-release
+      - name: Semantic Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          semantic-release publish
+      - name: Build and publish to PyPI
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+        run: |
+          poetry build
+          twine upload dist/*
