@@ -13,13 +13,13 @@ logger = logging.getLogger(__name__)
 
 def create_sync_context_resource() -> typing.Iterator[datetime.datetime]:
     logger.debug("Resource initiated")
-    yield datetime.datetime.now(tz=datetime.UTC)
+    yield datetime.datetime.now(tz=datetime.timezone.utc)
     logger.debug("Resource destructed")
 
 
 async def create_async_context_resource() -> typing.AsyncIterator[datetime.datetime]:
     logger.debug("Async resource initiated")
-    yield datetime.datetime.now(tz=datetime.UTC)
+    yield datetime.datetime.now(tz=datetime.timezone.utc)
     logger.debug("Async resource destructed")
 
 
@@ -75,7 +75,7 @@ async def test_context_resource_included_context(
 
 @inject
 async def test_context_resources_overriding(context_resource: providers.AbstractResource[datetime.datetime]) -> None:
-    context_resource_mock = datetime.datetime.now(tz=datetime.UTC)
+    context_resource_mock = datetime.datetime.now(tz=datetime.timezone.utc)
     context_resource.override(context_resource_mock)
 
     context_resource_result = await context_resource()

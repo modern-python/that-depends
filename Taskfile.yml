@@ -13,6 +13,13 @@ tasks:
       - poetry run ruff check . --fix
       - poetry run mypy .
 
+  lint-ci:
+    desc: "run linters"
+    cmds:
+      - poetry run ruff format . --check
+      - poetry run ruff check . --no-fix
+      - poetry run mypy .
+
   tests:
     desc: "run pytest (pass args after '--')"
     cmds:

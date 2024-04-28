@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
 import inspect
+import logging
 import typing
 import uuid
 from contextvars import ContextVar
@@ -12,6 +13,7 @@ from that_depends.providers.resources import AsyncResource, Resource
 T = typing.TypeVar("T")
 P = typing.ParamSpec("P")
 context: ContextVar[dict[str, AbstractResource[typing.Any]]] = ContextVar("context")
+logger = logging.getLogger(__name__)
 
 AppType = typing.TypeVar("AppType")
 Scope = typing.MutableMapping[str, typing.Any]
@@ -27,7 +29,12 @@ async def container_context() -> typing.AsyncIterator[None]:
     try:
         yield
     finally:
-        await asyncio.gather(*[provider.tear_down() for _, provider in context.get().items()], return_exceptions=True)
+        results = await asyncio.gather(
+            *[provider.tear_down() for _, provider in context.get().items()], return_exceptions=True
+        )
+        for exception in results:
+            if isinstance(exception, Exception):  # pragma: no cover
+                logger.error("Error in resource tear down", exc_info=exception)
         context.reset(token)
 
 
