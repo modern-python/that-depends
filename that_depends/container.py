@@ -10,7 +10,8 @@ if typing.TYPE_CHECKING:
 
 class BaseContainer:
     def __new__(cls, *_: typing.Any, **__: typing.Any) -> "typing_extensions.Self":  # noqa: ANN401
-        raise RuntimeError("%s should not be instantiated" % cls.__name__)
+        msg = f"{cls.__name__} should not be instantiated"
+        raise RuntimeError(msg)
 
     @classmethod
     async def tear_down(cls) -> None:
