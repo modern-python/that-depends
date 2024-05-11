@@ -35,4 +35,7 @@ client = TestClient(app)
 async def test_read_main() -> None:
     response = client.get("/")
     assert response.status_code == status.HTTP_200_OK
-    assert datetime.datetime.fromisoformat(response.json()) == await container.DIContainer.async_resource()
+    assert (
+        datetime.datetime.fromisoformat(response.json().replace("Z", "+00:00"))
+        == await container.DIContainer.async_resource()
+    )
