@@ -1,3 +1,4 @@
+import datetime
 import typing
 
 import fastapi
@@ -14,18 +15,24 @@ app.add_middleware(DIContextMiddleware)
 
 @app.get("/")
 async def read_root(
-    sync_dependency: typing.Annotated[
-        container.AsyncDependentFactory,
-        fastapi.Depends(container.DIContainer.async_dependent_factory),
+    dependency: typing.Annotated[
+        container.DependentFactory,
+        fastapi.Depends(container.DIContainer.dependent_factory),
     ],
-) -> str:
-    return sync_dependency.async_resource
+    free_dependency: typing.Annotated[
+        container.FreeFactory,
+        fastapi.Depends(container.DIContainer.resolver(container.FreeFactory)),
+    ],
+) -> datetime.datetime:
+    assert dependency.sync_resource == free_dependency.dependent_factory.sync_resource
+    assert dependency.async_resource == free_dependency.dependent_factory.async_resource
+    return dependency.async_resource
 
 
 client = TestClient(app)
 
 
-def test_read_main() -> None:
+async def test_read_main() -> None:
     response = client.get("/")
     assert response.status_code == status.HTTP_200_OK
-    assert response.json() == "async resource"
+    assert datetime.datetime.fromisoformat(response.json()) == await container.DIContainer.async_resource()

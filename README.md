@@ -24,6 +24,7 @@ async def main():
     some_dependency = await DIContainer.independent_factory()
 ```
 2. No wiring for injections in function arguments -> achieved by decision that only one instance of container is supported
+
 ```python
 from tests import container
 from that_depends import Provide, inject
@@ -31,7 +32,7 @@ from that_depends import Provide, inject
 
 @inject
 async def some_function(
-    independent_factory: container.IndependentFactory = Provide[container.DIContainer.independent_factory],
+        independent_factory: container.SimpleFactory = Provide[container.DIContainer.independent_factory],
 ) -> None:
     assert independent_factory.dep1
 ```
