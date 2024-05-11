@@ -7,51 +7,61 @@ from tests.container import DIContainer
 from that_depends import inject, providers
 
 
-async def test_main_providers() -> None:
-    independent_factory = await DIContainer.independent_factory()
-    sync_dependent_factory = await DIContainer.sync_dependent_factory()
-    async_dependent_factory = await DIContainer.async_dependent_factory()
-    sequence = await DIContainer.sequence()
-    singleton1 = await DIContainer.singleton()
-    singleton2 = await DIContainer.singleton()
+async def test_factory_providers() -> None:
+    simple_factory = await DIContainer.simple_factory()
+    dependent_factory = await DIContainer.dependent_factory()
     async_factory = await DIContainer.async_factory()
+    sync_resource = await DIContainer.sync_resource()
+    async_resource = await DIContainer.async_resource()
 
-    assert sync_dependent_factory.independent_factory is not independent_factory
-    assert sync_dependent_factory.sync_resource == "sync resource"
-    assert async_dependent_factory.async_resource == "async resource"
-    assert sequence == ["sync resource", "async resource"]
-    assert singleton1 is singleton2
+    assert dependent_factory.simple_factory is not simple_factory
+    assert dependent_factory.sync_resource == sync_resource
+    assert dependent_factory.async_resource == async_resource
     assert isinstance(async_factory, datetime.datetime)
 
 
+async def test_list_provider() -> None:
+    sequence = await DIContainer.sequence()
+    sync_resource = await DIContainer.sync_resource()
+    async_resource = await DIContainer.async_resource()
+
+    assert sequence == [sync_resource, async_resource]
+
+
+async def test_singleton_provider() -> None:
+    singleton1 = await DIContainer.singleton()
+    singleton2 = await DIContainer.singleton()
+
+    assert singleton1 is singleton2
+
+
 @inject
-async def test_main_providers_overriding() -> None:
-    async_resource_mock = "async overriding"
-    sync_resource_mock = "sync overriding"
-    async_factory_mock = datetime.datetime.now(tz=datetime.timezone.utc)
-    independent_factory_mock = container.IndependentFactory(dep1="override", dep2=999)
+async def test_providers_overriding() -> None:
+    async_resource_mock = datetime.datetime.fromisoformat("2023-01-01")
+    sync_resource_mock = datetime.datetime.fromisoformat("2024-01-01")
+    async_factory_mock = datetime.datetime.fromisoformat("2025-01-01")
+    simple_factory_mock = container.SimpleFactory(dep1="override", dep2=999)
     singleton_mock = container.SingletonFactory(dep1=False)
     container.DIContainer.async_resource.override(async_resource_mock)
     container.DIContainer.sync_resource.override(sync_resource_mock)
-    container.DIContainer.independent_factory.override(independent_factory_mock)
+    container.DIContainer.simple_factory.override(simple_factory_mock)
     container.DIContainer.singleton.override(singleton_mock)
     container.DIContainer.async_factory.override(async_factory_mock)
 
-    await container.DIContainer.independent_factory()
-    sync_dependent_factory = await container.DIContainer.sync_dependent_factory()
-    async_dependent_factory = await container.DIContainer.async_dependent_factory()
+    await container.DIContainer.simple_factory()
+    dependent_factory = await container.DIContainer.dependent_factory()
     singleton = await container.DIContainer.singleton()
     async_factory = await container.DIContainer.async_factory()
 
-    assert sync_dependent_factory.independent_factory.dep1 == independent_factory_mock.dep1
-    assert sync_dependent_factory.independent_factory.dep2 == independent_factory_mock.dep2
-    assert sync_dependent_factory.sync_resource == sync_resource_mock
-    assert async_dependent_factory.async_resource == async_resource_mock
+    assert dependent_factory.simple_factory.dep1 == simple_factory_mock.dep1
+    assert dependent_factory.simple_factory.dep2 == simple_factory_mock.dep2
+    assert dependent_factory.sync_resource == sync_resource_mock
+    assert dependent_factory.async_resource == async_resource_mock
     assert singleton is singleton_mock
     assert async_factory is async_factory_mock
 
     container.DIContainer.reset_override()
-    assert (await container.DIContainer.async_resource()) == "async resource"
+    assert (await container.DIContainer.async_resource()) != async_resource_mock
 
 
 def test_wrong_providers_init() -> None:
@@ -65,3 +75,11 @@ def test_wrong_providers_init() -> None:
 def test_container_init_error() -> None:
     with pytest.raises(RuntimeError, match="DIContainer should not be instantiated"):
         DIContainer()
+
+
+async def test_free_dependency() -> None:
+    resolver = DIContainer.resolver(container.FreeFactory)
+    dep1 = await resolver()
+    dep2 = await DIContainer.resolve(container.FreeFactory)
+    assert dep1
+    assert dep2
