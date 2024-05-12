@@ -4,6 +4,14 @@
 ```{eval-rst}
 .. toctree::
     :maxdepth: 1
+    :caption: Examples
+
+    examples/ioc_container
+    examples/fastapi
+    examples/litestar
+
+.. toctree::
+    :maxdepth: 1
     :caption: Providers
 
     providers/resource

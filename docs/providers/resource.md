@@ -1,4 +1,4 @@
-### Resource
+# Resource
 - Resource initialized only once and have teardown logic.
 - Generator function is required.
 ```python

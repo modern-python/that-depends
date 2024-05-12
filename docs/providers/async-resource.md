@@ -1,4 +1,4 @@
-### AsyncResource
+# AsyncResource
 - Same as `Resource` but async generator function is required.
 ```python
 import typing

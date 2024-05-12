@@ -1,4 +1,4 @@
-### AsyncFactory
+# AsyncFactory
 - Initialized on every call, as `Factory`.
 - Async function is required.
 ```python

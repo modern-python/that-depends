@@ -1,4 +1,4 @@
-### Singleton
+# Singleton
 - Initialized only once, but without teardown logic.
 - Class or simple function is allowed.
 ```python

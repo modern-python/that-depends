@@ -1,4 +1,4 @@
-### Factory
+# Factory
 - Initialized on every call.
 - Class or simple function is allowed.
 ```python
