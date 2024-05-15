@@ -33,7 +33,7 @@ class Resource(AbstractResource[T]):
         if self._instance is not None:
             self._instance = None
 
-    async def resolve(self) -> T:
+    async def async_resolve(self) -> T:
         if self._override:
             return typing.cast(T, self._override)
 
@@ -42,8 +42,30 @@ class Resource(AbstractResource[T]):
                 T,
                 self._context_stack.enter_context(
                     contextlib.contextmanager(self._creator)(
-                        *[await x() if isinstance(x, AbstractProvider) else x for x in self._args],
-                        **{k: await v() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
+                        *[await x.async_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
+                        **{
+                            k: await v.async_resolve() if isinstance(v, AbstractProvider) else v
+                            for k, v in self._kwargs.items()
+                        },
+                    ),
+                ),
+            )
+        return self._instance
+
+    def sync_resolve(self) -> T:
+        if self._override:
+            return typing.cast(T, self._override)
+
+        if self._instance is None:
+            self._instance = typing.cast(
+                T,
+                self._context_stack.enter_context(
+                    contextlib.contextmanager(self._creator)(
+                        *[x.sync_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
+                        **{
+                            k: v.sync_resolve() if isinstance(v, AbstractProvider) else v
+                            for k, v in self._kwargs.items()
+                        },
                     ),
                 ),
             )
@@ -74,7 +96,7 @@ class AsyncResource(AbstractResource[T]):
         if self._instance is not None:
             self._instance = None
 
-    async def resolve(self) -> T:
+    async def async_resolve(self) -> T:
         if self._override:
             return typing.cast(T, self._override)
 
@@ -88,4 +110,14 @@ class AsyncResource(AbstractResource[T]):
                     ),
                 ),
             )
+        return self._instance
+
+    def sync_resolve(self) -> T:
+        if self._override:
+            return typing.cast(T, self._override)
+
+        if self._instance is None:
+            msg = "AsyncResource cannot be resolved synchronously"
+            raise RuntimeError(msg)
+
         return self._instance

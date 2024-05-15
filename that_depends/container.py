@@ -57,6 +57,6 @@ class BaseContainer:
                 msg = f"Provider is not found, {field_name=}"
                 raise RuntimeError(msg)
 
-            kwargs[field_name] = await providers[field_name].resolve()
+            kwargs[field_name] = await providers[field_name].async_resolve()
 
         return object_to_resolve(**kwargs)

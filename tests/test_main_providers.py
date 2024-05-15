@@ -4,7 +4,7 @@ import pytest
 
 from tests import container
 from tests.container import DIContainer
-from that_depends import inject, providers
+from that_depends import providers
 
 
 async def test_factory_providers() -> None:
@@ -15,9 +15,27 @@ async def test_factory_providers() -> None:
     async_resource = await DIContainer.async_resource()
 
     assert dependent_factory.simple_factory is not simple_factory
+    assert DIContainer.simple_factory.sync_resolve() is not simple_factory
     assert dependent_factory.sync_resource == sync_resource
     assert dependent_factory.async_resource == async_resource
     assert isinstance(async_factory, datetime.datetime)
+
+
+async def test_async_resource_provider() -> None:
+    async_resource = await DIContainer.async_resource()
+
+    assert DIContainer.async_resource.sync_resolve() is async_resource
+
+
+def test_failed_sync_resolve() -> None:
+    with pytest.raises(RuntimeError, match="AsyncFactory cannot be resolved synchronously"):
+        DIContainer.async_factory.sync_resolve()
+
+    with pytest.raises(RuntimeError, match="AsyncResource cannot be resolved synchronously"):
+        DIContainer.async_resource.sync_resolve()
+
+    with pytest.raises(RuntimeError, match="AsyncResource cannot be resolved synchronously"):
+        DIContainer.sequence.sync_resolve()
 
 
 async def test_list_provider() -> None:
@@ -31,11 +49,14 @@ async def test_list_provider() -> None:
 async def test_singleton_provider() -> None:
     singleton1 = await DIContainer.singleton()
     singleton2 = await DIContainer.singleton()
+    singleton3 = DIContainer.singleton.sync_resolve()
+    await DIContainer.singleton.tear_down()
+    singleton4 = DIContainer.singleton.sync_resolve()
 
-    assert singleton1 is singleton2
+    assert singleton1 is singleton2 is singleton3
+    assert singleton4 is not singleton1
 
 
-@inject
 async def test_providers_overriding() -> None:
     async_resource_mock = datetime.datetime.fromisoformat("2023-01-01")
     sync_resource_mock = datetime.datetime.fromisoformat("2024-01-01")
@@ -62,6 +83,31 @@ async def test_providers_overriding() -> None:
 
     container.DIContainer.reset_override()
     assert (await container.DIContainer.async_resource()) != async_resource_mock
+
+
+async def test_providers_overriding_sync_resolve() -> None:
+    async_resource_mock = datetime.datetime.fromisoformat("2023-01-01")
+    sync_resource_mock = datetime.datetime.fromisoformat("2024-01-01")
+    simple_factory_mock = container.SimpleFactory(dep1="override", dep2=999)
+    singleton_mock = container.SingletonFactory(dep1=False)
+    container.DIContainer.async_resource.override(async_resource_mock)
+    container.DIContainer.sync_resource.override(sync_resource_mock)
+    container.DIContainer.simple_factory.override(simple_factory_mock)
+    container.DIContainer.singleton.override(singleton_mock)
+
+    container.DIContainer.simple_factory.sync_resolve()
+    await container.DIContainer.async_resource.async_resolve()
+    dependent_factory = container.DIContainer.dependent_factory.sync_resolve()
+    singleton = container.DIContainer.singleton.sync_resolve()
+
+    assert dependent_factory.simple_factory.dep1 == simple_factory_mock.dep1
+    assert dependent_factory.simple_factory.dep2 == simple_factory_mock.dep2
+    assert dependent_factory.sync_resource == sync_resource_mock
+    assert dependent_factory.async_resource == async_resource_mock
+    assert singleton is singleton_mock
+
+    container.DIContainer.reset_override()
+    assert container.DIContainer.sync_resource.sync_resolve() != sync_resource_mock
 
 
 def test_wrong_providers_init() -> None:

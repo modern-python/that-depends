@@ -47,6 +47,14 @@ class DIContextMiddleware:
         return await self.app(scope, receive, send)
 
 
+def _get_context() -> dict[str, AbstractResource[typing.Any]]:
+    try:
+        return context.get()
+    except LookupError as exc:
+        msg = "Context is not set. Use container_context"
+        raise RuntimeError(msg) from exc
+
+
 class ContextResource(AbstractProvider[T]):
     def __init__(
         self,
@@ -64,21 +72,25 @@ class ContextResource(AbstractProvider[T]):
         self._override = None
         self._internal_name = f"{type(self).__name__}-{uuid.uuid4()}"
 
-    async def resolve(self) -> T:
+    def _get_or_create_resource(self) -> AbstractResource[T]:
+        context_obj = _get_context()
+        if not (resource := context_obj.get(self._internal_name)):
+            resource = Resource(self._creator, *self._args, **self._kwargs)
+            context_obj[self._internal_name] = resource
+
+        return resource
+
+    async def async_resolve(self) -> T:
         if self._override:
             return typing.cast(T, self._override)
 
-        try:
-            context_obj = context.get()
-        except LookupError as exc:
-            msg = "Context is not set. Use container_context"
-            raise RuntimeError(msg) from exc
+        return await self._get_or_create_resource().async_resolve()
 
-        if not (_resource := context_obj.get(self._internal_name)):
-            _resource = Resource(self._creator, *self._args, **self._kwargs)
-            context_obj[self._internal_name] = _resource
+    def sync_resolve(self) -> T:
+        if self._override:
+            return typing.cast(T, self._override)
 
-        return typing.cast(T, await _resource.resolve())
+        return self._get_or_create_resource().sync_resolve()
 
 
 class AsyncContextResource(AbstractProvider[T]):
@@ -98,18 +110,22 @@ class AsyncContextResource(AbstractProvider[T]):
         self._override = None
         self._internal_name = f"{type(self).__name__}-{uuid.uuid4()}"
 
-    async def resolve(self) -> T:
+    def _get_or_create_resource(self) -> AbstractResource[T]:
+        context_obj = _get_context()
+        if not (resource := context_obj.get(self._internal_name)):
+            resource = AsyncResource(self._creator, *self._args, **self._kwargs)
+            context_obj[self._internal_name] = resource
+
+        return resource
+
+    async def async_resolve(self) -> T:
         if self._override:
             return typing.cast(T, self._override)
 
-        try:
-            context_obj = context.get()
-        except LookupError as exc:
-            msg = "Context is not set. Use container_context"
-            raise RuntimeError(msg) from exc
+        return await self._get_or_create_resource().async_resolve()
 
-        if not (_resource := context_obj.get(self._internal_name)):
-            _resource = AsyncResource(self._creator, *self._args, **self._kwargs)
-            context_obj[self._internal_name] = _resource
+    def sync_resolve(self) -> T:
+        if self._override:
+            return typing.cast(T, self._override)
 
-        return typing.cast(T, await _resource.resolve())
+        return self._get_or_create_resource().sync_resolve()

@@ -37,7 +37,10 @@ async def test_context_resource_without_context_init(
     context_resource: providers.AbstractResource[datetime.datetime],
 ) -> None:
     with pytest.raises(RuntimeError, match="Context is not set. Use container_context"):
-        await context_resource()
+        await context_resource.async_resolve()
+
+    with pytest.raises(RuntimeError, match="Context is not set. Use container_context"):
+        context_resource.sync_resolve()
 
 
 @container_context()
@@ -79,7 +82,8 @@ async def test_context_resources_overriding(context_resource: providers.Abstract
     context_resource.override(context_resource_mock)
 
     context_resource_result = await context_resource()
-    assert context_resource_result is context_resource_mock
+    context_resource_result2 = context_resource.sync_resolve()
+    assert context_resource_result is context_resource_result2 is context_resource_mock
 
     DIContainer.reset_override()
     with pytest.raises(RuntimeError, match="Context is not set. Use container_context"):
