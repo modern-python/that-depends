@@ -30,8 +30,8 @@ class SimpleFactory:
     dep2: int
 
 
-async def async_factory() -> datetime.datetime:
-    return datetime.datetime.now(tz=datetime.timezone.utc)
+async def async_factory(now: datetime.datetime) -> datetime.datetime:
+    return now + datetime.timedelta(hours=1)
 
 
 @dataclasses.dataclass(kw_only=True, slots=True)
@@ -58,11 +58,11 @@ class DIContainer(BaseContainer):
     sequence = providers.List(sync_resource, async_resource)
 
     simple_factory = providers.Factory(SimpleFactory, dep1="text", dep2=123)
-    async_factory = providers.AsyncFactory(async_factory)
+    async_factory = providers.AsyncFactory(async_factory, async_resource.cast)
     dependent_factory = providers.Factory(
         DependentFactory,
-        simple_factory=simple_factory,
-        sync_resource=sync_resource,
-        async_resource=async_resource,
+        simple_factory=simple_factory.cast,
+        sync_resource=sync_resource.cast,
+        async_resource=async_resource.cast,
     )
     singleton = providers.Singleton(SingletonFactory, dep1=True)
