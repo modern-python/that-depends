@@ -12,7 +12,7 @@ P = typing.ParamSpec("P")
 class Resource(AbstractResource[T]):
     def __init__(
         self,
-        creator: typing.Callable[..., typing.Iterator[T]],
+        creator: typing.Callable[P, typing.Iterator[T]],
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> None:

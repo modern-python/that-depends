@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 
 import pytest
@@ -34,3 +35,11 @@ async def test_wrong_injection() -> None:
 
     with pytest.raises(RuntimeError, match="Injected arguments must not be redefined"):
         await inner(_=container.SimpleFactory(dep1="1", dep2=2))
+
+
+def test_type_check() -> None:
+    @inject
+    async def main() -> None:
+        pass
+
+    asyncio.run(main())
