@@ -45,7 +45,7 @@ class BaseContainer:
         return _inner
 
     @classmethod
-    async def resolve(cls, object_to_resolve: type[T] | typing.Callable[P, T]) -> T:
+    async def resolve(cls, object_to_resolve: type[T] | typing.Callable[..., T]) -> T:
         signature = inspect.signature(object_to_resolve)
         kwargs = {}
         providers = cls.get_providers()

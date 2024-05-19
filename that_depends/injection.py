@@ -9,7 +9,9 @@ P = typing.ParamSpec("P")
 T = typing.TypeVar("T")
 
 
-def inject(func: typing.Callable[P, typing.Awaitable[T]]) -> typing.Callable[P, typing.Awaitable[T]]:
+def inject(
+    func: typing.Callable[P, typing.Coroutine[typing.Any, typing.Any, T]],
+) -> typing.Callable[P, typing.Coroutine[typing.Any, typing.Any, T]]:
     signature = inspect.signature(func)
 
     @functools.wraps(func)
