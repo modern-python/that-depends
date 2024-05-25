@@ -30,6 +30,27 @@ def inject(
     return inner
 
 
+def inject_to_sync(
+    func: typing.Callable[P, T],
+) -> typing.Callable[P, T]:
+    signature = inspect.signature(func)
+
+    @functools.wraps(func)
+    def inner(*args: P.args, **kwargs: P.kwargs) -> T:
+        for field_name, field_value in signature.parameters.items():
+            if not isinstance(field_value.default, AbstractProvider):
+                continue
+            if field_name in kwargs:
+                msg = f"Injected arguments must not be redefined, {field_name=}"
+                raise RuntimeError(msg)
+
+            kwargs[field_name] = field_value.default.sync_resolve()
+
+        return func(*args, **kwargs)
+
+    return inner
+
+
 class ClassGetItemMeta(type):
     def __getitem__(cls, provider: AbstractProvider[T]) -> T:
         return typing.cast(T, provider)
