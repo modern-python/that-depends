@@ -1,3 +1,4 @@
+import asyncio
 import contextlib
 import inspect
 import typing
@@ -26,6 +27,7 @@ class Resource(AbstractResource[T]):
         self._kwargs = kwargs
         self._instance: T | None = None
         self._override = None
+        self._resolving_lock = asyncio.Lock()
 
     async def tear_down(self) -> None:
         if self._context_stack:
@@ -37,20 +39,21 @@ class Resource(AbstractResource[T]):
         if self._override:
             return typing.cast(T, self._override)
 
-        if self._instance is None:
-            self._instance = typing.cast(
-                T,
-                self._context_stack.enter_context(
-                    contextlib.contextmanager(self._creator)(
-                        *[await x.async_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
-                        **{
-                            k: await v.async_resolve() if isinstance(v, AbstractProvider) else v
-                            for k, v in self._kwargs.items()
-                        },
+        async with self._resolving_lock:
+            if self._instance is None:
+                self._instance = typing.cast(
+                    T,
+                    self._context_stack.enter_context(
+                        contextlib.contextmanager(self._creator)(
+                            *[await x.async_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
+                            **{
+                                k: await v.async_resolve() if isinstance(v, AbstractProvider) else v
+                                for k, v in self._kwargs.items()
+                            },
+                        ),
                     ),
-                ),
-            )
-        return self._instance
+                )
+            return self._instance
 
     def sync_resolve(self) -> T:
         if self._override:
@@ -89,6 +92,7 @@ class AsyncResource(AbstractResource[T]):
         self._kwargs = kwargs
         self._instance: T | None = None
         self._override = None
+        self._resolving_lock = asyncio.Lock()
 
     async def tear_down(self) -> None:
         if self._context_stack:
@@ -100,17 +104,18 @@ class AsyncResource(AbstractResource[T]):
         if self._override:
             return typing.cast(T, self._override)
 
-        if self._instance is None:
-            self._instance = typing.cast(
-                T,
-                await self._context_stack.enter_async_context(
-                    contextlib.asynccontextmanager(self._creator)(
-                        *[await x() if isinstance(x, AbstractProvider) else x for x in self._args],
-                        **{k: await v() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
+        async with self._resolving_lock:
+            if self._instance is None:
+                self._instance = typing.cast(
+                    T,
+                    await self._context_stack.enter_async_context(
+                        contextlib.asynccontextmanager(self._creator)(
+                            *[await x() if isinstance(x, AbstractProvider) else x for x in self._args],
+                            **{k: await v() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
+                        ),
                     ),
-                ),
-            )
-        return self._instance
+                )
+            return self._instance
 
     def sync_resolve(self) -> T:
         if self._override:
