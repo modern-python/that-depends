@@ -11,6 +11,7 @@ from that_depends import BaseContainer, providers
 logger = logging.getLogger(__name__)
 
 
+# singleton provider with cleaning up
 def create_sync_resource() -> typing.Iterator[str]:
     logger.debug("Resource initiated")
     try:
@@ -19,6 +20,7 @@ def create_sync_resource() -> typing.Iterator[str]:
         logger.debug("Resource destructed")
 
 
+# same, but async
 async def create_async_resource() -> typing.AsyncIterator[str]:
     logger.debug("Async resource initiated")
     try:

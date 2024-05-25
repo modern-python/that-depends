@@ -18,6 +18,7 @@ def create_sync_resource() -> typing.Iterator[datetime.datetime]:
 
 
 async def create_async_resource() -> typing.AsyncIterator[datetime.datetime]:
+    logger.debug("Async resource initiated")
     try:
         yield datetime.datetime.now(tz=datetime.timezone.utc)
     finally:

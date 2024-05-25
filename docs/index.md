@@ -4,11 +4,11 @@
 ```{eval-rst}
 .. toctree::
     :maxdepth: 1
-    :caption: Examples
+    :caption: Introduction
 
-    examples/ioc_container
-    examples/fastapi
-    examples/litestar
+    introduction/ioc_container
+    introduction/fastapi
+    introduction/litestar
 
 .. toctree::
     :maxdepth: 1
@@ -20,4 +20,10 @@
     providers/factory
     providers/async-factory
     providers/list
+
+.. toctree::
+    :maxdepth: 1
+    :caption: For developers
+
+    dev/main-decisions
 ```
