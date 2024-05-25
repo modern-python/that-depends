@@ -12,19 +12,20 @@ This package is dependency injection framework for Python, mostly inspired by `p
 📚 [Documentation](https://that-depends.readthedocs.io)
 
 It is production-ready and gives you the following:
-- Fully-async simple DI framework with IOC-container.
+- Simple async-first DI framework with IOC-container.
 - Python 3.10-3.12 support.
 - Full coverage by types annotations (mypy in strict mode).
 - FastAPI and Litestar compatibility.
-- Zero dependencies.
 - Overriding dependencies for tests.
+- Injecting dependencies in async and sync functions and coroutines.
+- Zero dependencies.
 
 # Projects with `That Depends`:
 - [fastapi-sqlalchemy-template](https://github.com/modern-python/fastapi-sqlalchemy-template) - FastAPI template with sqlalchemy2 and PostgreSQL
 - [litestar-sqlalchemy-template](https://github.com/modern-python/litestar-sqlalchemy-template) - LiteStar template with sqlalchemy2 and PostgreSQL
 
 # Main decisions:
-1. By default, dependency resolving is async:
+1. `async-first` means that by default, dependency resolving is async:
 ```python
 some_dependency = await DIContainer.dependent_factory()
 ```
@@ -36,14 +37,24 @@ async_resource = DIContainer.async_resource.sync_resolve()  # this will fail wit
 # but this will work
 async_resource = await DIContainer.async_resource()
 async_resource = DIContainer.async_resource.sync_resolve()
+
+# and this will work
+async_resource = await DIContainer.init_async_resources()
+async_resource = DIContainer.async_resource.sync_resolve()
 ```
 3. No wiring for injections in function arguments -> achieved by decision that only one instance of container is supported
 ```python
 from tests import container
-from that_depends import Provide, inject
+from that_depends import Provide, inject, inject_to_sync
 
 @inject
-async def some_function(
+async def some_coroutine(
+    simple_factory: container.SimpleFactory = Provide[container.DIContainer.simple_factory],
+) -> None:
+    assert simple_factory.dep1
+
+@inject_to_sync
+def some_sync_function(
     simple_factory: container.SimpleFactory = Provide[container.DIContainer.simple_factory],
 ) -> None:
     assert simple_factory.dep1
