@@ -9,7 +9,28 @@ P = typing.ParamSpec("P")
 T = typing.TypeVar("T")
 
 
+@typing.overload
 def inject(
+    func: typing.Callable[P, typing.Coroutine[typing.Any, typing.Any, T]],
+) -> typing.Callable[P, typing.Coroutine[typing.Any, typing.Any, T]]: ...
+
+
+@typing.overload
+def inject(
+    func: typing.Callable[P, T],
+) -> typing.Callable[P, T]: ...
+
+
+def inject(
+    func: typing.Callable[P, typing.Any],
+) -> typing.Callable[P, typing.Any]:
+    if inspect.iscoroutinefunction(func):
+        return _inject_to_async(func)
+
+    return _inject_to_sync(func)
+
+
+def _inject_to_async(
     func: typing.Callable[P, typing.Coroutine[typing.Any, typing.Any, T]],
 ) -> typing.Callable[P, typing.Coroutine[typing.Any, typing.Any, T]]:
     signature = inspect.signature(func)
@@ -30,7 +51,7 @@ def inject(
     return inner
 
 
-def inject_to_sync(
+def _inject_to_sync(
     func: typing.Callable[P, T],
 ) -> typing.Callable[P, T]:
     signature = inspect.signature(func)

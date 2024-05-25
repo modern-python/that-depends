@@ -4,7 +4,7 @@ import datetime
 import pytest
 
 from tests import container
-from that_depends import Provide, inject, inject_to_sync
+from that_depends import Provide, inject
 
 
 @pytest.fixture(name="fixture_one")
@@ -36,7 +36,7 @@ async def test_wrong_injection() -> None:
         await inner(_=container.SimpleFactory(dep1="1", dep2=2))
 
 
-@inject_to_sync
+@inject
 def test_sync_injection(
     fixture_one: int,
     simple_factory: container.SimpleFactory = Provide[container.DIContainer.simple_factory],
@@ -48,7 +48,7 @@ def test_sync_injection(
 
 
 def test_wrong_sync_injection() -> None:
-    @inject_to_sync
+    @inject
     def inner(
         _: container.SimpleFactory = Provide[container.DIContainer.simple_factory],
     ) -> None:
