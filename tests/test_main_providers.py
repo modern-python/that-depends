@@ -38,6 +38,11 @@ def test_failed_sync_resolve() -> None:
         DIContainer.sequence.sync_resolve()
 
 
+async def test_sync_resolve_after_init() -> None:
+    await DIContainer.init_async_resources()
+    DIContainer.sequence.sync_resolve()
+
+
 async def test_list_provider() -> None:
     sequence = await DIContainer.sequence()
     sync_resource = await DIContainer.sync_resource()

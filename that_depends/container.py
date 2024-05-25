@@ -27,6 +27,12 @@ class BaseContainer:
         return cls.providers
 
     @classmethod
+    async def init_async_resources(cls) -> None:
+        for v in cls.get_providers().values():
+            if isinstance(v, AbstractResource):
+                await v.async_resolve()
+
+    @classmethod
     async def tear_down(cls) -> None:
         for v in cls.get_providers().values():
             if isinstance(v, AbstractResource | Singleton):
