@@ -21,6 +21,10 @@ class Singleton(AbstractProvider[T]):
         if self._override is not None:
             return typing.cast(T, self._override)
 
+        if self._instance is not None:
+            return self._instance
+
+        # lock to prevent resolving several times
         async with self._resolving_lock:
             if self._instance is None:
                 self._instance = self._factory(
