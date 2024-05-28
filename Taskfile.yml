@@ -28,6 +28,8 @@ tasks:
   release:
     desc: "bump version, create tag and release, publish to PYPI"
     cmds:
+      - git checkout main
+      - git pull
       - rm -rf ./dist
       - poetry version {{.CLI_ARGS}}
       - git add pyproject.toml
