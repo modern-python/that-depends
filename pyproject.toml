@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "that-depends"
-version = "1.9.4"
+version = "1.10.0"
 description = "Simple Dependency Injection framework"
 authors = ["Artur Shiriev <me@shiriev.ru>"]
 readme = "README.md"
