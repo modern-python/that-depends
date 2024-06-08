@@ -14,10 +14,23 @@ P = typing.ParamSpec("P")
 
 class BaseContainer:
     providers: dict[str, AbstractProvider[typing.Any]]
+    containers: list[type["BaseContainer"]]
 
     def __new__(cls, *_: typing.Any, **__: typing.Any) -> "typing_extensions.Self":  # noqa: ANN401
         msg = f"{cls.__name__} should not be instantiated"
         raise RuntimeError(msg)
+
+    @classmethod
+    def connect_containers(cls, *containers: type["BaseContainer"]) -> None:
+        """Connect containers.
+
+        When `init_async_resources` and `tear_down` is called,
+        same method of connected containers will also be called.
+        """
+        if not hasattr(cls, "containers"):
+            cls.containers = []
+
+        cls.containers.extend(containers)
 
     @classmethod
     def get_providers(cls) -> dict[str, AbstractProvider[typing.Any]]:
@@ -27,16 +40,29 @@ class BaseContainer:
         return cls.providers
 
     @classmethod
+    def get_containers(cls) -> list[type["BaseContainer"]]:
+        if not hasattr(cls, "containers"):
+            cls.containers = []
+
+        return cls.containers
+
+    @classmethod
     async def init_async_resources(cls) -> None:
-        for v in cls.get_providers().values():
-            if isinstance(v, AbstractResource):
-                await v.async_resolve()
+        for provider in cls.get_providers().values():
+            if isinstance(provider, AbstractResource):
+                await provider.async_resolve()
+
+        for container in cls.get_containers():
+            await container.init_async_resources()
 
     @classmethod
     async def tear_down(cls) -> None:
-        for v in cls.get_providers().values():
-            if isinstance(v, AbstractResource | Singleton):
-                await v.tear_down()
+        for provider in cls.get_providers().values():
+            if isinstance(provider, AbstractResource | Singleton):
+                await provider.tear_down()
+
+        for container in cls.get_containers():
+            await container.tear_down()
 
     @classmethod
     def reset_override(cls) -> None:
