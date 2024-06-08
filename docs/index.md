@@ -6,9 +6,10 @@
     :maxdepth: 1
     :caption: Introduction
 
-    introduction/ioc_container
+    introduction/ioc-container
     introduction/fastapi
     introduction/litestar
+    introduction/multiple-containers
 
 .. toctree::
     :maxdepth: 1
