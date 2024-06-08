@@ -1,4 +1,4 @@
-# Main decisions:
+# Main decisions
 1. Dependency resolving is async by default:
    - framework was developed mostly for usage with async python applications;
    - sync resolving is also possible, but it will fail in runtime in case of unresolved async dependencies;

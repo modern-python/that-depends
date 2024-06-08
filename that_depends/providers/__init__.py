@@ -8,21 +8,20 @@ from that_depends.providers.context_resources import (
 )
 from that_depends.providers.factories import AsyncFactory, Factory
 from that_depends.providers.resources import AsyncResource, Resource
+from that_depends.providers.singleton import Singleton
 
 
 __all__ = [
     "AbstractProvider",
     "AbstractResource",
-    "Resource",
-    "AsyncResource",
-    "Factory",
-    "AsyncFactory",
-    "List",
-    "Singleton",
-    "ContextResource",
     "AsyncContextResource",
-    "container_context",
+    "AsyncFactory",
+    "AsyncResource",
+    "ContextResource",
     "DIContextMiddleware",
+    "Factory",
+    "List",
+    "Resource",
+    "Singleton",
+    "container_context",
 ]
-
-from that_depends.providers.singleton import Singleton
