@@ -15,7 +15,7 @@ It is production-ready and gives you the following:
 - Full coverage by types annotations (mypy in strict mode).
 - FastAPI and LiteStar compatibility.
 - Overriding dependencies for tests.
-- Injecting dependencies in functions and coroutines.
+- Injecting dependencies in functions and coroutines without wiring.
 - Package with zero dependencies.
 
 📚 [Documentation](https://that-depends.readthedocs.io)

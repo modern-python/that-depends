@@ -1,6 +1,6 @@
 # Usage with multiple containers
 
-You can split bigger containers into parts as following:
+You can use providers from other containers as following:
 ```python
 from tests import container
 from that_depends import BaseContainer, providers
