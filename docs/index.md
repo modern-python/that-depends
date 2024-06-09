@@ -27,4 +27,5 @@
     :caption: For developers
 
     dev/main-decisions
+    dev/contributing
 ```
