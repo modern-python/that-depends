@@ -1,5 +1,5 @@
 from that_depends.providers.base import AbstractProvider, AbstractResource
-from that_depends.providers.collections import List
+from that_depends.providers.collections import List, Selector
 from that_depends.providers.context_resources import (
     AsyncContextResource,
     ContextResource,
@@ -22,6 +22,7 @@ __all__ = [
     "Factory",
     "List",
     "Resource",
+    "Selector",
     "Singleton",
     "container_context",
 ]
