@@ -1,5 +1,5 @@
 from that_depends.providers.base import AbstractProvider, AbstractResource
-from that_depends.providers.collections import List, Selector
+from that_depends.providers.collections import List
 from that_depends.providers.context_resources import (
     AsyncContextResource,
     ContextResource,
@@ -8,6 +8,7 @@ from that_depends.providers.context_resources import (
 )
 from that_depends.providers.factories import AsyncFactory, Factory
 from that_depends.providers.resources import AsyncResource, Resource
+from that_depends.providers.selector import Selector
 from that_depends.providers.singleton import Singleton
 
 
