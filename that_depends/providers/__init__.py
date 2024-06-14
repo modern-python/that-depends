@@ -1,5 +1,5 @@
 from that_depends.providers.base import AbstractProvider, AbstractResource
-from that_depends.providers.collections import List
+from that_depends.providers.collections import DictProvider, List
 from that_depends.providers.context_resources import (
     AsyncContextResource,
     ContextResource,
@@ -26,4 +26,5 @@ __all__ = [
     "Selector",
     "Singleton",
     "container_context",
+    "DictProvider",
 ]
