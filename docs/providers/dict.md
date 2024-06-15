@@ -28,7 +28,7 @@ Next, define the providers for these dependencies using `Factory` and `DictProvi
 class DIContainer(BaseContainer):
     module_a_provider = providers.Factory(ModuleA, dependency="some_dependency_a")
     module_b_provider = providers.Factory(ModuleB, dependency="some_dependency_b")
-    modules_provider = providers.DictProvider(module1=module_a_provider, module2=module_b_provider)
+    modules_provider = providers.Dict(module1=module_a_provider, module2=module_b_provider)
     dispatcher_provider = providers.Factory(Dispatcher, modules=modules_provider)
 ```
 
