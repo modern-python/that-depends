@@ -10,6 +10,7 @@
     introduction/fastapi
     introduction/litestar
     introduction/multiple-containers
+    introduction/inject-factories
 
 .. toctree::
     :maxdepth: 1

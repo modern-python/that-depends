@@ -1,13 +1,13 @@
 import typing
 
-from that_depends.providers.base import AbstractProvider
+from that_depends.providers.base import AbstractFactory, AbstractProvider
 
 
 T = typing.TypeVar("T")
 P = typing.ParamSpec("P")
 
 
-class Factory(AbstractProvider[T]):
+class Factory(AbstractFactory[T]):
     def __init__(self, factory: type[T] | typing.Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> None:
         self._factory = factory
         self._args = args
@@ -33,7 +33,7 @@ class Factory(AbstractProvider[T]):
         )
 
 
-class AsyncFactory(AbstractProvider[T]):
+class AsyncFactory(AbstractFactory[T]):
     def __init__(self, factory: typing.Callable[P, typing.Awaitable[T]], *args: P.args, **kwargs: P.kwargs) -> None:
         self._factory = factory
         self._args = args
@@ -49,6 +49,6 @@ class AsyncFactory(AbstractProvider[T]):
             **{k: await v.async_resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
         )
 
-    def sync_resolve(self) -> T:
+    def sync_resolve(self) -> typing.NoReturn:
         msg = "AsyncFactory cannot be resolved synchronously"
         raise RuntimeError(msg)

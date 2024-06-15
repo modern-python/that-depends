@@ -51,3 +51,15 @@ class AbstractResource(AbstractProvider[T], abc.ABC):
     @abc.abstractmethod
     async def tear_down(self) -> None:
         """Tear down dependency."""
+
+
+class AbstractFactory(AbstractProvider[T], abc.ABC):
+    """Abstract Factory Class."""
+
+    @property
+    def provider(self) -> typing.Callable[[], typing.Coroutine[typing.Any, typing.Any, T]]:
+        return self.async_resolve
+
+    @property
+    def sync_provider(self) -> typing.Callable[[], T]:
+        return self.sync_resolve
