@@ -18,3 +18,16 @@ class List(AbstractProvider[list[T]]):
 
     async def __call__(self) -> list[T]:
         return await self.async_resolve()
+
+
+class DictProvider(AbstractProvider[dict[str, T]]):
+    """Dictionary Provider Class."""
+
+    def __init__(self, **providers: AbstractProvider[T]) -> None:
+        self._providers = providers
+
+    async def async_resolve(self) -> dict[str, T]:
+        return {key: await provider.async_resolve() for key, provider in self._providers.items()}
+
+    def sync_resolve(self) -> dict[str, T]:
+        return {key: provider.sync_resolve() for key, provider in self._providers.items()}
