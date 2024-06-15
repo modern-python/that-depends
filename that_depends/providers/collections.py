@@ -20,9 +20,7 @@ class List(AbstractProvider[list[T]]):
         return await self.async_resolve()
 
 
-class DictProvider(AbstractProvider[dict[str, T]]):
-    """Dictionary Provider Class."""
-
+class Dict(AbstractProvider[dict[str, T]]):
     def __init__(self, **providers: AbstractProvider[T]) -> None:
         self._providers = providers
 

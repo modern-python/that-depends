@@ -59,6 +59,7 @@ class DIContainer(BaseContainer):
     sync_resource = providers.Resource(create_sync_resource)
     async_resource = providers.AsyncResource(create_async_resource)
     sequence = providers.List(sync_resource, async_resource)
+    mapping = providers.Dict(sync_resource=sync_resource, async_resource=async_resource)
     selector: providers.Selector[datetime.datetime] = providers.Selector(
         lambda: global_state_for_selector,
         sync_resource=sync_resource,
