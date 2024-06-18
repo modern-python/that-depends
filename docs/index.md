@@ -22,6 +22,7 @@
     providers/factory
     providers/async-factory
     providers/list
+    providers/dict
     providers/selector
 
 .. toctree::
