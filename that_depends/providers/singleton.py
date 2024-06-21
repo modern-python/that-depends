@@ -8,6 +8,18 @@ T = typing.TypeVar("T")
 P = typing.ParamSpec("P")
 
 
+class AttrGetter(AbstractProvider[T]):
+    def __init__(self, provider: AbstractProvider[T], attr_name: str) -> None:
+        self._provider = provider
+        self._attr_name = attr_name
+
+    async def async_resolve(self) -> typing.Any:  # noqa: ANN401
+        return getattr(await self._provider.async_resolve(), self._attr_name)
+
+    def sync_resolve(self) -> typing.Any:  # noqa: ANN401
+        return getattr(self._provider.sync_resolve(), self._attr_name)
+
+
 class Singleton(AbstractProvider[T]):
     def __init__(self, factory: type[T] | typing.Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> None:
         self._factory = factory
@@ -16,6 +28,9 @@ class Singleton(AbstractProvider[T]):
         self._override = None
         self._instance: T | None = None
         self._resolving_lock = asyncio.Lock()
+
+    def __getattr__(self, attr_name: str) -> typing.Any:  # noqa: ANN401
+        return AttrGetter(provider=self, attr_name=attr_name)
 
     async def async_resolve(self) -> T:
         if self._override is not None:
