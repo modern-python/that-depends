@@ -16,13 +16,12 @@
     :maxdepth: 1
     :caption: Providers
 
-    providers/resource
-    providers/async-resource
+    providers/resources
+    providers/context-resources
     providers/singleton
-    providers/factory
+    providers/factories
     providers/async-factory
-    providers/list
-    providers/dict
+    providers/collections
     providers/selector
 
 .. toctree::
