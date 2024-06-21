@@ -28,6 +28,14 @@ class DIContainer(BaseContainer):
     async_context_resource = providers.AsyncContextResource(create_async_context_resource)
 
 
+@pytest.fixture(autouse=True)
+async def _clear_di_container() -> typing.AsyncIterator[None]:
+    try:
+        yield
+    finally:
+        await DIContainer.tear_down()
+
+
 @pytest.fixture(params=[DIContainer.sync_context_resource, DIContainer.async_context_resource])
 def context_resource(request: pytest.FixtureRequest) -> providers.AbstractResource[typing.Any]:
     return typing.cast(providers.AbstractResource[typing.Any], request.param)

@@ -19,3 +19,5 @@ async def test_dynamic_container() -> None:
 
     assert isinstance(sync_resource, datetime.datetime)
     assert isinstance(async_resource, datetime.datetime)
+
+    await DIContainer.tear_down()

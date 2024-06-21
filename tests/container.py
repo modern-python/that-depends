@@ -8,8 +8,6 @@ from that_depends import BaseContainer, providers
 
 logger = logging.getLogger(__name__)
 
-global_state_for_selector: typing.Literal["sync_resource", "async_resource", "missing"] = "sync_resource"
-
 
 def create_sync_resource() -> typing.Iterator[datetime.datetime]:
     logger.debug("Resource initiated")
@@ -58,13 +56,6 @@ class SingletonFactory:
 class DIContainer(BaseContainer):
     sync_resource = providers.Resource(create_sync_resource)
     async_resource = providers.AsyncResource(create_async_resource)
-    sequence = providers.List(sync_resource, async_resource)
-    mapping = providers.Dict(sync_resource=sync_resource, async_resource=async_resource)
-    selector: providers.Selector[datetime.datetime] = providers.Selector(
-        lambda: global_state_for_selector,
-        sync_resource=sync_resource,
-        async_resource=async_resource,
-    )
 
     simple_factory = providers.Factory(SimpleFactory, dep1="text", dep2=123)
     async_factory = providers.AsyncFactory(async_factory, async_resource.cast)
