@@ -9,8 +9,9 @@
     introduction/ioc-container
     introduction/fastapi
     introduction/litestar
-    introduction/multiple-containers
     introduction/inject-factories
+    introduction/multiple-containers
+    introduction/dynamic-container
 
 .. toctree::
     :maxdepth: 1
