@@ -7,6 +7,8 @@ T = typing.TypeVar("T")
 
 
 class List(AbstractProvider[list[T]]):
+    __slots__ = ("_providers",)
+
     def __init__(self, *providers: AbstractProvider[T]) -> None:
         self._providers = providers
 
@@ -21,6 +23,8 @@ class List(AbstractProvider[list[T]]):
 
 
 class Dict(AbstractProvider[dict[str, T]]):
+    __slots__ = ("_providers",)
+
     def __init__(self, **providers: AbstractProvider[T]) -> None:
         self._providers = providers
 

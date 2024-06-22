@@ -7,6 +7,8 @@ T = typing.TypeVar("T")
 
 
 class Selector(AbstractProvider[T]):
+    __slots__ = "_selector", "_providers"
+
     def __init__(self, selector: typing.Callable[[], str], **providers: AbstractProvider[T]) -> None:
         self._selector = selector
         self._providers = providers

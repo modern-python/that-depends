@@ -1,6 +1,7 @@
 import asyncio
 import typing
 
+from that_depends.providers import AttrGetter
 from that_depends.providers.base import AbstractProvider
 
 
@@ -9,6 +10,8 @@ P = typing.ParamSpec("P")
 
 
 class Singleton(AbstractProvider[T]):
+    __slots__ = "_factory", "_args", "_kwargs", "_override", "_instance", "_resolving_lock"
+
     def __init__(self, factory: type[T] | typing.Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> None:
         self._factory = factory
         self._args = args
@@ -16,6 +19,9 @@ class Singleton(AbstractProvider[T]):
         self._override = None
         self._instance: T | None = None
         self._resolving_lock = asyncio.Lock()
+
+    def __getattr__(self, attr_name: str) -> typing.Any:  # noqa: ANN401
+        return AttrGetter(provider=self, attr_name=attr_name)
 
     async def async_resolve(self) -> T:
         if self._override is not None:

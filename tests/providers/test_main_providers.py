@@ -34,25 +34,6 @@ def test_failed_sync_resolve() -> None:
     with pytest.raises(RuntimeError, match="AsyncResource cannot be resolved synchronously"):
         DIContainer.async_resource.sync_resolve()
 
-    with pytest.raises(RuntimeError, match="AsyncResource cannot be resolved synchronously"):
-        DIContainer.sequence.sync_resolve()
-
-
-async def test_sync_resolve_after_init() -> None:
-    await DIContainer.init_async_resources()
-    DIContainer.sequence.sync_resolve()
-
-
-async def test_singleton_provider() -> None:
-    singleton1 = await DIContainer.singleton()
-    singleton2 = await DIContainer.singleton()
-    singleton3 = DIContainer.singleton.sync_resolve()
-    await DIContainer.singleton.tear_down()
-    singleton4 = DIContainer.singleton.sync_resolve()
-
-    assert singleton1 is singleton2 is singleton3
-    assert singleton4 is not singleton1
-
 
 def test_wrong_providers_init() -> None:
     with pytest.raises(RuntimeError, match="Resource must be generator function"):

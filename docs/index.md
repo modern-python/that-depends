@@ -12,6 +12,7 @@
     introduction/inject-factories
     introduction/multiple-containers
     introduction/dynamic-container
+    introduction/application-settings
 
 .. toctree::
     :maxdepth: 1
