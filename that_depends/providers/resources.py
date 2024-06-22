@@ -11,6 +11,8 @@ P = typing.ParamSpec("P")
 
 
 class Resource(AbstractResource[T]):
+    __slots__ = "_creator", "_context_stack", "_args", "_kwargs", "_instance", "_override", "_resolving_lock"
+
     def __init__(
         self,
         creator: typing.Callable[P, typing.Iterator[T]],
@@ -80,6 +82,8 @@ class Resource(AbstractResource[T]):
 
 
 class AsyncResource(AbstractResource[T]):
+    __slots__ = "_creator", "_context_stack", "_args", "_kwargs", "_instance", "_override", "_resolving_lock"
+
     def __init__(
         self,
         creator: typing.Callable[P, typing.AsyncIterator[T]],

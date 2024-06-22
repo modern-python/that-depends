@@ -8,6 +8,8 @@ P = typing.ParamSpec("P")
 
 
 class Factory(AbstractFactory[T]):
+    __slots__ = "_factory", "_args", "_kwargs", "_override"
+
     def __init__(self, factory: type[T] | typing.Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> None:
         self._factory = factory
         self._args = args
@@ -34,6 +36,8 @@ class Factory(AbstractFactory[T]):
 
 
 class AsyncFactory(AbstractFactory[T]):
+    __slots__ = "_factory", "_args", "_kwargs", "_override"
+
     def __init__(self, factory: typing.Callable[P, typing.Awaitable[T]], *args: P.args, **kwargs: P.kwargs) -> None:
         self._factory = factory
         self._args = args

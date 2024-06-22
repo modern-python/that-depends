@@ -56,6 +56,8 @@ def _get_context() -> dict[str, AbstractResource[typing.Any]]:
 
 
 class ContextResource(AbstractProvider[T]):
+    __slots__ = "_creator", "_args", "_kwargs", "_override", "_internal_name"
+
     def __init__(
         self,
         creator: typing.Callable[P, typing.Iterator[T]],
@@ -94,6 +96,8 @@ class ContextResource(AbstractProvider[T]):
 
 
 class AsyncContextResource(AbstractProvider[T]):
+    __slots__ = "_creator", "_args", "_kwargs", "_override", "_internal_name"
+
     def __init__(
         self,
         creator: typing.Callable[P, typing.AsyncIterator[T]],
