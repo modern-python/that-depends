@@ -8,6 +8,7 @@ from that_depends.providers.context_resources import (
     container_context,
 )
 from that_depends.providers.factories import AsyncFactory, Factory
+from that_depends.providers.object import Object
 from that_depends.providers.resources import AsyncResource, Resource
 from that_depends.providers.selector import Selector
 from that_depends.providers.singleton import Singleton
@@ -22,11 +23,12 @@ __all__ = [
     "AttrGetter",
     "ContextResource",
     "DIContextMiddleware",
+    "Dict",
     "Factory",
     "List",
+    "Object",
     "Resource",
     "Selector",
     "Singleton",
     "container_context",
-    "Dict",
 ]

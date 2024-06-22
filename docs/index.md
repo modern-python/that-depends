@@ -25,6 +25,7 @@
     providers/async-factory
     providers/collections
     providers/selector
+    providers/object
 
 .. toctree::
     :maxdepth: 1
