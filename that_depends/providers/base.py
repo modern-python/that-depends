@@ -1,5 +1,6 @@
 import abc
 import typing
+from contextlib import contextmanager
 
 
 T = typing.TypeVar("T")
@@ -23,6 +24,14 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
 
     def override(self, mock: object) -> None:
         self._override = mock
+
+    @contextmanager
+    def override_context(self, mock: object) -> typing.Iterator[None]:
+        self.override(mock)
+        try:
+            yield
+        finally:
+            self.reset_override()
 
     def reset_override(self) -> None:
         self._override = None

@@ -1,5 +1,6 @@
 import inspect
 import typing
+from contextlib import contextmanager
 
 from that_depends.providers import AbstractProvider, AbstractResource, Singleton
 
@@ -92,3 +93,26 @@ class BaseContainer:
             kwargs[field_name] = await providers[field_name].async_resolve()
 
         return object_to_resolve(**kwargs)
+
+    @classmethod
+    @contextmanager
+    def override_providers(cls, providers_for_overriding: dict[str, typing.Any]) -> typing.Iterator[None]:
+        current_providers = cls.get_providers()
+        current_provider_names = set(current_providers.keys())
+        given_provider_names = set(providers_for_overriding.keys())
+
+        for given_name in given_provider_names:
+            if given_name not in current_provider_names:
+                msg = f"Provider with name {given_name!r} not found"
+                raise RuntimeError(msg)
+
+        for provider_name, mock in providers_for_overriding.items():
+            provider = current_providers[provider_name]
+            provider.override(mock)
+
+        try:
+            yield
+        finally:
+            for provider_name in providers_for_overriding:
+                provider = current_providers[provider_name]
+                provider.reset_override()
