@@ -26,6 +26,12 @@
     providers/collections
     providers/selector
     providers/object
+   
+.. toctree::
+    :maxdepth: 1
+    :caption: Testing
+    
+    testing/provider-overriding
 
 .. toctree::
     :maxdepth: 1
