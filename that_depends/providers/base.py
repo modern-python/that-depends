@@ -28,8 +28,10 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
     @contextmanager
     def override_context(self, mock: object) -> typing.Iterator[None]:
         self.override(mock)
-        yield
-        self.reset_override()
+        try:
+            yield
+        finally:
+            self.reset_override()
 
     def reset_override(self) -> None:
         self._override = None

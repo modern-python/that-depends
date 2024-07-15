@@ -110,8 +110,9 @@ class BaseContainer:
             provider = current_providers[provider_name]
             provider.override(mock)
 
-        yield
-
-        for provider_name in providers_for_overriding:
-            provider = current_providers[provider_name]
-            provider.reset_override()
+        try:
+            yield
+        finally:
+            for provider_name in providers_for_overriding:
+                provider = current_providers[provider_name]
+                provider.reset_override()
