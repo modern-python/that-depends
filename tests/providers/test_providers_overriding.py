@@ -79,7 +79,7 @@ def test_providers_overriding_fail_with_unknown_provider() -> None:
     providers_for_overriding = {unknown_provider_name: None}
 
     with pytest.raises(RuntimeError, match=match), container.DIContainer.override_providers(providers_for_overriding):
-        ...
+        ...  # pragma: no cover
 
 
 async def test_providers_overriding() -> None:
