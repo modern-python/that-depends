@@ -25,6 +25,7 @@ def _inject_to_async(
 
     @functools.wraps(func)
     async def inner(*args: P.args, **kwargs: P.kwargs) -> T:
+        injected = False
         for field_name, field_value in signature.parameters.items():
             if not isinstance(field_value.default, AbstractProvider):
                 continue
@@ -33,7 +34,10 @@ def _inject_to_async(
                 raise RuntimeError(msg)
 
             kwargs[field_name] = await field_value.default()
-
+            injected = True
+        if not injected:
+            msg = "Expected injection, but nothing found. Remove @inject decorator."
+            raise RuntimeError(msg)
         return await func(*args, **kwargs)
 
     return inner
@@ -46,6 +50,7 @@ def _inject_to_sync(
 
     @functools.wraps(func)
     def inner(*args: P.args, **kwargs: P.kwargs) -> T:
+        injected = False
         for field_name, field_value in signature.parameters.items():
             if not isinstance(field_value.default, AbstractProvider):
                 continue
@@ -54,6 +59,11 @@ def _inject_to_sync(
                 raise RuntimeError(msg)
 
             kwargs[field_name] = field_value.default.sync_resolve()
+            injected = True
+
+        if not injected:
+            msg = "Expected injection, but nothing found. Remove @inject decorator."
+            raise RuntimeError(msg)
 
         return func(*args, **kwargs)
 
