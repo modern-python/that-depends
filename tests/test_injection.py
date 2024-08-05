@@ -36,6 +36,15 @@ async def test_wrong_injection() -> None:
         await inner(_=container.SimpleFactory(dep1="1", dep2=2))
 
 
+async def test_empty_injection() -> None:
+    @inject
+    async def inner(_: int) -> None:
+        """Do nothing."""
+
+    with pytest.raises(RuntimeError, match="Expected injection, but nothing found. Remove @inject decorator."):
+        await inner(1)
+
+
 @inject
 def test_sync_injection(
     fixture_one: int,
@@ -58,9 +67,18 @@ def test_wrong_sync_injection() -> None:
         inner(_=container.SimpleFactory(dep1="1", dep2=2))
 
 
+def test_sync_empty_injection() -> None:
+    @inject
+    def inner(_: int) -> None:
+        """Do nothing."""
+
+    with pytest.raises(RuntimeError, match="Expected injection, but nothing found. Remove @inject decorator."):
+        inner(1)
+
+
 def test_type_check() -> None:
     @inject
-    async def main() -> None:
-        pass
+    async def main(simple_factory: container.SimpleFactory = Provide[container.DIContainer.simple_factory]) -> None:
+        assert simple_factory
 
     asyncio.run(main())

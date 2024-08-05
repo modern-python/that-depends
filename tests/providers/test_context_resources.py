@@ -4,7 +4,7 @@ import typing
 
 import pytest
 
-from that_depends import BaseContainer, inject, providers
+from that_depends import BaseContainer, providers
 from that_depends.providers import container_context
 
 
@@ -84,7 +84,6 @@ async def test_context_resource_included_context(
     assert context_resource_instance1 is context_resource_instance3
 
 
-@inject
 async def test_context_resources_overriding(context_resource: providers.AbstractResource[datetime.datetime]) -> None:
     context_resource_mock = datetime.datetime.now(tz=datetime.timezone.utc)
     context_resource.override(context_resource_mock)
