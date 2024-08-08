@@ -1,6 +1,7 @@
 import functools
 import inspect
 import typing
+import warnings
 
 from that_depends.providers import AbstractProvider
 
@@ -36,8 +37,9 @@ def _inject_to_async(
             kwargs[field_name] = await field_value.default()
             injected = True
         if not injected:
-            msg = "Expected injection, but nothing found. Remove @inject decorator."
-            raise RuntimeError(msg)
+            warnings.warn(
+                "Expected injection, but nothing found. Remove @inject decorator.", RuntimeWarning, stacklevel=1
+            )
         return await func(*args, **kwargs)
 
     return inner
@@ -62,8 +64,9 @@ def _inject_to_sync(
             injected = True
 
         if not injected:
-            msg = "Expected injection, but nothing found. Remove @inject decorator."
-            raise RuntimeError(msg)
+            warnings.warn(
+                "Expected injection, but nothing found. Remove @inject decorator.", RuntimeWarning, stacklevel=1
+            )
 
         return func(*args, **kwargs)
 
