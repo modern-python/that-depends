@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import warnings
 
 import pytest
 
@@ -41,7 +42,9 @@ async def test_empty_injection() -> None:
     async def inner(_: int) -> None:
         """Do nothing."""
 
-    with pytest.raises(RuntimeError, match="Expected injection, but nothing found. Remove @inject decorator."):
+    warnings.filterwarnings("error")
+
+    with pytest.raises(RuntimeWarning, match="Expected injection, but nothing found. Remove @inject decorator."):
         await inner(1)
 
 
@@ -72,7 +75,9 @@ def test_sync_empty_injection() -> None:
     def inner(_: int) -> None:
         """Do nothing."""
 
-    with pytest.raises(RuntimeError, match="Expected injection, but nothing found. Remove @inject decorator."):
+    warnings.filterwarnings("error")
+
+    with pytest.raises(RuntimeWarning, match="Expected injection, but nothing found. Remove @inject decorator."):
         inner(1)
 
 

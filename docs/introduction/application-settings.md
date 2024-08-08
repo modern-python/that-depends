@@ -17,8 +17,9 @@ from that_depends import BaseContainer, providers
 
 
 class DIContainer(BaseContainer):
-    settings: Settings = providers.Singleton(Settings).cast
-    some_factory = providers.Factory(SomeFactory, service_name=settings.service_name)
+    settings = providers.Singleton(Settings)
+    settings_casted: Settings = settings.cast
+    some_factory = providers.Factory(SomeFactory, service_name=settings_casted.service_name)
 ```
 
 And when `some_factory` is resolved it will receive `service_name` attribute from `Settings`
