@@ -1,5 +1,7 @@
 import asyncio
 import typing
+from collections.abc import Collection
+from itertools import chain
 
 from that_depends.providers import AttrGetter
 from that_depends.providers.base import AbstractProvider
@@ -10,7 +12,7 @@ P = typing.ParamSpec("P")
 
 
 class Singleton(AbstractProvider[T]):
-    __slots__ = "_factory", "_args", "_kwargs", "_override", "_instance", "_resolving_lock"
+    __slots__ = "_factory", "_args", "_kwargs", "_override", "_instance", "_resolving_lock", "_dependencies"
 
     def __init__(self, factory: type[T] | typing.Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> None:
         self._factory = factory
@@ -19,6 +21,7 @@ class Singleton(AbstractProvider[T]):
         self._override = None
         self._instance: T | None = None
         self._resolving_lock = asyncio.Lock()
+        self._dependencies = [d for d in chain(args, kwargs.values()) if isinstance(d, AbstractProvider)]
 
     def __getattr__(self, attr_name: str) -> typing.Any:  # noqa: ANN401
         if attr_name.startswith("_"):
@@ -55,6 +58,10 @@ class Singleton(AbstractProvider[T]):
                 **{k: v.sync_resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
             )
         return self._instance
+
+    @property
+    def dependencies(self) -> Collection[AbstractProvider[typing.Any]]:
+        return self._dependencies
 
     async def tear_down(self) -> None:
         if self._instance is not None:
