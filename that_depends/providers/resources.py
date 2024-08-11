@@ -2,6 +2,8 @@ import asyncio
 import contextlib
 import inspect
 import typing
+from collections.abc import Collection
+from itertools import chain
 
 from that_depends.providers.base import AbstractProvider, AbstractResource
 
@@ -11,7 +13,16 @@ P = typing.ParamSpec("P")
 
 
 class Resource(AbstractResource[T]):
-    __slots__ = "_creator", "_context_stack", "_args", "_kwargs", "_instance", "_override", "_resolving_lock"
+    __slots__ = (
+        "_creator",
+        "_context_stack",
+        "_args",
+        "_kwargs",
+        "_instance",
+        "_override",
+        "_resolving_lock",
+        "_dependencies",
+    )
 
     def __init__(
         self,
@@ -30,6 +41,11 @@ class Resource(AbstractResource[T]):
         self._instance: T | None = None
         self._override = None
         self._resolving_lock = asyncio.Lock()
+        self._dependencies = [d for d in chain(args, kwargs.values()) if isinstance(d, AbstractProvider)]
+
+    @property
+    def dependencies(self) -> Collection[AbstractProvider[typing.Any]]:
+        return self._dependencies
 
     async def tear_down(self) -> None:
         if self._context_stack:
@@ -82,7 +98,16 @@ class Resource(AbstractResource[T]):
 
 
 class AsyncResource(AbstractResource[T]):
-    __slots__ = "_creator", "_context_stack", "_args", "_kwargs", "_instance", "_override", "_resolving_lock"
+    __slots__ = (
+        "_creator",
+        "_context_stack",
+        "_args",
+        "_kwargs",
+        "_instance",
+        "_override",
+        "_resolving_lock",
+        "_dependencies",
+    )
 
     def __init__(
         self,
@@ -101,6 +126,11 @@ class AsyncResource(AbstractResource[T]):
         self._instance: T | None = None
         self._override = None
         self._resolving_lock = asyncio.Lock()
+        self._dependencies = [d for d in chain(args, kwargs.values()) if isinstance(d, AbstractProvider)]
+
+    @property
+    def dependencies(self) -> Collection[AbstractProvider[typing.Any]]:
+        return self._dependencies
 
     async def tear_down(self) -> None:
         if self._context_stack:

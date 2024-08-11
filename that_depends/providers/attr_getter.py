@@ -1,4 +1,5 @@
 import typing
+from collections.abc import Collection
 from operator import attrgetter
 
 from that_depends.providers.base import AbstractProvider
@@ -33,3 +34,11 @@ class AttrGetter(AbstractProvider[T]):
         resolved_provider_object = self._provider.sync_resolve()
         attribute_path = ".".join(self._attrs)
         return _get_value_from_object_by_dotted_path(resolved_provider_object, attribute_path)
+
+    @property
+    def dependencies(self) -> Collection[AbstractProvider[typing.Any]]:
+        return [self._provider]
+
+    @property
+    def provider(self) -> AbstractProvider[T]:
+        return self._provider
