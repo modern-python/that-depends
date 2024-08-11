@@ -36,7 +36,7 @@ class BaseContainer:
     @classmethod
     def get_providers(cls) -> dict[str, AbstractProvider[typing.Any]]:
         if not hasattr(cls, "providers"):
-            cls.providers = {k: v for k, v in inspect.getmembers(cls) if isinstance(v, AbstractProvider)}
+            cls.providers = {k: v for k, v in cls.__dict__.items() if isinstance(v, AbstractProvider)}
 
         return cls.providers
 
@@ -58,7 +58,7 @@ class BaseContainer:
 
     @classmethod
     async def tear_down(cls) -> None:
-        for provider in cls.get_providers().values():
+        for provider in reversed(cls.get_providers().values()):
             if isinstance(provider, AbstractResource | Singleton):
                 await provider.tear_down()
 
