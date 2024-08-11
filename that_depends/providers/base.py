@@ -1,4 +1,5 @@
 import abc
+import contextlib
 import typing
 from contextlib import contextmanager
 
@@ -54,12 +55,29 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
         return typing.cast(T_co, self)
 
 
+class ResourceContext(typing.Generic[T_co]):
+    __slots__ = "_context_stack", "_instance"
+
+    def __init__(
+        self,
+        context_stack: contextlib.AsyncExitStack | contextlib.ExitStack,
+        instance: T_co,
+    ) -> None:
+        self._context_stack = context_stack
+        self._instance = instance
+
+    def fetch_instance(self) -> T_co:
+        return self._instance
+
+    async def tear_down(self) -> None:
+        if isinstance(self._context_stack, contextlib.AsyncExitStack):
+            await self._context_stack.aclose()
+        else:
+            self._context_stack.close()
+
+
 class AbstractResource(AbstractProvider[T], abc.ABC):
     """Abstract Resource Class."""
-
-    @abc.abstractmethod
-    async def tear_down(self) -> None:
-        """Tear down dependency."""
 
 
 class AbstractFactory(AbstractProvider[T], abc.ABC):

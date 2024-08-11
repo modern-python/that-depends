@@ -2,7 +2,7 @@ import inspect
 import typing
 from contextlib import contextmanager
 
-from that_depends.providers import AbstractProvider, AbstractResource, Singleton
+from that_depends.providers import AbstractProvider, Resource, Singleton
 
 
 if typing.TYPE_CHECKING:
@@ -50,7 +50,7 @@ class BaseContainer:
     @classmethod
     async def init_async_resources(cls) -> None:
         for provider in cls.get_providers().values():
-            if isinstance(provider, AbstractResource):
+            if isinstance(provider, Resource):
                 await provider.async_resolve()
 
         for container in cls.get_containers():
@@ -59,7 +59,7 @@ class BaseContainer:
     @classmethod
     async def tear_down(cls) -> None:
         for provider in reversed(cls.get_providers().values()):
-            if isinstance(provider, AbstractResource | Singleton):
+            if isinstance(provider, Resource | Singleton):
                 await provider.tear_down()
 
         for container in cls.get_containers():
