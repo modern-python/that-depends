@@ -1,5 +1,4 @@
 import typing
-from collections.abc import Collection
 
 from that_depends.providers.base import AbstractProvider
 
@@ -19,10 +18,6 @@ class List(AbstractProvider[list[T]]):
     def sync_resolve(self) -> list[T]:
         return [x.sync_resolve() for x in self._providers]
 
-    @property
-    def dependencies(self) -> Collection[AbstractProvider[typing.Any]]:
-        return self._providers
-
     async def __call__(self) -> list[T]:
         return await self.async_resolve()
 
@@ -38,7 +33,3 @@ class Dict(AbstractProvider[dict[str, T]]):
 
     def sync_resolve(self) -> dict[str, T]:
         return {key: provider.sync_resolve() for key, provider in self._providers.items()}
-
-    @property
-    def dependencies(self) -> Collection[AbstractProvider[typing.Any]]:
-        return set(self._providers.values())

@@ -1,5 +1,4 @@
 import typing
-from collections.abc import Collection
 
 from that_depends.providers.base import AbstractProvider
 
@@ -27,7 +26,3 @@ class Selector(AbstractProvider[T]):
             msg = f"No provider matches {selected_key}"
             raise RuntimeError(msg)
         return self._providers[selected_key].sync_resolve()
-
-    @property
-    def dependencies(self) -> Collection[AbstractProvider[typing.Any]]:
-        return set(self._providers.values())

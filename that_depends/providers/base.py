@@ -1,6 +1,5 @@
 import abc
 import typing
-from collections.abc import Collection
 from contextlib import contextmanager
 
 
@@ -19,11 +18,6 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
     @abc.abstractmethod
     def sync_resolve(self) -> T_co:
         """Resolve dependency synchronously."""
-
-    @property
-    @abc.abstractmethod
-    def dependencies(self) -> Collection["AbstractProvider[typing.Any]"]:
-        """Returns dependencies of the provider."""
 
     async def __call__(self) -> T_co:
         return await self.async_resolve()

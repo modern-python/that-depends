@@ -2,8 +2,7 @@ import inspect
 import typing
 from contextlib import contextmanager
 
-from that_depends.providers import AbstractProvider, AbstractResource
-from that_depends.teardown import tear_down
+from that_depends.providers import AbstractProvider, AbstractResource, Singleton
 
 
 if typing.TYPE_CHECKING:
@@ -59,7 +58,10 @@ class BaseContainer:
 
     @classmethod
     async def tear_down(cls) -> None:
-        await tear_down(cls.get_providers().values())
+        for provider in cls.get_providers().values():
+            if isinstance(provider, AbstractResource | Singleton):
+                await provider.tear_down()
+
         for container in cls.get_containers():
             await container.tear_down()
 

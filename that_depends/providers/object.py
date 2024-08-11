@@ -1,5 +1,4 @@
 import typing
-from collections.abc import Collection
 
 from that_depends.providers.base import AbstractProvider
 
@@ -19,7 +18,3 @@ class Object(AbstractProvider[T]):
 
     def sync_resolve(self) -> T:
         return self._obj
-
-    @property
-    def dependencies(self) -> Collection[AbstractProvider[typing.Any]]:
-        return []

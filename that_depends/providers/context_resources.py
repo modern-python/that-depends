@@ -1,11 +1,10 @@
+import asyncio
 import contextlib
 import inspect
 import logging
 import typing
 import uuid
-from collections.abc import Collection
 from contextvars import ContextVar
-from itertools import chain
 
 from that_depends.providers.base import AbstractProvider, AbstractResource
 from that_depends.providers.resources import AsyncResource, Resource
@@ -30,11 +29,12 @@ async def container_context() -> typing.AsyncIterator[None]:
     try:
         yield
     finally:
-        for provider in context.get().values():
-            try:
-                await provider.tear_down()
-            except Exception:  # noqa: PERF203  # pragma: no cover
-                logger.exception("Error in resource tear down")
+        results = await asyncio.gather(
+            *[provider.tear_down() for _, provider in context.get().items()], return_exceptions=True
+        )
+        for exception in results:
+            if isinstance(exception, Exception):  # pragma: no cover
+                logger.error("Error in resource tear down", exc_info=exception)
         context.reset(token)
 
 
@@ -56,7 +56,7 @@ def _get_context() -> dict[str, AbstractResource[typing.Any]]:
 
 
 class ContextResource(AbstractProvider[T]):
-    __slots__ = "_creator", "_args", "_kwargs", "_override", "_internal_name", "_dependencies"
+    __slots__ = "_creator", "_args", "_kwargs", "_override", "_internal_name"
 
     def __init__(
         self,
@@ -73,7 +73,6 @@ class ContextResource(AbstractProvider[T]):
         self._kwargs = kwargs
         self._override = None
         self._internal_name = f"{type(self).__name__}-{uuid.uuid4()}"
-        self._dependencies = [d for d in chain(args, kwargs.values()) if isinstance(d, AbstractProvider)]
 
     def _get_or_create_resource(self) -> AbstractResource[T]:
         context_obj = _get_context()
@@ -95,13 +94,9 @@ class ContextResource(AbstractProvider[T]):
 
         return self._get_or_create_resource().sync_resolve()
 
-    @property
-    def dependencies(self) -> Collection[AbstractProvider[typing.Any]]:
-        return self._dependencies
-
 
 class AsyncContextResource(AbstractProvider[T]):
-    __slots__ = "_creator", "_args", "_kwargs", "_override", "_internal_name", "_dependencies"
+    __slots__ = "_creator", "_args", "_kwargs", "_override", "_internal_name"
 
     def __init__(
         self,
@@ -118,7 +113,6 @@ class AsyncContextResource(AbstractProvider[T]):
         self._kwargs = kwargs
         self._override = None
         self._internal_name = f"{type(self).__name__}-{uuid.uuid4()}"
-        self._dependencies = [d for d in chain(args, kwargs.values()) if isinstance(d, AbstractProvider)]
 
     def _get_or_create_resource(self) -> AbstractResource[T]:
         context_obj = _get_context()
@@ -139,7 +133,3 @@ class AsyncContextResource(AbstractProvider[T]):
             return typing.cast(T, self._override)
 
         return self._get_or_create_resource().sync_resolve()
-
-    @property
-    def dependencies(self) -> Collection[AbstractProvider[typing.Any]]:
-        return self._dependencies
