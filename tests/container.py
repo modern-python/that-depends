@@ -55,7 +55,7 @@ class SingletonFactory:
 
 class DIContainer(BaseContainer):
     sync_resource = providers.Resource(create_sync_resource)
-    async_resource = providers.AsyncResource(create_async_resource)
+    async_resource = providers.Resource(create_async_resource)
 
     simple_factory = providers.Factory(SimpleFactory, dep1="text", dep2=123)
     async_factory = providers.AsyncFactory(async_factory, async_resource.cast)

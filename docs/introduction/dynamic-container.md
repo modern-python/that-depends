@@ -10,11 +10,11 @@ from that_depends import BaseContainer, providers
 
 class DIContainer(BaseContainer):
     sync_resource: providers.Resource[datetime.datetime]
-    async_resource: providers.AsyncResource[datetime.datetime]
+    async_resource: providers.Resource[datetime.datetime]
 
 
 DIContainer.sync_resource = providers.Resource(container.create_sync_resource)
-DIContainer.async_resource = providers.AsyncResource(container.create_async_resource)
+DIContainer.async_resource = providers.Resource(container.create_async_resource)
 ```
 
 And than you can use these providers as usual:

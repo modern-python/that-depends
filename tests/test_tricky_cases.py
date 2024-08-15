@@ -22,7 +22,7 @@ async def create_async_resource() -> typing.AsyncIterator[dict[str, typing.Any]]
 class TrickyDIContainer(BaseContainer):
     singleton = providers.Singleton(list)
     sync_resource = providers.Resource(create_sync_resource)
-    async_resource = providers.AsyncResource(create_async_resource)
+    async_resource = providers.Resource(create_async_resource)
 
 
 async def test_singleton_with_empty_list() -> None:

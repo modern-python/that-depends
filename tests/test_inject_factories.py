@@ -15,7 +15,7 @@ class InjectedFactories:
 
 class DIContainer(BaseContainer):
     sync_resource = providers.Resource(container.create_sync_resource)
-    async_resource = providers.AsyncResource(container.create_async_resource)
+    async_resource = providers.Resource(container.create_async_resource)
 
     simple_factory = providers.Factory(container.SimpleFactory, dep1="text", dep2=123)
     dependent_factory = providers.Factory(
@@ -48,7 +48,7 @@ async def test_sync_provider() -> None:
     with pytest.raises(RuntimeError, match="AsyncResource cannot be resolved synchronously"):
         injected_factories.sync_factory()
 
-    await DIContainer.init_async_resources()
+    await DIContainer.init_resources()
     instance1 = injected_factories.sync_factory()
     instance2 = injected_factories.sync_factory()
 

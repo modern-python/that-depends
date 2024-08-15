@@ -6,11 +6,15 @@ from starlette import status
 from starlette.testclient import TestClient
 
 from tests import container
-from that_depends.providers import DIContextMiddleware
+from that_depends import container_context
 
 
-app = fastapi.FastAPI()
-app.add_middleware(DIContextMiddleware)
+async def init_di_context() -> typing.AsyncIterator[None]:
+    async with container_context():
+        yield
+
+
+app = fastapi.FastAPI(dependencies=[fastapi.Depends(init_di_context)])
 
 
 @app.get("/")
