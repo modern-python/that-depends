@@ -6,7 +6,7 @@ from that_depends import BaseContainer, providers
 
 class InnerContainer(BaseContainer):
     sync_resource = providers.Resource(container.create_sync_resource)
-    async_resource = providers.AsyncResource(container.create_async_resource)
+    async_resource = providers.Resource(container.create_async_resource)
 
 
 class OuterContainer(BaseContainer):
@@ -24,7 +24,7 @@ async def test_included_container() -> None:
     assert InnerContainer.sync_resource._context is None  # noqa: SLF001
     assert InnerContainer.async_resource._context is None  # noqa: SLF001
 
-    await OuterContainer.init_async_resources()
+    await OuterContainer.init_resources()
     sync_resource_context = InnerContainer.sync_resource._context  # noqa: SLF001
     assert sync_resource_context
     assert sync_resource_context.fetch_instance() is not None

@@ -3,6 +3,7 @@ import contextlib
 import inspect
 import typing
 import uuid
+import warnings
 
 from that_depends.providers.base import AbstractProvider, ResourceContext
 
@@ -134,8 +135,5 @@ class AsyncResource(Resource[T]):
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> None:
-        if not inspect.isasyncgenfunction(creator):
-            msg = "AsyncResource must be async generator function"
-            raise RuntimeError(msg)
-
+        warnings.warn("AsyncResource is deprecated, use Resource instead", RuntimeWarning, stacklevel=1)
         super().__init__(creator, *args, **kwargs)

@@ -25,7 +25,7 @@ async def create_async_context_resource() -> typing.AsyncIterator[datetime.datet
 
 class DIContainer(BaseContainer):
     sync_context_resource = providers.ContextResource(create_sync_context_resource)
-    async_context_resource = providers.AsyncContextResource(create_async_context_resource)
+    async_context_resource = providers.ContextResource(create_async_context_resource)
 
 
 @pytest.fixture(autouse=True)
@@ -100,6 +100,3 @@ async def test_context_resources_overriding(context_resource: providers.Resource
 def test_context_resources_wrong_providers_init() -> None:
     with pytest.raises(RuntimeError, match="ContextResource must be generator function"):
         providers.ContextResource(lambda: None)  # type: ignore[arg-type,return-value]
-
-    with pytest.raises(RuntimeError, match="AsyncContextResource must be generator function"):
-        providers.AsyncContextResource(lambda: None)  # type: ignore[arg-type,return-value]

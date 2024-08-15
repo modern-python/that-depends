@@ -72,7 +72,7 @@ from that_depends import BaseContainer, providers
 
 class DIContainer(BaseContainer):
     sync_resource = providers.Resource(create_sync_resource)
-    async_resource = providers.AsyncResource(create_async_resource)
+    async_resource = providers.Resource(create_async_resource)
 
     simple_factory = providers.Factory(SimpleFactory, dep1="text", dep2=123)
     dependent_factory = providers.Factory(
@@ -89,8 +89,8 @@ await DIContainer.simple_factory()
 # sync resolving is also allowed if there is no uninitialized async resources in dependencies
 DIContainer.simple_factory.sync_resolve()
 
-# otherwise you can initialize async resources beforehand one by one or in one call:
-await DIContainer.init_async_resources()
+# otherwise you can initialize resources beforehand one by one or in one call:
+await DIContainer.init_resources()
 ```
 
 ## Resolve dependencies not described in container

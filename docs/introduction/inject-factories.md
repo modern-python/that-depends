@@ -29,7 +29,7 @@ class FactoryWithFactories:
 
 
 class DIContainer(BaseContainer):
-    async_resource = providers.AsyncResource(create_async_resource)
+    async_resource = providers.Resource(create_async_resource)
     dependent_factory = providers.Factory(SomeFactory, start_at=async_resource.cast)
     factory_with_factories = providers.Factory(
         FactoryWithFactories,
@@ -48,7 +48,7 @@ assert instance1 is not instance2
 
 Sync factory from `.sync_provider` attribute can be used like this:
 ```python
-await DIContainer.init_async_resources()
+await DIContainer.init_resources()
 factory_with_factories = await DIContainer.factory_with_factories()
 instance1 = factory_with_factories.sync_factory()
 instance2 = factory_with_factories.sync_factory()

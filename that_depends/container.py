@@ -1,5 +1,6 @@
 import inspect
 import typing
+import warnings
 from contextlib import contextmanager
 
 from that_depends.providers import AbstractProvider, Resource, Singleton
@@ -25,7 +26,7 @@ class BaseContainer:
     def connect_containers(cls, *containers: type["BaseContainer"]) -> None:
         """Connect containers.
 
-        When `init_async_resources` and `tear_down` is called,
+        When `init_resources` and `tear_down` is called,
         same method of connected containers will also be called.
         """
         if not hasattr(cls, "containers"):
@@ -48,13 +49,18 @@ class BaseContainer:
         return cls.containers
 
     @classmethod
-    async def init_async_resources(cls) -> None:
+    async def init_resources(cls) -> None:
         for provider in cls.get_providers().values():
             if isinstance(provider, Resource):
                 await provider.async_resolve()
 
         for container in cls.get_containers():
-            await container.init_async_resources()
+            await container.init_resources()
+
+    @classmethod
+    async def init_async_resources(cls) -> None:
+        warnings.warn("init_async_resources is deprecated, use init_resources instead", RuntimeWarning, stacklevel=1)
+        await cls.init_resources()
 
     @classmethod
     async def tear_down(cls) -> None:

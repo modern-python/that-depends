@@ -1,6 +1,7 @@
 import contextlib
 import logging
 import typing
+import warnings
 from contextvars import ContextVar
 
 from that_depends.providers.base import ResourceContext
@@ -47,4 +48,11 @@ class ContextResource(Resource[T]):
 
 
 class AsyncContextResource(ContextResource[T]):
-    """Async Context Resource."""
+    def __init__(
+        self,
+        creator: typing.Callable[P, typing.AsyncIterator[T]],
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> None:
+        warnings.warn("AsyncContextResource is deprecated, use ContextResource instead", RuntimeWarning, stacklevel=1)
+        super().__init__(creator, *args, **kwargs)

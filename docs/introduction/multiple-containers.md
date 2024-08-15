@@ -8,7 +8,7 @@ from that_depends import BaseContainer, providers
 
 class InnerContainer(BaseContainer):
     sync_resource = providers.Resource(container.create_sync_resource)
-    async_resource = providers.AsyncResource(container.create_async_resource)
+    async_resource = providers.Resource(container.create_async_resource)
 
 
 class OuterContainer(BaseContainer):
@@ -28,7 +28,7 @@ OuterContainer.connect_containers(InnerContainer)
 
 
 # this will init resources for `InnerContainer` also
-await OuterContainer.init_async_resources()
+await OuterContainer.init_resources()
 
 # and this will tear down resources for `InnerContainer` also
 await OuterContainer.tear_down()
