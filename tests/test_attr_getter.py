@@ -28,7 +28,7 @@ class Settings:
 class NestingTestDTO: ...
 
 
-@pytest.fixture()
+@pytest.fixture
 def some_settings_provider() -> providers.Singleton[Settings]:
     return providers.Singleton(Settings)
 
