@@ -97,6 +97,11 @@ async def test_context_resources_overriding(context_resource: providers.Resource
         await context_resource()
 
 
+async def test_context_resources_init_and_tear_down() -> None:
+    await DIContainer.init_resources()
+    await DIContainer.tear_down()
+
+
 def test_context_resources_wrong_providers_init() -> None:
     with pytest.raises(RuntimeError, match="ContextResource must be generator function"):
         providers.ContextResource(lambda: None)  # type: ignore[arg-type,return-value]
