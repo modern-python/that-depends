@@ -4,6 +4,7 @@ from that_depends.providers.collections import Dict, List
 from that_depends.providers.context_resources import (
     AsyncContextResource,
     ContextResource,
+    DIContextMiddleware,
     container_context,
 )
 from that_depends.providers.factories import AsyncFactory, Factory
@@ -20,6 +21,7 @@ __all__ = [
     "AsyncResource",
     "AttrGetter",
     "ContextResource",
+    "DIContextMiddleware",
     "Dict",
     "Factory",
     "List",

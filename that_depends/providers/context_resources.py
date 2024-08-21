@@ -13,6 +13,13 @@ P = typing.ParamSpec("P")
 context_var: ContextVar[dict[str, typing.Any]] = ContextVar("context")
 logger = logging.getLogger(__name__)
 
+AppType = typing.TypeVar("AppType")
+Scope = typing.MutableMapping[str, typing.Any]
+Message = typing.MutableMapping[str, typing.Any]
+Receive = typing.Callable[[], typing.Awaitable[Message]]
+Send = typing.Callable[[Message], typing.Awaitable[None]]
+ASGIApp = typing.Callable[[Scope, Receive, Send], typing.Awaitable[None]]
+
 
 @contextlib.asynccontextmanager
 async def container_context(initial_context: dict[str, typing.Any] | None = None) -> typing.AsyncIterator[None]:
@@ -26,6 +33,15 @@ async def container_context(initial_context: dict[str, typing.Any] | None = None
                     await context_item.tear_down()
         finally:
             context_var.reset(token)
+
+
+class DIContextMiddleware:
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    @container_context()
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        return await self.app(scope, receive, send)
 
 
 def _get_container_context() -> dict[str, typing.Any]:
