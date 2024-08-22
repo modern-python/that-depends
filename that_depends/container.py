@@ -3,7 +3,7 @@ import typing
 import warnings
 from contextlib import contextmanager
 
-from that_depends.providers import AbstractProvider, AsyncResource, Resource, Singleton
+from that_depends.providers import AbstractProvider, Resource, Singleton
 
 
 if typing.TYPE_CHECKING:
@@ -51,7 +51,7 @@ class BaseContainer:
     @classmethod
     async def init_resources(cls) -> None:
         for provider in cls.get_providers().values():
-            if type(provider) in (Resource, AsyncResource):
+            if isinstance(provider, Resource):
                 await provider.async_resolve()
 
         for container in cls.get_containers():
