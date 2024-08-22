@@ -1,4 +1,3 @@
-import asyncio
 import typing
 import warnings
 
@@ -16,7 +15,6 @@ class Resource(AbstractResource[T]):
         "_args",
         "_kwargs",
         "_override",
-        "_resolving_lock",
         "_context",
     )
 
@@ -27,7 +25,6 @@ class Resource(AbstractResource[T]):
         **kwargs: P.kwargs,
     ) -> None:
         super().__init__(creator, *args, **kwargs)
-        self._resolving_lock = asyncio.Lock()
         self._context: ResourceContext[T] = ResourceContext()
 
     def _fetch_context(self) -> ResourceContext[T]:
