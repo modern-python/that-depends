@@ -101,7 +101,6 @@ class AbstractResource(AbstractProvider[T], abc.ABC):
         self._args = args
         self._kwargs = kwargs
         self._override = None
-        self._context: ResourceContext[T] | None = None
 
     def _is_creator_async(
         self, _: typing.Callable[P, typing.Iterator[T] | typing.AsyncIterator[T]]
