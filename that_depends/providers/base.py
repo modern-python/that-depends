@@ -126,12 +126,11 @@ class AbstractResource(AbstractProvider[T], abc.ABC):
         # lock to prevent race condition while resolving
         async with context.resolving_lock:
             if context.instance is None:
-                context_stack: contextlib.AsyncExitStack | contextlib.ExitStack
                 if self._is_creator_async(self._creator):
-                    context_stack = contextlib.AsyncExitStack()
-                    new_instance = typing.cast(
+                    context.context_stack = contextlib.AsyncExitStack()
+                    context.instance = typing.cast(
                         T,
-                        await context_stack.enter_async_context(
+                        await context.context_stack.enter_async_context(
                             contextlib.asynccontextmanager(self._creator)(
                                 *[await x() if isinstance(x, AbstractProvider) else x for x in self._args],
                                 **{
@@ -142,8 +141,8 @@ class AbstractResource(AbstractProvider[T], abc.ABC):
                         ),
                     )
                 elif self._is_creator_sync(self._creator):
-                    context_stack = contextlib.ExitStack()
-                    new_instance = context_stack.enter_context(
+                    context.context_stack = contextlib.ExitStack()
+                    context.instance = context.context_stack.enter_context(
                         contextlib.contextmanager(self._creator)(
                             *[await x.async_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
                             **{
@@ -152,9 +151,7 @@ class AbstractResource(AbstractProvider[T], abc.ABC):
                             },
                         ),
                     )
-                context.context_stack = context_stack
-                context.instance = new_instance
-            return context.instance
+            return typing.cast(T, context.instance)
 
     def sync_resolve(self) -> T:
         if self._override:
@@ -169,16 +166,14 @@ class AbstractResource(AbstractProvider[T], abc.ABC):
             raise RuntimeError(msg)
 
         if self._is_creator_sync(self._creator):
-            context_stack = contextlib.ExitStack()
-            instance = context_stack.enter_context(
+            context.context_stack = contextlib.ExitStack()
+            context.instance = context.context_stack.enter_context(
                 contextlib.contextmanager(self._creator)(
                     *[x.sync_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
                     **{k: v.sync_resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
                 ),
             )
-            context.context_stack = context_stack
-            context.instance = instance
-        return instance
+        return typing.cast(T, context.instance)
 
 
 class AbstractFactory(AbstractProvider[T], abc.ABC):
