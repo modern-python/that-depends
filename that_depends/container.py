@@ -3,7 +3,7 @@ import typing
 import warnings
 from contextlib import contextmanager
 
-from that_depends.providers import AbstractProvider, AsyncResource, Resource, Singleton
+from that_depends.providers import AbstractProvider, Resource, Singleton
 
 
 if typing.TYPE_CHECKING:
