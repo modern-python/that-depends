@@ -31,8 +31,7 @@ class Resource(AbstractResource[T]):
         return self._context
 
     async def tear_down(self) -> None:
-        context = self._fetch_context()
-        await context.tear_down()
+        await self._fetch_context().tear_down()
 
 
 class AsyncResource(Resource[T]):
