@@ -51,7 +51,7 @@ class BaseContainer:
     @classmethod
     async def init_resources(cls) -> None:
         for provider in cls.get_providers().values():
-            if type(provider) in (Resource, AsyncResource):
+            if isinstance(provider, Resource):
                 await provider.async_resolve()
 
         for container in cls.get_containers():

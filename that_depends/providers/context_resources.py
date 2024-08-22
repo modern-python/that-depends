@@ -1,11 +1,11 @@
 import contextlib
 import logging
 import typing
+import uuid
 import warnings
 from contextvars import ContextVar
 
-from that_depends.providers.base import ResourceContext
-from that_depends.providers.resources import Resource
+from that_depends.providers.base import AbstractResource, ResourceContext
 
 
 T = typing.TypeVar("T")
@@ -56,17 +56,33 @@ def fetch_context_item(key: str, default: typing.Any = None) -> typing.Any:  # n
     return _get_container_context().get(key, default)
 
 
-class ContextResource(Resource[T]):
-    def _fetch_context(self) -> ResourceContext[T] | None:
-        return typing.cast(ResourceContext[T], _get_container_context().get(self._internal_name))
+class ContextResource(AbstractResource[T]):
+    __slots__ = (
+        "_is_async",
+        "_creator",
+        "_args",
+        "_kwargs",
+        "_override",
+        "_internal_name",
+    )
 
-    def _set_context(self, context: ResourceContext[T] | None) -> None:
-        context_obj = _get_container_context()
-        if context:
-            context_obj[self._internal_name] = context
+    def __init__(
+        self,
+        creator: typing.Callable[P, typing.Iterator[T] | typing.AsyncIterator[T]],
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> None:
+        super().__init__(creator, *args, **kwargs)
+        self._internal_name = f"{creator.__name__}-{uuid.uuid4()}"
 
-    async def tear_down(self) -> None:
-        pass
+    def _fetch_context(self) -> ResourceContext[T]:
+        container_context_ = _get_container_context()
+        if resource_context := container_context_.get(self._internal_name):
+            return typing.cast(ResourceContext[T], resource_context)
+
+        resource_context = ResourceContext()
+        container_context_[self._internal_name] = resource_context
+        return resource_context
 
 
 class AsyncContextResource(ContextResource[T]):
