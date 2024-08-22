@@ -62,6 +62,12 @@ class Resource(AbstractProvider[T]):
     def _set_context(self, context: ResourceContext[T] | None) -> None:
         self._context = context
 
+    def _fetch_instance(self) -> T | None:
+        context = self._fetch_context()
+        if context:
+            return context.fetch_instance()
+        return None
+
     async def tear_down(self) -> None:
         context = self._fetch_context()
         if context:
@@ -72,16 +78,18 @@ class Resource(AbstractProvider[T]):
         if self._override:
             return typing.cast(T, self._override)
 
-        context = self._fetch_context()
-        if context:
-            return context.fetch_instance()
+        if (fetched_instance := self._fetch_instance()) is not None:
+            return fetched_instance
 
         # lock to prevent race condition while resolving
         async with self._resolving_lock:
+            if (fetched_instance := self._fetch_instance()) is not None:  # pragma: no cover
+                return fetched_instance
+
             context_stack: contextlib.AsyncExitStack | contextlib.ExitStack
             if self._is_creator_async(self._creator):
                 context_stack = contextlib.AsyncExitStack()
-                instance = typing.cast(
+                new_instance = typing.cast(
                     T,
                     await context_stack.enter_async_context(
                         contextlib.asynccontextmanager(self._creator)(
@@ -92,7 +100,7 @@ class Resource(AbstractProvider[T]):
                 )
             elif self._is_creator_sync(self._creator):
                 context_stack = contextlib.ExitStack()
-                instance = context_stack.enter_context(
+                new_instance = context_stack.enter_context(
                     contextlib.contextmanager(self._creator)(
                         *[await x.async_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
                         **{
@@ -101,8 +109,8 @@ class Resource(AbstractProvider[T]):
                         },
                     ),
                 )
-            self._set_context(ResourceContext(context_stack=context_stack, instance=instance))
-            return instance
+            self._set_context(ResourceContext(context_stack=context_stack, instance=new_instance))
+            return new_instance
 
     def sync_resolve(self) -> T:
         if self._override:
