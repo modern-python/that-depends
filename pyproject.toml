@@ -2,8 +2,7 @@
 name = "that-depends"
 description = "Simple Dependency Injection framework"
 authors = [
-    { email = "me@shiriev.ru" },
-    { name = "Artur Shiriev"}
+    { name = "Artur Shiriev", email = "me@shiriev.ru" },
 ]
 readme = "README.md"
 requires-python = ">=3.10,<4"
