@@ -21,7 +21,7 @@ jobs:
       - uses: arduino/setup-task@v1
         with:
           repo-token: ${{ github.token }}
-      - run: pip install poetry
+      - run: curl -LsSf https://astral.sh/uv/install.sh | sh
       - run: task install lint-ci
 
   pytest:
@@ -41,5 +41,5 @@ jobs:
       - uses: arduino/setup-task@v1
         with:
           repo-token: ${{ github.token }}
-      - run: pip install poetry
+      - run: curl -LsSf https://astral.sh/uv/install.sh | sh
       - run: task install tests
