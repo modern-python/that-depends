@@ -8,7 +8,7 @@
 [![Doc](https://readthedocs.org/projects/that-depends/badge/?version=latest&style=flat)](https://that-depends.readthedocs.io)
 [![GitHub stars](https://img.shields.io/github/stars/modern-python/that-depends)](https://github.com/modern-python/that-depends/stargazers)
 
-This package is dependency injection framework for Python and allows to transfer projects from `dependency-injector` with minimal costs and gain additional capabilities.
+Dependency injection framework for Python inspired by `dependency-injector`.
 
 It is production-ready and gives you the following:
 - Simple async-first DI framework with IOC-container.
