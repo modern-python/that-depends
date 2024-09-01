@@ -17,8 +17,8 @@ jobs:
         with:
           path: ~/.cache/uv
           key: publish-${{ hashFiles('pyproject.toml') }}
-      - uses: arduino/setup-task@v1
+      - uses: extractions/setup-just@v2
       - run: curl -LsSf https://astral.sh/uv/install.sh | sh
-      - run: task publish
+      - run: just publish
         env:
           PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}

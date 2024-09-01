@@ -2,18 +2,18 @@
 `that-depends` is an opensource project, and we are opened to new contributors.
 
 ## Getting started
-1. Make sure that you have [poetry](https://python-poetry.org/) and [task](https://taskfile.dev/) installed.
+1. Make sure that you have [poetry](https://python-poetry.org/) and [just](https://github.com/vitorbritto/just) installed.
 2. Clone project:
 ```
 git@github.com:modern-python/that-depends.git
 cd that-depends
 ```
-3. Install dependencies running `task install`
+3. Install dependencies running `just install`
 
 ## Running linters
 `Ruff` and `mypy` are used for static analysis.
 
-Run all checks by command `task lint`
+Run all checks by command `just lint`
 
 ## Running tests
-Run all tests by command `task tests`
+Run all tests by command `just tests`
