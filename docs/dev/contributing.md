@@ -2,7 +2,7 @@
 `that-depends` is an opensource project, and we are opened to new contributors.
 
 ## Getting started
-1. Make sure that you have [poetry](https://python-poetry.org/) and [just](https://github.com/vitorbritto/just) installed.
+1. Make sure that you have [poetry](https://python-poetry.org/) and [just](https://just.systems/) installed.
 2. Clone project:
 ```
 git@github.com:modern-python/that-depends.git
