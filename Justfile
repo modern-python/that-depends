@@ -14,8 +14,8 @@ lint-ci:
     uv run ruff check . --no-fix
     uv run mypy .
 
-tests:
-    uv run pytest {{CLI_ARGS}}
+tests *args:
+    uv run pytest {{ args }}
 
 publish:
     rm -rf dist/*
