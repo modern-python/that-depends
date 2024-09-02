@@ -1,5 +1,6 @@
 "That Depends"
 ==
+[![Test Coverage](https://codecov.io/gh/modern-python/that-depends/branch/main/graph/badge.svg)](https://codecov.io/gh/modern-python/that-depends)
 [![PyPI version](https://badge.fury.io/py/that-depends.svg)](https://pypi.python.org/pypi/that-depends)
 [![Supported versions](https://img.shields.io/pypi/pyversions/that-depends.svg)](https://pypi.python.org/pypi/that-depends)
 [![downloads](https://img.shields.io/pypi/dm/that-depends.svg)](https://pypistats.org/packages/that-depends)
