@@ -39,3 +39,8 @@ jobs:
       - uses: extractions/setup-just@v2
       - run: curl -LsSf https://astral.sh/uv/install.sh | sh
       - run: just install tests
+      - name: Coveralls
+        uses: coverallsapp/github-action@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path--to-lcov: coverage.xml

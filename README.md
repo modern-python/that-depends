@@ -4,7 +4,6 @@
 [![Supported versions](https://img.shields.io/pypi/pyversions/that-depends.svg)](https://pypi.python.org/pypi/that-depends)
 [![downloads](https://img.shields.io/pypi/dm/that-depends.svg)](https://pypistats.org/packages/that-depends)
 [![GitHub license](https://img.shields.io/github/license/modern-python/that-depends)](https://github.com/modern-python/that-depends/blob/main/LICENSE)
-[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/modern-python/that-depends/python-package.yml)](https://github.com/modern-python/that-depends/actions)
 [![Doc](https://readthedocs.org/projects/that-depends/badge/?version=latest&style=flat)](https://that-depends.readthedocs.io)
 [![GitHub stars](https://img.shields.io/github/stars/modern-python/that-depends)](https://github.com/modern-python/that-depends/stargazers)
 
