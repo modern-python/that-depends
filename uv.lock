@@ -681,7 +681,7 @@ wheels = [
 
 [[package]]
 name = "that-depends"
-version = "1.17.1"
+version = "1.17.2.dev3+g5a21fef.d20240902"
 source = { editable = "." }
 
 [package.dev-dependencies]
