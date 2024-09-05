@@ -38,7 +38,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - uses: extractions/setup-just@v2
       - run: curl -LsSf https://astral.sh/uv/install.sh | sh
-      - run: just install tests . --cov=. --cov-report xml
+      - run: just install test . --cov=. --cov-report xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4.0.1
         env:
