@@ -1,4 +1,4 @@
-default: install lint tests
+default: install lint test
 
 install:
     uv lock --upgrade
@@ -14,7 +14,7 @@ lint-ci:
     uv run ruff check . --no-fix
     uv run mypy .
 
-tests *args:
+test *args:
     uv run pytest {{ args }}
 
 publish:
