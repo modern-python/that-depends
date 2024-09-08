@@ -30,6 +30,7 @@ def _inject_to_async(
         for field_name, field_value in signature.parameters.items():
             if not isinstance(field_value.default, AbstractProvider):
                 continue
+
             if field_name in kwargs:
                 msg = f"Injected arguments must not be redefined, {field_name=}"
                 raise RuntimeError(msg)
