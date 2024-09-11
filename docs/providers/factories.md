@@ -32,5 +32,5 @@ async def async_factory() -> datetime.datetime:
 
 
 class DIContainer(BaseContainer):
-    async_factory = providers.Factory(async_factory)
+    async_factory = providers.AsyncFactory(async_factory)
 ```
