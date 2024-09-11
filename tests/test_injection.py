@@ -26,15 +26,16 @@ async def test_injection(
     assert fixture_one == 1
 
 
-async def test_wrong_injection() -> None:
+async def test_injection_with_overriding() -> None:
     @inject
     async def inner(
-        _: container.SimpleFactory = Provide[container.DIContainer.simple_factory],
+        arg: container.SimpleFactory = Provide[container.DIContainer.simple_factory],
     ) -> None:
-        """Do nothing."""
+        original_obj = await container.DIContainer.simple_factory()
+        assert arg.dep1 != original_obj.dep1
+        assert arg.dep2 != original_obj.dep2
 
-    with pytest.raises(RuntimeError, match="Injected arguments must not be redefined"):
-        await inner(_=container.SimpleFactory(dep1="1", dep2=2))
+    await inner(arg=container.SimpleFactory(dep1="1", dep2=2))
 
 
 async def test_empty_injection() -> None:

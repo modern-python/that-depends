@@ -32,8 +32,7 @@ def _inject_to_async(
                 continue
 
             if field_name in kwargs:
-                msg = f"Injected arguments must not be redefined, {field_name=}"
-                raise RuntimeError(msg)
+                continue
 
             kwargs[field_name] = await field_value.default()
             injected = True
