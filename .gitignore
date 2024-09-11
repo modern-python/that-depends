@@ -19,3 +19,4 @@ pytest.xml
 dist/
 .python-version
 .venv
+uv.lock
