@@ -22,6 +22,7 @@ packages = [
 
 [project.urls]
 repository = "https://github.com/modern-python/that-depends"
+docs = "https://that-depends.readthedocs.io"
 
 [tool.uv]
 dev-dependencies = [
