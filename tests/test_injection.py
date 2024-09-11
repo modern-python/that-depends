@@ -29,13 +29,17 @@ async def test_injection(
 async def test_injection_with_overriding() -> None:
     @inject
     async def inner(
-        arg: container.SimpleFactory = Provide[container.DIContainer.simple_factory],
+        arg1: bool,
+        arg2: container.SimpleFactory = Provide[container.DIContainer.simple_factory],
     ) -> None:
+        _ = arg1
         original_obj = await container.DIContainer.simple_factory()
-        assert arg.dep1 != original_obj.dep1
-        assert arg.dep2 != original_obj.dep2
+        assert arg2.dep1 != original_obj.dep1
+        assert arg2.dep2 != original_obj.dep2
 
-    await inner(arg=container.SimpleFactory(dep1="1", dep2=2))
+    await inner(arg1=True, arg2=container.SimpleFactory(dep1="1", dep2=2))
+    await inner(True, container.SimpleFactory(dep1="1", dep2=2))
+    await inner(True, arg2=container.SimpleFactory(dep1="1", dep2=2))
 
 
 async def test_empty_injection() -> None:
