@@ -27,13 +27,15 @@ def _inject_to_async(
     @functools.wraps(func)
     async def inner(*args: P.args, **kwargs: P.kwargs) -> T:
         injected = False
-        for field_name, field_value in signature.parameters.items():
+        for i, (field_name, field_value) in enumerate(signature.parameters.items()):
+            if i < len(args):
+                continue
+
             if not isinstance(field_value.default, AbstractProvider):
                 continue
 
             if field_name in kwargs:
-                msg = f"Injected arguments must not be redefined, {field_name=}"
-                raise RuntimeError(msg)
+                continue
 
             kwargs[field_name] = await field_value.default()
             injected = True
