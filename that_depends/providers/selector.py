@@ -7,13 +7,17 @@ T = typing.TypeVar("T")
 
 
 class Selector(AbstractProvider[T]):
-    __slots__ = "_selector", "_providers"
+    __slots__ = "_selector", "_providers", "_override"
 
     def __init__(self, selector: typing.Callable[[], str], **providers: AbstractProvider[T]) -> None:
         self._selector = selector
         self._providers = providers
+        self._override = None
 
     async def async_resolve(self) -> T:
+        if self._override:
+            return typing.cast(T, self._override)
+
         selected_key = self._selector()
         if selected_key not in self._providers:
             msg = f"No provider matches {selected_key}"
@@ -21,6 +25,9 @@ class Selector(AbstractProvider[T]):
         return await self._providers[selected_key].async_resolve()
 
     def sync_resolve(self) -> T:
+        if self._override:
+            return typing.cast(T, self._override)
+
         selected_key = self._selector()
         if selected_key not in self._providers:
             msg = f"No provider matches {selected_key}"
