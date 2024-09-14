@@ -51,7 +51,7 @@ def _inject_to_async(
 def _inject_to_sync(
     func: typing.Callable[P, T],
 ) -> typing.Callable[P, T]:
-    signature = inspect.signature(func)
+    signature: typing.Final = inspect.signature(func)
 
     @functools.wraps(func)
     def inner(*args: P.args, **kwargs: P.kwargs) -> T:

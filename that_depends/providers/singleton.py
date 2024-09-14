@@ -13,12 +13,12 @@ class Singleton(AbstractProvider[T]):
     __slots__ = "_factory", "_args", "_kwargs", "_override", "_instance", "_resolving_lock"
 
     def __init__(self, factory: type[T] | typing.Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> None:
-        self._factory = factory
-        self._args = args
-        self._kwargs = kwargs
+        self._factory: typing.Final = factory
+        self._args: typing.Final = args
+        self._kwargs: typing.Final = kwargs
         self._override = None
         self._instance: T | None = None
-        self._resolving_lock = asyncio.Lock()
+        self._resolving_lock: typing.Final = asyncio.Lock()
 
     def __getattr__(self, attr_name: str) -> typing.Any:  # noqa: ANN401
         if attr_name.startswith("_"):

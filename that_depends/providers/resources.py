@@ -25,7 +25,7 @@ class Resource(AbstractResource[T]):
         **kwargs: P.kwargs,
     ) -> None:
         super().__init__(creator, *args, **kwargs)
-        self._context: ResourceContext[T] = ResourceContext()
+        self._context: typing.Final[ResourceContext[T]] = ResourceContext()
 
     def _fetch_context(self) -> ResourceContext[T]:
         return self._context

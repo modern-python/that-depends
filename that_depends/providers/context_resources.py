@@ -8,11 +8,10 @@ from contextvars import ContextVar
 from that_depends.providers.base import AbstractResource, ResourceContext
 
 
+logger: typing.Final = logging.getLogger(__name__)
 T = typing.TypeVar("T")
 P = typing.ParamSpec("P")
 context_var: ContextVar[dict[str, typing.Any]] = ContextVar("context")
-logger = logging.getLogger(__name__)
-
 AppType = typing.TypeVar("AppType")
 Scope = typing.MutableMapping[str, typing.Any]
 Message = typing.MutableMapping[str, typing.Any]
@@ -23,7 +22,7 @@ ASGIApp = typing.Callable[[Scope, Receive, Send], typing.Awaitable[None]]
 
 @contextlib.asynccontextmanager
 async def container_context(initial_context: dict[str, typing.Any] | None = None) -> typing.AsyncIterator[None]:
-    token = context_var.set(initial_context or {})
+    token: typing.Final = context_var.set(initial_context or {})
     try:
         yield
     finally:
@@ -37,7 +36,7 @@ async def container_context(initial_context: dict[str, typing.Any] | None = None
 
 class DIContextMiddleware:
     def __init__(self, app: ASGIApp) -> None:
-        self.app = app
+        self.app: typing.Final = app
 
     @container_context()
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
@@ -73,7 +72,7 @@ class ContextResource(AbstractResource[T]):
         **kwargs: P.kwargs,
     ) -> None:
         super().__init__(creator, *args, **kwargs)
-        self._internal_name = f"{creator.__name__}-{uuid.uuid4()}"
+        self._internal_name: typing.Final = f"{creator.__name__}-{uuid.uuid4()}"
 
     def _fetch_context(self) -> ResourceContext[T]:
         container_context_ = _get_container_context()

@@ -67,7 +67,7 @@ class ResourceContext(typing.Generic[T_co]):
         instance: T_co | None = None,
     ) -> None:
         self.instance = instance
-        self.resolving_lock = asyncio.Lock()
+        self.resolving_lock: typing.Final = asyncio.Lock()
         self.context_stack = context_stack
 
     async def tear_down(self) -> None:
@@ -97,9 +97,9 @@ class AbstractResource(AbstractProvider[T], abc.ABC):
             msg = f"{type(self).__name__} must be generator function"
             raise RuntimeError(msg)
 
-        self._creator = creator
-        self._args = args
-        self._kwargs = kwargs
+        self._creator: typing.Final = creator
+        self._args: typing.Final = args
+        self._kwargs: typing.Final = kwargs
         self._override = None
 
     def _is_creator_async(

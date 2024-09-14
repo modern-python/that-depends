@@ -85,9 +85,9 @@ class BaseContainer:
 
     @classmethod
     async def resolve(cls, object_to_resolve: type[T] | typing.Callable[..., T]) -> T:
-        signature = inspect.signature(object_to_resolve)
+        signature: typing.Final = inspect.signature(object_to_resolve)
         kwargs = {}
-        providers = cls.get_providers()
+        providers: typing.Final = cls.get_providers()
         for field_name, field_value in signature.parameters.items():
             if field_value.default is not inspect.Parameter.empty or field_name in ("_", "__"):
                 continue
@@ -103,9 +103,9 @@ class BaseContainer:
     @classmethod
     @contextmanager
     def override_providers(cls, providers_for_overriding: dict[str, typing.Any]) -> typing.Iterator[None]:
-        current_providers = cls.get_providers()
-        current_provider_names = set(current_providers.keys())
-        given_provider_names = set(providers_for_overriding.keys())
+        current_providers: typing.Final = cls.get_providers()
+        current_provider_names: typing.Final = set(current_providers.keys())
+        given_provider_names: typing.Final = set(providers_for_overriding.keys())
 
         for given_name in given_provider_names:
             if given_name not in current_provider_names:
