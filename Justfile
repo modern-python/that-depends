@@ -19,6 +19,6 @@ test *args:
 
 publish:
     rm -rf dist/*
-    uv tool run --from build python -m build --installer uv
-    uv tool run twine check dist/*
-    uv tool run twine upload dist/* --username __token__ --password $PYPI_TOKEN
+    uvx --from build python -m build --installer uv
+    uvx twine check dist/*
+    uvx twine upload dist/* --username __token__ --password $PYPI_TOKEN
