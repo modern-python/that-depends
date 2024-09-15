@@ -1,10 +1,12 @@
-import contextlib
-from functools import wraps
+import inspect
 import logging
 import typing
 import uuid
 import warnings
+from contextlib import AbstractAsyncContextManager, AbstractContextManager
 from contextvars import ContextVar, Token
+from functools import wraps
+from types import TracebackType
 
 from that_depends.providers.base import AbstractResource, ResourceContext
 
@@ -36,41 +38,81 @@ async def container_context(initial_context: dict[str, typing.Any] | None = None
 """
 
 
-class AsyncContextDecorator(object):
-    "A base class or mixin that enables async context managers to work as decorators."
-
-    def _recreate_cm(self):
-        """Return a recreated instance of self.
-        """
-        return self
-
-    def __call__(self, func):
-        @wraps(func)
-        async def inner(*args, **kwds):
-            async with self._recreate_cm():
-                return await func(*args, **kwds)
-        return inner
+ContextType = dict[str, typing.Any]
 
 
-ContextType = typing.TypeVar("ContextType", bound=typing.Dict[str, typing.Any])
-class container_context(contextlib.AbstractAsyncContextManager[ContextType], AsyncContextDecorator):
-    def __init__(self, initial_context: typing.Optional[ContextType] = None) -> None:
-        
-        self._initial_context: typing.Final[ContextType] = initial_context
-        self._context_token: typing.Optional[Token[ContextType]] = None
+class container_context(  # noqa: N801
+    AbstractAsyncContextManager[ContextType], AbstractContextManager[ContextType]
+):
+    """Manage the context of ContextResources.
+
+    Can be entered using ``async with container_context()`` or with ``with container_context()``
+    as a async-context-manager or context-manager respectively.
+    When used as an async-context-manager, it will allow setup & teardown of both sync and async resources.
+    When used as an sync-context-manager, it will only allow setup & teardown of sync resources.
+    """
+
+    def __init__(self, initial_context: ContextType | None = None) -> None:
+        self._initial_context: ContextType | None = initial_context
+        self._context_token: Token[ContextType] | None = None
+
+    def __enter__(self) -> ContextType:
+        return self._enter()
 
     async def __aenter__(self) -> ContextType:
+        return self._enter()
+
+    def _enter(self) -> ContextType:
         self._context_token = context_var.set(self._initial_context or {})
         return context_var.get()
 
-
-    async def __aexit__(self, exc_type, exc_val, traceback) -> None:
+    def __exit__(
+        self, exc_type: type[BaseException] | None, exc_value: BaseException | None, traceback: TracebackType | None
+    ) -> None:
+        if self._context_token is None:
+            msg = "Context is not set, call ``__enter__`` first"
+            raise RuntimeError(msg)
         try:
             for context_item in reversed(context_var.get().values()):
                 if isinstance(context_item, ResourceContext):
-                    await context_item.tear_down()
+                    # we don't need to handle the case where the ResourceContext is async
+                    context_item.sync_tear_down()
+
         finally:
             context_var.reset(self._context_token)
+
+    async def __aexit__(
+        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, traceback: TracebackType | None
+    ) -> None:
+        if self._context_token is None:
+            msg = "Context is not set, call ``__aenter__`` first"
+            raise RuntimeError(msg)
+        try:
+            for context_item in reversed(context_var.get().values()):
+                if isinstance(context_item, ResourceContext):
+                    if context_item.is_async:
+                        await context_item.tear_down()
+                    else:
+                        context_item.sync_tear_down()
+        finally:
+            context_var.reset(self._context_token)
+
+    def __call__(self, func: typing.Callable[P, T]) -> typing.Callable[P, T]:
+        if inspect.iscoroutinefunction(func):
+
+            @wraps(func)
+            async def _async_inner(*args: P.args, **kwds: P.kwargs) -> T:
+                async with self:
+                    return await func(*args, **kwds)  # type: ignore[no-any-return]
+
+            return typing.cast(typing.Callable[P, T], _async_inner)
+
+        @wraps(func)
+        def _sync_inner(*args: P.args, **kwds: P.kwargs) -> T:
+            with self:
+                return func(*args, **kwds)
+
+        return _sync_inner
 
 
 class DIContextMiddleware:

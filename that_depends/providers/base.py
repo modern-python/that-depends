@@ -70,6 +70,15 @@ class ResourceContext(typing.Generic[T_co]):
         self.resolving_lock: typing.Final = asyncio.Lock()
         self.context_stack = context_stack
 
+    @property
+    def is_async(self) -> bool:
+        return isinstance(self.context_stack, contextlib.AsyncExitStack)
+
+    def _is_context_sync(
+        self, _: contextlib.AsyncExitStack | contextlib.ExitStack
+    ) -> typing.TypeGuard[contextlib.ExitStack]:
+        return isinstance(_, contextlib.ExitStack)
+
     async def tear_down(self) -> None:
         if self.context_stack is None:
             return
@@ -80,6 +89,17 @@ class ResourceContext(typing.Generic[T_co]):
             self.context_stack.close()
         self.context_stack = None
         self.instance = None
+
+    def sync_tear_down(self) -> None:
+        if self.context_stack is None:
+            return
+        if self._is_context_sync(self.context_stack):
+            self.context_stack.close()
+            self.context_stack = None
+            self.instance = None
+        else:
+            msg = "Cannot tear down async context in sync mode"
+            raise RuntimeError(msg)
 
 
 class AbstractResource(AbstractProvider[T], abc.ABC):
