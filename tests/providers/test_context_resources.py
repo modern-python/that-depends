@@ -47,13 +47,16 @@ async def _clear_di_container() -> typing.AsyncIterator[None]:
 def context_resource(request: pytest.FixtureRequest) -> providers.ContextResource[str]:
     return typing.cast(providers.ContextResource[str], request.param)
 
+
 @pytest.fixture
 def sync_context_resource() -> providers.ContextResource[str]:
     return DIContainer.sync_context_resource
 
+
 @pytest.fixture
 def async_context_resource() -> providers.ContextResource[str]:
     return DIContainer.async_context_resource
+
 
 async def test_context_resource_without_context_init(
     context_resource: providers.ContextResource[str],
@@ -71,18 +74,18 @@ async def test_context_resource(context_resource: providers.ContextResource[str]
 
     assert await context_resource() is context_resource_result
 
+
 @container_context()
 def test_sync_context_resource(sync_context_resource: providers.ContextResource[str]) -> None:
     context_resource_result = sync_context_resource.sync_resolve()
 
     assert sync_context_resource.sync_resolve() is context_resource_result
-    
-async def test_async_context_resource_in_sync_context(async_context_resource: providers.ContextResource[str]) -> None:
-    
 
-    with pytest.raises(RuntimeError, match="Cannot tear down async context in sync mode"):
-        with container_context():
-            await async_context_resource()
+
+async def test_async_context_resource_in_sync_context(async_context_resource: providers.ContextResource[str]) -> None:
+    with pytest.raises(RuntimeError, match="Cannot tear down async context in sync mode"), container_context():
+        await async_context_resource()
+
 
 async def test_context_resource_different_context(
     context_resource: providers.ContextResource[datetime.datetime],
@@ -142,7 +145,6 @@ async def test_context_resource_with_dynamic_resource() -> None:
 
     async with container_context():
         assert (await DIContainer.dynamic_context_resource()).startswith("sync")
-        
 
 
 async def test_early_exit_of_container_context() -> None:
@@ -153,7 +155,7 @@ async def test_early_exit_of_container_context() -> None:
 
 
 async def test_resource_context_early_teardown() -> None:
-    context = ResourceContext()
+    context: ResourceContext[str] = ResourceContext()
     assert context.context_stack is None
     context.sync_tear_down()
     assert context.context_stack is None
