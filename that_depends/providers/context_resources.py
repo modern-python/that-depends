@@ -22,21 +22,6 @@ Receive = typing.Callable[[], typing.Awaitable[Message]]
 Send = typing.Callable[[Message], typing.Awaitable[None]]
 ASGIApp = typing.Callable[[Scope, Receive, Send], typing.Awaitable[None]]
 
-"""
-@contextlib.asynccontextmanager
-async def container_context(initial_context: dict[str, typing.Any] | None = None) -> typing.AsyncIterator[None]:
-    token: typing.Final = context_var.set(initial_context or {})
-    try:
-        yield
-    finally:
-        try:
-            for context_item in reversed(context_var.get().values()):
-                if isinstance(context_item, ResourceContext):
-                    await context_item.tear_down()
-        finally:
-            context_var.reset(token)
-"""
-
 
 ContextType = dict[str, typing.Any]
 
