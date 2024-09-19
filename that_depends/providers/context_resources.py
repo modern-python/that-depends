@@ -14,14 +14,14 @@ from that_depends.providers.base import AbstractResource, ResourceContext
 logger: typing.Final = logging.getLogger(__name__)
 T = typing.TypeVar("T")
 P = typing.ParamSpec("P")
-context_var: ContextVar[dict[str, typing.Any]] = ContextVar("context")
+_CONTAINER_CONTEXT: typing.Final[ContextVar[dict[str, typing.Any]]] = ContextVar("CONTAINER_CONTEXT")
 AppType = typing.TypeVar("AppType")
 Scope = typing.MutableMapping[str, typing.Any]
 Message = typing.MutableMapping[str, typing.Any]
 Receive = typing.Callable[[], typing.Awaitable[Message]]
 Send = typing.Callable[[Message], typing.Awaitable[None]]
 ASGIApp = typing.Callable[[Scope, Receive, Send], typing.Awaitable[None]]
-
+_ASYNC_CONTEXT_KEY: typing.Final[str] = "__ASYNC_CONTEXT__"
 
 ContextType = dict[str, typing.Any]
 
@@ -38,18 +38,20 @@ class container_context(  # noqa: N801
     """
 
     def __init__(self, initial_context: ContextType | None = None) -> None:
-        self._initial_context: ContextType | None = initial_context
+        self._initial_context: ContextType = initial_context or {}
         self._context_token: Token[ContextType] | None = None
 
     def __enter__(self) -> ContextType:
+        self._initial_context[_ASYNC_CONTEXT_KEY] = False
         return self._enter()
 
     async def __aenter__(self) -> ContextType:
+        self._initial_context[_ASYNC_CONTEXT_KEY] = True
         return self._enter()
 
     def _enter(self) -> ContextType:
-        self._context_token = context_var.set(self._initial_context or {})
-        return context_var.get()
+        self._context_token = _CONTAINER_CONTEXT.set(self._initial_context or {})
+        return _CONTAINER_CONTEXT.get()
 
     def __exit__(
         self, exc_type: type[BaseException] | None, exc_value: BaseException | None, traceback: TracebackType | None
@@ -58,13 +60,13 @@ class container_context(  # noqa: N801
             msg = "Context is not set, call ``__enter__`` first"
             raise RuntimeError(msg)
         try:
-            for context_item in reversed(context_var.get().values()):
+            for context_item in reversed(_CONTAINER_CONTEXT.get().values()):
                 if isinstance(context_item, ResourceContext):
                     # we don't need to handle the case where the ResourceContext is async
                     context_item.sync_tear_down()
 
         finally:
-            context_var.reset(self._context_token)
+            _CONTAINER_CONTEXT.reset(self._context_token)
 
     async def __aexit__(
         self, exc_type: type[BaseException] | None, exc_val: BaseException | None, traceback: TracebackType | None
@@ -73,14 +75,14 @@ class container_context(  # noqa: N801
             msg = "Context is not set, call ``__aenter__`` first"
             raise RuntimeError(msg)
         try:
-            for context_item in reversed(context_var.get().values()):
+            for context_item in reversed(_CONTAINER_CONTEXT.get().values()):
                 if isinstance(context_item, ResourceContext):
-                    if context_item.is_async:
+                    if context_item.is_context_stack_async(context_item.context_stack):
                         await context_item.tear_down()
                     else:
                         context_item.sync_tear_down()
         finally:
-            context_var.reset(self._context_token)
+            _CONTAINER_CONTEXT.reset(self._context_token)
 
     def __call__(self, func: typing.Callable[P, T]) -> typing.Callable[P, T]:
         if inspect.iscoroutinefunction(func):
@@ -111,10 +113,19 @@ class DIContextMiddleware:
 
 def _get_container_context() -> dict[str, typing.Any]:
     try:
-        return context_var.get()
+        return _CONTAINER_CONTEXT.get()
     except LookupError as exc:
         msg = "Context is not set. Use container_context"
         raise RuntimeError(msg) from exc
+
+
+def _is_container_context_async() -> bool:
+    """Check if the current container context is async.
+
+    :return: Whether the current container context is async.
+    :rtype: bool
+    """
+    return typing.cast(bool, _get_container_context().get(_ASYNC_CONTEXT_KEY, False))
 
 
 def fetch_context_item(key: str, default: typing.Any = None) -> typing.Any:  # noqa: ANN401
@@ -141,12 +152,12 @@ class ContextResource(AbstractResource[T]):
         self._internal_name: typing.Final = f"{creator.__name__}-{uuid.uuid4()}"
 
     def _fetch_context(self) -> ResourceContext[T]:
-        container_context_ = _get_container_context()
-        if resource_context := container_context_.get(self._internal_name):
+        container_context = _get_container_context()
+        if resource_context := container_context.get(self._internal_name):
             return typing.cast(ResourceContext[T], resource_context)
 
-        resource_context = ResourceContext()
-        container_context_[self._internal_name] = resource_context
+        resource_context = ResourceContext(is_async=_is_container_context_async())
+        container_context[self._internal_name] = resource_context
         return resource_context
 
 
