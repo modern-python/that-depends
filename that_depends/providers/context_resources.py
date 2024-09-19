@@ -32,9 +32,9 @@ class container_context(  # noqa: N801
     """Manage the context of ContextResources.
 
     Can be entered using ``async with container_context()`` or with ``with container_context()``
-    as a async-context-manager or context-manager respectively.
-    When used as an async-context-manager, it will allow setup & teardown of both sync and async resources.
-    When used as an sync-context-manager, it will only allow setup & teardown of sync resources.
+    as async-context-manager or context-manager respectively.
+    When used as async-context-manager, it will allow setup & teardown of both sync and async resources.
+    When used as sync-context-manager, it will only allow setup & teardown of sync resources.
     """
 
     def __init__(self, initial_context: ContextType | None = None) -> None:
@@ -59,6 +59,7 @@ class container_context(  # noqa: N801
         if self._context_token is None:
             msg = "Context is not set, call ``__enter__`` first"
             raise RuntimeError(msg)
+
         try:
             for context_item in reversed(_CONTAINER_CONTEXT.get().values()):
                 if isinstance(context_item, ResourceContext):
@@ -74,13 +75,16 @@ class container_context(  # noqa: N801
         if self._context_token is None:
             msg = "Context is not set, call ``__aenter__`` first"
             raise RuntimeError(msg)
+
         try:
             for context_item in reversed(_CONTAINER_CONTEXT.get().values()):
-                if isinstance(context_item, ResourceContext):
-                    if context_item.is_context_stack_async(context_item.context_stack):
-                        await context_item.tear_down()
-                    else:
-                        context_item.sync_tear_down()
+                if not isinstance(context_item, ResourceContext):
+                    continue
+
+                if context_item.is_context_stack_async(context_item.context_stack):
+                    await context_item.tear_down()
+                else:
+                    context_item.sync_tear_down()
         finally:
             _CONTAINER_CONTEXT.reset(self._context_token)
 
@@ -88,16 +92,16 @@ class container_context(  # noqa: N801
         if inspect.iscoroutinefunction(func):
 
             @wraps(func)
-            async def _async_inner(*args: P.args, **kwds: P.kwargs) -> T:
+            async def _async_inner(*args: P.args, **kwargs: P.kwargs) -> T:
                 async with self:
-                    return await func(*args, **kwds)  # type: ignore[no-any-return]
+                    return await func(*args, **kwargs)  # type: ignore[no-any-return]
 
             return typing.cast(typing.Callable[P, T], _async_inner)
 
         @wraps(func)
-        def _sync_inner(*args: P.args, **kwds: P.kwargs) -> T:
+        def _sync_inner(*args: P.args, **kwargs: P.kwargs) -> T:
             with self:
-                return func(*args, **kwds)
+                return func(*args, **kwargs)
 
         return _sync_inner
 

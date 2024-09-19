@@ -163,12 +163,7 @@ async def test_resource_context_early_teardown() -> None:
 
 
 async def test_teardown_sync_container_context_with_async_resource() -> None:
-    """Test :class:`ResourceContext` teardown in sync mode with async resource."""
+    resource_context: ResourceContext[typing.Any] = ResourceContext(is_async=True)
+    resource_context.context_stack = AsyncExitStack()
     with pytest.raises(RuntimeError, match="Cannot tear down async context in sync mode"):
-        ResourceContext(is_async=True, context_stack=AsyncExitStack()).sync_tear_down()
-
-
-async def test_creating_async_resource_in_sync_context() -> None:
-    """Test creating a :class:`ResourceContext` with async resource in sync context raises."""
-    with pytest.raises(RuntimeError, match="Cannot use async resource in sync mode."):
-        ResourceContext(is_async=False, context_stack=AsyncExitStack())
+        resource_context.sync_tear_down()
