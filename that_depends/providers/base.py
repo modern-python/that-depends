@@ -61,37 +61,31 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
 class ResourceContext(typing.Generic[T_co]):
     __slots__ = "context_stack", "instance", "resolving_lock", "is_async"
 
-    def __init__(
-        self,
-        is_async: bool,
-        context_stack: contextlib.AsyncExitStack | contextlib.ExitStack | None = None,
-        instance: T_co | None = None,
-    ) -> None:
-        self.instance = instance
+    def __init__(self, is_async: bool) -> None:
+        self.instance: T_co | None = None
         self.resolving_lock: typing.Final = asyncio.Lock()
-        self.context_stack = context_stack
+        self.context_stack: contextlib.AsyncExitStack | contextlib.ExitStack | None = None
         self.is_async = is_async
-        if not self.is_async and self.is_context_stack_async(self.context_stack):
-            msg = "Cannot use async resource in sync mode."
-            raise RuntimeError(msg)
 
-    def is_context_stack_sync(
-        self, _: contextlib.AsyncExitStack | contextlib.ExitStack | None
-    ) -> typing.TypeGuard[contextlib.ExitStack]:
-        return isinstance(_, contextlib.ExitStack)
-
+    @staticmethod
     def is_context_stack_async(
-        self, _: contextlib.AsyncExitStack | contextlib.ExitStack | None
+        context_stack: contextlib.AsyncExitStack | contextlib.ExitStack | None,
     ) -> typing.TypeGuard[contextlib.AsyncExitStack]:
-        return isinstance(_, contextlib.AsyncExitStack)
+        return isinstance(context_stack, contextlib.AsyncExitStack)
+
+    @staticmethod
+    def is_context_stack_sync(
+        context_stack: contextlib.AsyncExitStack | contextlib.ExitStack,
+    ) -> typing.TypeGuard[contextlib.ExitStack]:
+        return isinstance(context_stack, contextlib.ExitStack)
 
     async def tear_down(self) -> None:
         if self.context_stack is None:
             return
 
-        if isinstance(self.context_stack, contextlib.AsyncExitStack):
+        if self.is_context_stack_async(self.context_stack):
             await self.context_stack.aclose()
-        else:
+        elif self.is_context_stack_sync(self.context_stack):
             self.context_stack.close()
         self.context_stack = None
         self.instance = None
@@ -99,11 +93,12 @@ class ResourceContext(typing.Generic[T_co]):
     def sync_tear_down(self) -> None:
         if self.context_stack is None:
             return
+
         if self.is_context_stack_sync(self.context_stack):
             self.context_stack.close()
             self.context_stack = None
             self.instance = None
-        else:
+        elif self.is_context_stack_async(self.context_stack):
             msg = "Cannot tear down async context in sync mode"
             raise RuntimeError(msg)
 
