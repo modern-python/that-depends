@@ -24,8 +24,7 @@ class AttrGetter(
 
     def __getattr__(self, attr: str) -> "AttrGetter[T]":
         if attr.startswith("_"):
-            msg = f"'{type(self)}' object has no attribute '{attr}'.\
-                Late resolution of attributes starting with `_` is not supported."
+            msg = f"'{type(self)}' object has no attribute '{attr}'"
             raise AttributeError(msg)
         self._attrs.append(attr)
         return self

@@ -27,10 +27,12 @@ async def read_root(
         container.SingletonFactory,
         fastapi.Depends(container.DIContainer.singleton),
     ],
+    singleton_attribute: typing.Annotated[bool, fastapi.Depends(container.DIContainer.singleton.dep1)],
 ) -> datetime.datetime:
     assert dependency.sync_resource == free_dependency.dependent_factory.sync_resource
     assert dependency.async_resource == free_dependency.dependent_factory.async_resource
-    assert singleton.dep1
+    assert singleton.dep1 is True
+    assert singleton_attribute is True
     return dependency.async_resource
 
 
