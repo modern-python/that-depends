@@ -13,7 +13,9 @@ def _get_value_from_object_by_dotted_path(obj: typing.Any, path: str) -> typing.
     return attribute_getter(obj)
 
 
-class AttrGetter(AbstractProvider[T]):
+class AttrGetter(
+    AbstractProvider[T],
+):
     __slots__ = "_provider", "_attrs"
 
     def __init__(self, provider: AbstractProvider[T], attr_name: str) -> None:
@@ -21,6 +23,9 @@ class AttrGetter(AbstractProvider[T]):
         self._attrs = [attr_name]
 
     def __getattr__(self, attr: str) -> "AttrGetter[T]":
+        if attr.startswith("_"):
+            msg = f"'{type(self)}' object has no attribute '{attr}'"
+            raise AttributeError(msg)
         self._attrs.append(attr)
         return self
 

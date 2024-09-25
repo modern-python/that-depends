@@ -64,3 +64,12 @@ def test_nesting_levels(field_count: int, test_field_name: str, test_value: str 
 
     attr_value = _get_value_from_object_by_dotted_path(obj, attr_path)
     assert attr_value == test_value
+
+
+def test_attr_getter_with_invalid_attribute(some_settings_provider: providers.Singleton[Settings]) -> None:
+    with pytest.raises(AttributeError):
+        some_settings_provider.nested1_attr.nested2_attr.__some_private__  # noqa: B018
+    with pytest.raises(AttributeError):
+        some_settings_provider.nested1_attr.__another_private__  # noqa: B018
+    with pytest.raises(AttributeError):
+        some_settings_provider.nested1_attr._final_private_  # noqa: B018
