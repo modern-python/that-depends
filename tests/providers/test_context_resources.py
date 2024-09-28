@@ -6,10 +6,9 @@ from contextlib import AsyncExitStack
 
 import pytest
 
-from that_depends import BaseContainer, fetch_context_item, providers
+from that_depends import BaseContainer, Provide, fetch_context_item, inject, providers
 from that_depends.providers import container_context
 from that_depends.providers.base import ResourceContext
-from that_depends.providers.context_resources import sync_container_context
 
 
 logger = logging.getLogger(__name__)
@@ -77,7 +76,7 @@ async def test_context_resource(context_resource: providers.ContextResource[str]
     assert await context_resource() is context_resource_result
 
 
-@sync_container_context()
+@container_context()
 def test_sync_context_resource(sync_context_resource: providers.ContextResource[str]) -> None:
     context_resource_result = sync_context_resource.sync_resolve()
 
@@ -85,10 +84,7 @@ def test_sync_context_resource(sync_context_resource: providers.ContextResource[
 
 
 async def test_async_context_resource_in_sync_context(async_context_resource: providers.ContextResource[str]) -> None:
-    with (
-        pytest.raises(RuntimeError, match="AsyncResource cannot be resolved in an sync context."),
-        sync_container_context(),
-    ):
+    with pytest.raises(RuntimeError, match="AsyncResource cannot be resolved in an sync context."), container_context():
         await async_context_resource()
 
 
@@ -153,10 +149,10 @@ async def test_context_resource_with_dynamic_resource() -> None:
 
 
 async def test_early_exit_of_container_context() -> None:
-    with pytest.raises(RuntimeError, match="generator didn't stop"):
+    with pytest.raises(RuntimeError, match="Context is not set, call ``__aenter__`` first"):
         await container_context().__aexit__(None, None, None)
-    with pytest.raises(RuntimeError, match="generator didn't stop"):
-        sync_container_context().__exit__(None, None, None)
+    with pytest.raises(RuntimeError, match="Context is not set, call ``__enter__`` first"):
+        container_context().__exit__(None, None, None)
 
 
 async def test_resource_context_early_teardown() -> None:
@@ -171,3 +167,25 @@ async def test_teardown_sync_container_context_with_async_resource() -> None:
     resource_context.context_stack = AsyncExitStack()
     with pytest.raises(RuntimeError, match="Cannot tear down async context in sync mode"):
         resource_context.sync_tear_down()
+
+
+async def test_sync_container_context_with_different_stack() -> None:
+    @container_context()
+    @inject
+    def some_injected(depth: int, val: str = Provide[DIContainer.sync_context_resource]) -> str:
+        if depth > 1:
+            return val
+        return some_injected(depth + 1)
+
+    some_injected(1)
+
+
+async def test_async_container_context_with_different_stack() -> None:
+    @container_context()
+    @inject
+    async def some_injected(depth: int, val: str = Provide[DIContainer.async_context_resource]) -> str:
+        if depth > 1:
+            return val
+        return await some_injected(depth + 1)
+
+    await some_injected(1)
