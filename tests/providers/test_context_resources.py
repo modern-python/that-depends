@@ -6,7 +6,7 @@ from contextlib import AsyncExitStack
 
 import pytest
 
-from that_depends import BaseContainer, fetch_context_item, providers, inject
+from that_depends import BaseContainer, Provide, fetch_context_item, inject, providers
 from that_depends.providers import container_context
 from that_depends.providers.base import ResourceContext
 
@@ -172,10 +172,10 @@ async def test_teardown_sync_container_context_with_async_resource() -> None:
 async def test_sync_container_context_with_different_stack() -> None:
     @container_context()
     @inject
-    def some_injected(depth, val = DIContainer.sync_context_resource):
-        if depth == 2:
+    def some_injected(depth: int, val: str = Provide[DIContainer.sync_context_resource]) -> str:
+        if depth > 1:
             return val
-        return some_injected(depth+1)
+        return some_injected(depth + 1)
 
     some_injected(1)
 
@@ -183,9 +183,9 @@ async def test_sync_container_context_with_different_stack() -> None:
 async def test_async_container_context_with_different_stack() -> None:
     @container_context()
     @inject
-    async def some_injected(depth, val = DIContainer.async_context_resource):
-        if depth == 2:
+    async def some_injected(depth: int, val: str = Provide[DIContainer.async_context_resource]) -> str:
+        if depth > 1:
             return val
-        return await some_injected(depth+1)
+        return await some_injected(depth + 1)
 
     await some_injected(1)
