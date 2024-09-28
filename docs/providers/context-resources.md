@@ -41,25 +41,18 @@ value = MyContainer.sync_resource.sync_resolve()
  > RuntimeError: Context is not set. Use container_context
 ```
 
-### Resolving async and sync dependencies:
-``container_context`` implements both ``AsyncContextManager`` and ``ContextManager``.
-This means that you can enter an async context with:
-
-```python
-async with container_context():
-    ...
-```
-An async context will allow resolution of both sync and async dependencies.
-
+### Resolving sync dependencies:
+`container_context` implements only `AsyncContextManager`.
+For sync context and `ContextManager` use `sync_container_context`.
 A sync context can be entered using:
 ```python
-with container_context():
+with sync_container_context():
     ...
 ```
 A sync context will only allow resolution of sync dependencies:
 ```python
 async def my_func():
-    with container_context(): # enter sync context
+    with sync_container_context(): # enter sync context
         # try to resolve async dependency.
         await MyContainer.async_resource.async_resolve()
 
@@ -70,6 +63,7 @@ async def my_func():
 Each time you enter `container_context` a new context is created in the background.
 Resources are cached in the context after first resolution.
 Resources created in a context are torn down again when `container_context` exits.
+Same for `sync_container_context`.
 ```python
 async with container_context():
     value_outer = await MyContainer.resource.async_resolve()
@@ -90,3 +84,5 @@ async def insert_into_database(session = Provide[MyContainer.session]):
     ...
 ```
 Each time ``await insert_into_database()`` is called new instance of ``session`` will be injected.
+
+Same for `sync_container_context`.
