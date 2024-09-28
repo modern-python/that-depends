@@ -22,6 +22,7 @@ _ASYNC_CONTEXT_KEY: typing.Final[str] = "__ASYNC_CONTEXT__"
 
 ContextType = dict[str, typing.Any]
 
+
 @contextlib.asynccontextmanager
 async def container_context(initial_context: dict[str, typing.Any] | None = None) -> typing.AsyncIterator[None]:
     initial_context_: ContextType = initial_context or {}
