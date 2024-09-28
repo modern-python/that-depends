@@ -38,6 +38,7 @@ class container_context(  # noqa: N801
     """
 
     def __init__(self, initial_context: ContextType | None = None) -> None:
+        super().__init__()
         self._initial_context: ContextType = initial_context or {}
         self._context_token: Token[ContextType] | None = None
 

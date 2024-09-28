@@ -11,6 +11,7 @@ class Object(AbstractProvider[T]):
     __slots__ = ("_obj",)
 
     def __init__(self, obj: T) -> None:
+        super().__init__()
         self._obj: typing.Final = obj
 
     async def async_resolve(self) -> T:

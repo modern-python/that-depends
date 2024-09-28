@@ -13,6 +13,7 @@ class Singleton(AbstractProvider[T]):
     __slots__ = "_factory", "_args", "_kwargs", "_override", "_instance", "_resolving_lock"
 
     def __init__(self, factory: type[T] | typing.Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> None:
+        super().__init__()
         self._factory: typing.Final = factory
         self._args: typing.Final = args
         self._kwargs: typing.Final = kwargs

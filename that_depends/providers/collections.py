@@ -10,6 +10,7 @@ class List(AbstractProvider[list[T]]):
     __slots__ = ("_providers",)
 
     def __init__(self, *providers: AbstractProvider[T]) -> None:
+        super().__init__()
         self._providers: typing.Final = providers
 
     async def async_resolve(self) -> list[T]:
@@ -26,6 +27,7 @@ class Dict(AbstractProvider[dict[str, T]]):
     __slots__ = ("_providers",)
 
     def __init__(self, **providers: AbstractProvider[T]) -> None:
+        super().__init__()
         self._providers: typing.Final = providers
 
     async def async_resolve(self) -> dict[str, T]:
