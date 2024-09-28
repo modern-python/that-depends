@@ -9,6 +9,7 @@ import pytest
 from that_depends import BaseContainer, fetch_context_item, providers
 from that_depends.providers import container_context
 from that_depends.providers.base import ResourceContext
+from that_depends.providers.context_resources import sync_container_context
 
 
 logger = logging.getLogger(__name__)
@@ -76,7 +77,7 @@ async def test_context_resource(context_resource: providers.ContextResource[str]
     assert await context_resource() is context_resource_result
 
 
-@container_context()
+@sync_container_context()
 def test_sync_context_resource(sync_context_resource: providers.ContextResource[str]) -> None:
     context_resource_result = sync_context_resource.sync_resolve()
 
@@ -84,7 +85,10 @@ def test_sync_context_resource(sync_context_resource: providers.ContextResource[
 
 
 async def test_async_context_resource_in_sync_context(async_context_resource: providers.ContextResource[str]) -> None:
-    with pytest.raises(RuntimeError, match="AsyncResource cannot be resolved in an sync context."), container_context():
+    with (
+        pytest.raises(RuntimeError, match="AsyncResource cannot be resolved in an sync context."),
+        sync_container_context(),
+    ):
         await async_context_resource()
 
 
@@ -149,10 +153,10 @@ async def test_context_resource_with_dynamic_resource() -> None:
 
 
 async def test_early_exit_of_container_context() -> None:
-    with pytest.raises(RuntimeError, match="Context is not set, call ``__aenter__`` first"):
+    with pytest.raises(RuntimeError, match="generator didn't stop"):
         await container_context().__aexit__(None, None, None)
-    with pytest.raises(RuntimeError, match="Context is not set, call ``__enter__`` first"):
-        container_context().__exit__(None, None, None)
+    with pytest.raises(RuntimeError, match="generator didn't stop"):
+        sync_container_context().__exit__(None, None, None)
 
 
 async def test_resource_context_early_teardown() -> None:
