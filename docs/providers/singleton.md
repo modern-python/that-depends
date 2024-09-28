@@ -24,7 +24,7 @@ prov.sync_resolve() # 0.3
 
 ## Example with `pydantic-settings`
 
-Lets say we are storing you application configuration with ``pydantic-settings``
+Lets say we are storing our application configuration using [pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/):
 
 ```python
 from pydantic_settings import BaseSettings
@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     db: DatabaseConfig = DatabaseConfig()
 ```
 
-Because we do not want to resolve the configuration each time it is required, we provide it using the `Singleton` provider.
+Because we do not want to resolve the configuration each time it is used in our application, we provide it using the `Singleton` provider.
 
 ```python
 async def get_db_connection(address: str, port:int, db_name: str) -> Connection: 
@@ -48,7 +48,7 @@ async def get_db_connection(address: str, port:int, db_name: str) -> Connection:
 
 class MyContainer(BaseContainer):
     config = providers.Singleton(Settings)
-    # provide connection arguments to d
+    # provide connection arguments and create a connection provider
     db_connection = providers.AsyncFactory(
         get_db_connection, config.db.address, config.db.port, config.db_name:
     )
@@ -58,6 +58,7 @@ Now we can inject our database connection where it required using `@inject`:
 
 ```python
 from that_depends import inject, Provide
+
 @inject
 async def with_db_connection(conn: Connection = Provide[MyContainer.db_connection]):
     ...
