@@ -6,8 +6,6 @@ from that_depends.providers.context_resources import (
     ContextResource,
     DIContextMiddleware,
     container_context,
-    fetch_context_item,
-    sync_container_context,
 )
 from that_depends.providers.factories import AsyncFactory, Factory
 from that_depends.providers.object import Object
@@ -32,6 +30,4 @@ __all__ = [
     "Selector",
     "Singleton",
     "container_context",
-    "sync_container_context",
-    "fetch_context_item",
 ]
