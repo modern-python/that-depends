@@ -15,6 +15,10 @@ T_co = typing.TypeVar("T_co", covariant=True)
 class AbstractProvider(typing.Generic[T_co], abc.ABC):
     """Abstract Provider Class."""
 
+    def __init__(self) -> None:
+        super().__init__()
+        self._override: typing.Any = None
+
     @abc.abstractmethod
     async def async_resolve(self) -> T_co:
         """Resolve dependency asynchronously."""
@@ -45,6 +49,7 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
         """Returns self, but cast to the type of the provided value.
 
         This helps to pass providers as input to other providers while avoiding type checking errors:
+        :example:
 
             class A: ...
 
@@ -62,6 +67,12 @@ class ResourceContext(typing.Generic[T_co]):
     __slots__ = "context_stack", "instance", "resolving_lock", "is_async"
 
     def __init__(self, is_async: bool) -> None:
+        """Create a new ResourceContext instance.
+
+        :param is_async: Whether the ResourceContext was created in an async context.
+        For example within a ``async with container_context(): ...`` statement.
+        :type is_async: bool
+        """
         self.instance: T_co | None = None
         self.resolving_lock: typing.Final = asyncio.Lock()
         self.context_stack: contextlib.AsyncExitStack | contextlib.ExitStack | None = None
@@ -80,6 +91,7 @@ class ResourceContext(typing.Generic[T_co]):
         return isinstance(context_stack, contextlib.ExitStack)
 
     async def tear_down(self) -> None:
+        """Async tear down the context stack."""
         if self.context_stack is None:
             return
 
@@ -91,6 +103,10 @@ class ResourceContext(typing.Generic[T_co]):
         self.instance = None
 
     def sync_tear_down(self) -> None:
+        """Sync tear down the context stack.
+
+        :raises RuntimeError: If the context stack is async and the tear down is called in sync mode.
+        """
         if self.context_stack is None:
             return
 
@@ -110,6 +126,7 @@ class AbstractResource(AbstractProvider[T], abc.ABC):
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> None:
+        super().__init__()
         if inspect.isasyncgenfunction(creator):
             self._is_async = True
         elif inspect.isgeneratorfunction(creator):

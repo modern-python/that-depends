@@ -19,6 +19,7 @@ class AttrGetter(
     __slots__ = "_provider", "_attrs"
 
     def __init__(self, provider: AbstractProvider[T], attr_name: str) -> None:
+        super().__init__()
         self._provider = provider
         self._attrs = [attr_name]
 

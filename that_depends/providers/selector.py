@@ -10,6 +10,7 @@ class Selector(AbstractProvider[T]):
     __slots__ = "_selector", "_providers", "_override"
 
     def __init__(self, selector: typing.Callable[[], str], **providers: AbstractProvider[T]) -> None:
+        super().__init__()
         self._selector: typing.Final = selector
         self._providers: typing.Final = providers
         self._override = None
