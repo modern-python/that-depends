@@ -15,8 +15,6 @@ T_co = typing.TypeVar("T_co", covariant=True)
 class AbstractProvider(typing.Generic[T_co], abc.ABC):
     """Abstract Provider Class."""
 
-    __slots__ = ("_override",)
-
     def __init__(self) -> None:
         super().__init__()
         self._override: typing.Any = None
