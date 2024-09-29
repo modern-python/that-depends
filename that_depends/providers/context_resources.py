@@ -37,6 +37,8 @@ class container_context(  # noqa: N801
     When used as sync-context-manager, it will only allow setup & teardown of sync resources.
     """
 
+    __slots__ = "_initial_context", "_context_token"
+
     def __init__(self, initial_context: ContextType | None = None) -> None:
         self._initial_context: ContextType = initial_context or {}
         self._context_token: Token[ContextType] | None = None
