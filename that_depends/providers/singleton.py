@@ -5,20 +5,20 @@ from that_depends.providers import AttrGetter
 from that_depends.providers.base import AbstractProvider
 
 
-T = typing.TypeVar("T")
+T_co = typing.TypeVar("T_co", covariant=True)
 P = typing.ParamSpec("P")
 
 
-class Singleton(AbstractProvider[T]):
+class Singleton(AbstractProvider[T_co]):
     __slots__ = "_factory", "_args", "_kwargs", "_override", "_instance", "_resolving_lock"
 
-    def __init__(self, factory: type[T] | typing.Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> None:
+    def __init__(self, factory: type[T_co] | typing.Callable[P, T_co], *args: P.args, **kwargs: P.kwargs) -> None:
         super().__init__()
         self._factory: typing.Final = factory
         self._args: typing.Final = args
         self._kwargs: typing.Final = kwargs
         self._override = None
-        self._instance: T | None = None
+        self._instance: T_co | None = None
         self._resolving_lock: typing.Final = asyncio.Lock()
 
     def __getattr__(self, attr_name: str) -> typing.Any:  # noqa: ANN401
@@ -27,9 +27,9 @@ class Singleton(AbstractProvider[T]):
             raise AttributeError(msg)
         return AttrGetter(provider=self, attr_name=attr_name)
 
-    async def async_resolve(self) -> T:
+    async def async_resolve(self) -> T_co:
         if self._override is not None:
-            return typing.cast(T, self._override)
+            return typing.cast(T_co, self._override)
 
         if self._instance is not None:
             return self._instance
@@ -46,9 +46,9 @@ class Singleton(AbstractProvider[T]):
                 )
             return self._instance
 
-    def sync_resolve(self) -> T:
+    def sync_resolve(self) -> T_co:
         if self._override is not None:
-            return typing.cast(T, self._override)
+            return typing.cast(T_co, self._override)
 
         if self._instance is None:
             self._instance = self._factory(
