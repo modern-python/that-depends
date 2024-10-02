@@ -49,6 +49,7 @@ class NestingTestDTO: ...
         providers.ContextResource(yield_settings_sync),
         providers.Object(Settings()),
         providers.Factory(Settings),
+        providers.Selector(lambda: "sync", sync=providers.Factory(Settings)),
     ]
 )
 def some_sync_settings_provider(request: pytest.FixtureRequest) -> providers.AbstractProvider[Settings]:
@@ -60,6 +61,7 @@ def some_sync_settings_provider(request: pytest.FixtureRequest) -> providers.Abs
         providers.AsyncFactory(return_settings_async),
         providers.Resource(yield_settings_async),
         providers.ContextResource(yield_settings_async),
+        providers.Selector(lambda: "asynchronous", asynchronous=providers.AsyncFactory(return_settings_async)),
     ]
 )
 def some_async_settings_provider(request: pytest.FixtureRequest) -> providers.AbstractProvider[Settings]:
