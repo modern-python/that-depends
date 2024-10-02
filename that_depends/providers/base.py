@@ -4,6 +4,7 @@ import contextlib
 import inspect
 import typing
 from contextlib import contextmanager
+from operator import attrgetter
 
 
 T_co = typing.TypeVar("T_co", covariant=True)
@@ -17,6 +18,12 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
     def __init__(self) -> None:
         super().__init__()
         self._override: typing.Any = None
+
+    def __getattr__(self, attr_name: str) -> typing.Any:  # noqa: ANN401
+        if attr_name.startswith("_"):
+            msg = f"'{type(self)}' object has no attribute '{attr_name}'"
+            raise AttributeError(msg)
+        return AttrGetter(provider=self, attr_name=attr_name)
 
     @abc.abstractmethod
     async def async_resolve(self) -> T_co:
@@ -173,9 +180,12 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
                         T_co,
                         await context.context_stack.enter_async_context(
                             contextlib.asynccontextmanager(self._creator)(
-                                *[await x() if isinstance(x, AbstractProvider) else x for x in self._args],
+                                *[
+                                    await x.async_resolve() if isinstance(x, AbstractProvider) else x
+                                    for x in self._args
+                                ],
                                 **{
-                                    k: await v() if isinstance(v, AbstractProvider) else v
+                                    k: await v.async_resolve() if isinstance(v, AbstractProvider) else v
                                     for k, v in self._kwargs.items()
                                 },
                             ),
@@ -227,3 +237,36 @@ class AbstractFactory(AbstractProvider[T_co], abc.ABC):
     @property
     def sync_provider(self) -> typing.Callable[[], T_co]:
         return self.sync_resolve
+
+
+def _get_value_from_object_by_dotted_path(obj: typing.Any, path: str) -> typing.Any:  # noqa: ANN401
+    attribute_getter = attrgetter(path)
+    return attribute_getter(obj)
+
+
+class AttrGetter(
+    AbstractProvider[T_co],
+):
+    __slots__ = "_provider", "_attrs"
+
+    def __init__(self, provider: AbstractProvider[T_co], attr_name: str) -> None:
+        super().__init__()
+        self._provider = provider
+        self._attrs = [attr_name]
+
+    def __getattr__(self, attr: str) -> "AttrGetter[T_co]":
+        if attr.startswith("_"):
+            msg = f"'{type(self)}' object has no attribute '{attr}'"
+            raise AttributeError(msg)
+        self._attrs.append(attr)
+        return self
+
+    async def async_resolve(self) -> typing.Any:  # noqa: ANN401
+        resolved_provider_object = await self._provider.async_resolve()
+        attribute_path = ".".join(self._attrs)
+        return _get_value_from_object_by_dotted_path(resolved_provider_object, attribute_path)
+
+    def sync_resolve(self) -> typing.Any:  # noqa: ANN401
+        resolved_provider_object = self._provider.sync_resolve()
+        attribute_path = ".".join(self._attrs)
+        return _get_value_from_object_by_dotted_path(resolved_provider_object, attribute_path)
