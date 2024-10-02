@@ -15,7 +15,6 @@ class Factory(AbstractFactory[T_co]):
         self._factory: typing.Final = factory
         self._args: typing.Final = args
         self._kwargs: typing.Final = kwargs
-        self._override = None
 
     async def async_resolve(self) -> T_co:
         if self._override:
@@ -43,7 +42,6 @@ class AsyncFactory(AbstractFactory[T_co]):
         self._factory: typing.Final = factory
         self._args: typing.Final = args
         self._kwargs: typing.Final = kwargs
-        self._override = None
 
     async def async_resolve(self) -> T_co:
         if self._override:

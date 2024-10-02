@@ -137,7 +137,6 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
         self._creator: typing.Final = creator
         self._args: typing.Final = args
         self._kwargs: typing.Final = kwargs
-        self._override = None
 
     def _is_creator_async(
         self, _: typing.Callable[P, typing.Iterator[T_co] | typing.AsyncIterator[T_co]]

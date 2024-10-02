@@ -17,7 +17,6 @@ class Singleton(AbstractProvider[T_co]):
         self._factory: typing.Final = factory
         self._args: typing.Final = args
         self._kwargs: typing.Final = kwargs
-        self._override = None
         self._instance: T_co | None = None
         self._resolving_lock: typing.Final = asyncio.Lock()
 
