@@ -4,6 +4,7 @@ import pytest
 
 from tests.container import create_async_resource, create_sync_resource
 from that_depends import BaseContainer, providers
+from that_depends.providers import AbstractProvider
 
 
 class DIContainer(BaseContainer):
@@ -46,3 +47,9 @@ async def test_dict_provider() -> None:
 
     assert mapping == {"sync_resource": sync_resource, "async_resource": async_resource}
     assert mapping == DIContainer.mapping.sync_resolve()
+
+
+@pytest.mark.parametrize("provider", [DIContainer.sequence, DIContainer.mapping])
+async def test_attr_getter_in_collections_providers(provider: AbstractProvider[typing.Any]) -> None:
+    with pytest.raises(AttributeError, match=f"'{type(provider)}' object has no attribute 'some_attribute'"):
+        await provider.some_attribute
