@@ -1,7 +1,6 @@
 import asyncio
 import typing
 
-from that_depends.providers import AttrGetter
 from that_depends.providers.base import AbstractProvider
 
 
@@ -17,15 +16,8 @@ class Singleton(AbstractProvider[T_co]):
         self._factory: typing.Final = factory
         self._args: typing.Final = args
         self._kwargs: typing.Final = kwargs
-        self._override = None
         self._instance: T_co | None = None
         self._resolving_lock: typing.Final = asyncio.Lock()
-
-    def __getattr__(self, attr_name: str) -> typing.Any:  # noqa: ANN401
-        if attr_name.startswith("_"):
-            msg = f"'{type(self)}' object has no attribute '{attr_name}'"
-            raise AttributeError(msg)
-        return AttrGetter(provider=self, attr_name=attr_name)
 
     async def async_resolve(self) -> T_co:
         if self._override is not None:

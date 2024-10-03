@@ -1,4 +1,4 @@
-# Singleton Provider
+# Singleton
 
 Singleton providers resolve the dependency only once and cache the resolved instance for future injections.
 

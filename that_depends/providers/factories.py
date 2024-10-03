@@ -15,7 +15,6 @@ class Factory(AbstractFactory[T_co]):
         self._factory: typing.Final = factory
         self._args: typing.Final = args
         self._kwargs: typing.Final = kwargs
-        self._override = None
 
     async def async_resolve(self) -> T_co:
         if self._override:
@@ -40,10 +39,10 @@ class AsyncFactory(AbstractFactory[T_co]):
     __slots__ = "_factory", "_args", "_kwargs", "_override"
 
     def __init__(self, factory: typing.Callable[P, typing.Awaitable[T_co]], *args: P.args, **kwargs: P.kwargs) -> None:
+        super().__init__()
         self._factory: typing.Final = factory
         self._args: typing.Final = args
         self._kwargs: typing.Final = kwargs
-        self._override = None
 
     async def async_resolve(self) -> T_co:
         if self._override:
