@@ -52,7 +52,7 @@ class container_context(  # noqa: N801
         return self._enter()
 
     def _enter(self) -> ContextType:
-        self._context_token = _CONTAINER_CONTEXT.set(self._initial_context or {})
+        self._context_token = _CONTAINER_CONTEXT.set({**self._initial_context})
         return _CONTAINER_CONTEXT.get()
 
     def __exit__(
