@@ -10,7 +10,7 @@ Dependency injection framework for Python inspired by `dependency-injector`.
 
 It is production-ready and gives you the following:
 - Simple async-first DI framework with IOC-container.
-- Python 3.10-3.12 support.
+- Python 3.10-3.13 support.
 - Full coverage by types annotations (mypy in strict mode).
 - FastAPI and LiteStar compatibility.
 - Overriding dependencies for tests.
