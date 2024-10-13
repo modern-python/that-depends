@@ -11,7 +11,7 @@ P = typing.ParamSpec("P")
 class Singleton(AbstractProvider[T_co]):
     __slots__ = "_factory", "_args", "_kwargs", "_override", "_instance", "_resolving_lock"
 
-    def __init__(self, factory: type[T_co] | typing.Callable[P, T_co], *args: P.args, **kwargs: P.kwargs) -> None:
+    def __init__(self, factory: typing.Callable[P, T_co], *args: P.args, **kwargs: P.kwargs) -> None:
         super().__init__()
         self._factory: typing.Final = factory
         self._args: typing.Final = args
