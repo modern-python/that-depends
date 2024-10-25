@@ -3,6 +3,7 @@ import typing
 import warnings
 from contextlib import contextmanager
 
+from that_depends.meta import BaseContainerMeta
 from that_depends.providers import AbstractProvider, Resource, Singleton
 
 
@@ -14,7 +15,7 @@ T = typing.TypeVar("T")
 P = typing.ParamSpec("P")
 
 
-class BaseContainer:
+class BaseContainer(metaclass=BaseContainerMeta):
     providers: dict[str, AbstractProvider[typing.Any]]
     containers: list[type["BaseContainer"]]
 
@@ -38,7 +39,6 @@ class BaseContainer:
     def get_providers(cls) -> dict[str, AbstractProvider[typing.Any]]:
         if not hasattr(cls, "providers"):
             cls.providers = {k: v for k, v in cls.__dict__.items() if isinstance(v, AbstractProvider)}
-
         return cls.providers
 
     @classmethod

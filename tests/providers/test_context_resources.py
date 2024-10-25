@@ -149,9 +149,9 @@ async def test_context_resource_with_dynamic_resource() -> None:
 
 
 async def test_early_exit_of_container_context() -> None:
-    with pytest.raises(RuntimeError, match="Context is not set, call ``__aenter__`` first"):
+    with pytest.raises(RuntimeError, match="No context token set for global vars, use __enter__ or __aenter__ first."):
         await container_context().__aexit__(None, None, None)
-    with pytest.raises(RuntimeError, match="Context is not set, call ``__enter__`` first"):
+    with pytest.raises(RuntimeError, match="No context token set for global vars, use __enter__ or __aenter__ first."):
         container_context().__exit__(None, None, None)
 
 
