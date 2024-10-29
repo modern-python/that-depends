@@ -64,15 +64,17 @@ def test_sync_injection(
     assert fixture_one == 1
 
 
-def test_wrong_sync_injection() -> None:
+def test_overriden_sync_injection() -> None:
     @inject
     def inner(
         _: container.SimpleFactory = Provide[container.DIContainer.simple_factory],
-    ) -> None:
+    ) -> container.SimpleFactory:
         """Do nothing."""
+        return _
 
-    with pytest.raises(RuntimeError, match="Injected arguments must not be redefined"):
-        inner(_=container.SimpleFactory(dep1="1", dep2=2))
+    factory = container.SimpleFactory(dep1="1", dep2=2)
+    with pytest.warns(RuntimeWarning, match="Expected injection, but nothing found. Remove @inject decorator."):
+        assert inner(_=factory) == factory
 
 
 def test_sync_empty_injection() -> None:
