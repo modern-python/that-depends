@@ -77,14 +77,14 @@ class BaseContainer:
             v.reset_override()
 
     @classmethod
-    def resolver(cls, item: type[T] | typing.Callable[P, T]) -> typing.Callable[[], typing.Awaitable[T]]:
+    def resolver(cls, item: typing.Callable[P, T]) -> typing.Callable[[], typing.Awaitable[T]]:
         async def _inner() -> T:
             return await cls.resolve(item)
 
         return _inner
 
     @classmethod
-    async def resolve(cls, object_to_resolve: type[T] | typing.Callable[..., T]) -> T:
+    async def resolve(cls, object_to_resolve: typing.Callable[..., T]) -> T:
         signature: typing.Final = inspect.signature(object_to_resolve)
         kwargs = {}
         providers: typing.Final = cls.get_providers()
