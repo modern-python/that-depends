@@ -180,11 +180,11 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
                         T_co,
                         await context.context_stack.enter_async_context(
                             contextlib.asynccontextmanager(self._creator)(
-                                *[
+                                *[  # type: ignore[arg-type]
                                     await x.async_resolve() if isinstance(x, AbstractProvider) else x
                                     for x in self._args
                                 ],
-                                **{
+                                **{  # type: ignore[arg-type]
                                     k: await v.async_resolve() if isinstance(v, AbstractProvider) else v
                                     for k, v in self._kwargs.items()
                                 },
@@ -195,8 +195,10 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
                     context.context_stack = contextlib.ExitStack()
                     context.instance = context.context_stack.enter_context(
                         contextlib.contextmanager(self._creator)(
-                            *[await x.async_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
-                            **{
+                            *[  # type: ignore[arg-type]
+                                await x.async_resolve() if isinstance(x, AbstractProvider) else x for x in self._args
+                            ],
+                            **{  # type: ignore[arg-type]
                                 k: await v.async_resolve() if isinstance(v, AbstractProvider) else v
                                 for k, v in self._kwargs.items()
                             },
@@ -220,8 +222,12 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
             context.context_stack = contextlib.ExitStack()
             context.instance = context.context_stack.enter_context(
                 contextlib.contextmanager(self._creator)(
-                    *[x.sync_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
-                    **{k: v.sync_resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
+                    *[  # type: ignore[arg-type]
+                        x.sync_resolve() if isinstance(x, AbstractProvider) else x for x in self._args
+                    ],
+                    **{  # type: ignore[arg-type]
+                        k: v.sync_resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()
+                    },
                 ),
             )
         return typing.cast(T_co, context.instance)
