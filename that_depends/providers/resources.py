@@ -1,7 +1,7 @@
 import typing
 import warnings
 
-from that_depends.providers.base import AbstractResource, ResourceContext
+from that_depends.providers.base import AbstractResource, ResourceContext, ResourceCreator
 
 
 T_co = typing.TypeVar("T_co", covariant=True)
@@ -20,7 +20,7 @@ class Resource(AbstractResource[T_co]):
 
     def __init__(
         self,
-        creator: typing.Callable[P, typing.Iterator[T_co] | typing.AsyncIterator[T_co]],
+        creator: ResourceCreator[P, T_co],
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> None:

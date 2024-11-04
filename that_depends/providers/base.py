@@ -125,35 +125,32 @@ class ResourceContext(typing.Generic[T_co]):
             raise RuntimeError(msg)
 
 
+ResourceCreator: typing.TypeAlias = (
+    typing.Callable[
+        P,
+        typing.Iterator[T_co]
+        | typing.AsyncIterator[T_co]
+        | typing.ContextManager[T_co]
+        | typing.AsyncContextManager[T_co],
+    ]
+    | typing.ContextManager[T_co]
+    | typing.AsyncContextManager[T_co]
+)
+
+
 class AbstractResource(AbstractProvider[T_co], abc.ABC):
     def __init__(
         self,
-        creator: typing.Callable[P, typing.Iterator[T_co] | typing.AsyncIterator[T_co]],
+        creator: ResourceCreator[P, T_co],
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> None:
         super().__init__()
-        if inspect.isasyncgenfunction(creator):
-            self._is_async = True
-        elif inspect.isgeneratorfunction(creator):
-            self._is_async = False
-        else:
-            msg = f"{type(self).__name__} must be generator function"
-            raise RuntimeError(msg)
-
-        self._creator: typing.Final = creator
+        is_async, normalized_creator = _normalize_creator(self, creator, *args, **kwargs)
+        self._is_async = is_async
+        self._creator: typing.Final = normalized_creator
         self._args: typing.Final = args
         self._kwargs: typing.Final = kwargs
-
-    def _is_creator_async(
-        self, _: typing.Callable[P, typing.Iterator[T_co] | typing.AsyncIterator[T_co]]
-    ) -> typing.TypeGuard[typing.Callable[P, typing.AsyncIterator[T_co]]]:
-        return self._is_async
-
-    def _is_creator_sync(
-        self, _: typing.Callable[P, typing.Iterator[T_co] | typing.AsyncIterator[T_co]]
-    ) -> typing.TypeGuard[typing.Callable[P, typing.Iterator[T_co]]]:
-        return not self._is_async
 
     @abc.abstractmethod
     def _fetch_context(self) -> ResourceContext[T_co]: ...
@@ -167,42 +164,35 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
         if context.instance is not None:
             return context.instance
 
-        if not context.is_async and self._is_creator_async(self._creator):
-            msg = "AsyncResource cannot be resolved in an sync context."
-            raise RuntimeError(msg)
-
         # lock to prevent race condition while resolving
         async with context.resolving_lock:
             if context.instance is None:
-                if self._is_creator_async(self._creator):
+                cm = self._creator(
+                    *[await x.async_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
+                    **{
+                        k: await v.async_resolve() if isinstance(v, AbstractProvider) else v
+                        for k, v in self._kwargs.items()
+                    },
+                )
+
+                if isinstance(cm, typing.AsyncContextManager):
+                    if not context.is_async:
+                        msg = "AsyncResource cannot be resolved in an sync context."
+                        raise RuntimeError(msg)
+
                     context.context_stack = contextlib.AsyncExitStack()
-                    context.instance = typing.cast(
-                        T_co,
-                        await context.context_stack.enter_async_context(
-                            contextlib.asynccontextmanager(self._creator)(
-                                *[
-                                    await x.async_resolve() if isinstance(x, AbstractProvider) else x
-                                    for x in self._args
-                                ],
-                                **{
-                                    k: await v.async_resolve() if isinstance(v, AbstractProvider) else v
-                                    for k, v in self._kwargs.items()
-                                },
-                            ),
-                        ),
-                    )
-                elif self._is_creator_sync(self._creator):
+                    context.instance = await context.context_stack.enter_async_context(cm)
+
+                elif isinstance(cm, typing.ContextManager):
                     context.context_stack = contextlib.ExitStack()
-                    context.instance = context.context_stack.enter_context(
-                        contextlib.contextmanager(self._creator)(
-                            *[await x.async_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
-                            **{
-                                k: await v.async_resolve() if isinstance(v, AbstractProvider) else v
-                                for k, v in self._kwargs.items()
-                            },
-                        ),
-                    )
-            return typing.cast(T_co, context.instance)
+                    context.instance = context.context_stack.enter_context(cm)
+
+                else:
+                    typing.assert_never(cm)
+                    msg = "Creator returned invalid context manager type"
+                    raise TypeError(msg, cm)
+
+        return context.instance
 
     def sync_resolve(self) -> T_co:
         if self._override:
@@ -212,19 +202,70 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
         if context.instance is not None:
             return context.instance
 
-        if self._is_creator_async(self._creator):
-            msg = "AsyncResource cannot be resolved synchronously"
-            raise RuntimeError(msg)
+        cm = self._creator(
+            *[x.sync_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
+            **{k: v.sync_resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
+        )
 
-        if self._is_creator_sync(self._creator):
-            context.context_stack = contextlib.ExitStack()
-            context.instance = context.context_stack.enter_context(
-                contextlib.contextmanager(self._creator)(
-                    *[x.sync_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
-                    **{k: v.sync_resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
-                ),
-            )
-        return typing.cast(T_co, context.instance)
+        if isinstance(cm, typing.AsyncContextManager):
+            msg = "AsyncResource cannot be resolved synchronously"
+            # TODO(zerlok): change to TypeError # noqa: TD003, FIX002
+            raise RuntimeError(msg, cm)  # noqa: TRY004
+
+        context.context_stack = contextlib.ExitStack()
+        context.instance = context.context_stack.enter_context(cm)
+
+        return context.instance
+
+
+# TODO(zerlok): simplify code in function # noqa: TD003, FIX002
+def _normalize_creator(  # noqa: C901
+    resource: object,
+    creator: ResourceCreator[P, T_co],
+    *args: P.args,
+    **kwargs: P.kwargs,
+) -> tuple[bool, typing.Callable[P, typing.ContextManager[T_co] | typing.AsyncContextManager[T_co]]]:
+    if isinstance(creator, typing.AsyncContextManager):
+        if args or kwargs:
+            msg = "AsyncContextManager does not accept any arguments"
+            raise TypeError(msg, creator, args, kwargs)
+
+        def create_async(*_: P.args, **__: P.kwargs) -> typing.AsyncContextManager[T_co]:
+            return creator
+
+        return True, create_async
+
+    if isinstance(creator, typing.ContextManager):
+        if args or kwargs:
+            msg = "ContextManager does not accept any arguments"
+            raise TypeError(msg, creator, args, kwargs)
+
+        def create_sync(*_: P.args, **__: P.kwargs) -> typing.ContextManager[T_co]:
+            return creator
+
+        return False, create_sync
+
+    if inspect.isasyncgenfunction(creator):
+        return True, contextlib.asynccontextmanager(creator)
+
+    if inspect.isgeneratorfunction(creator):
+        return False, contextlib.contextmanager(creator)
+
+    if inspect.isfunction(creator):
+        returns = inspect.signature(creator).return_annotation
+        returns_origin = typing.get_origin(returns) or returns
+
+        # NOTE: creator may be a wrapped with `asynccontextmanager` or `contextmanager` decorator, but it's not possible
+        # to reveal it here. Assume that mypy covered that cases.
+        if issubclass(returns_origin, typing.AsyncContextManager | typing.AsyncIterator):
+            return True, typing.cast(typing.Callable[P, typing.AsyncContextManager[T_co]], creator)
+
+        if issubclass(returns_origin, typing.ContextManager | typing.Iterator):
+            return False, typing.cast(typing.Callable[P, typing.ContextManager[T_co]], creator)
+
+    # TODO(zerlok): suggest use TypeError instead, backward incompatible change. # noqa: TD003, FIX002
+    msg = f"{type(resource).__name__} must be generator function"
+    raise RuntimeError(msg)
 
 
 class AbstractFactory(AbstractProvider[T_co], abc.ABC):
