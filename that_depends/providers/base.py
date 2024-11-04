@@ -148,9 +148,11 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
         super().__init__()
         is_async, normalized_creator = _normalize_creator(self, creator, *args, **kwargs)
         self._is_async = is_async
-        self._creator: typing.Final = normalized_creator
-        self._args: typing.Final = args
-        self._kwargs: typing.Final = kwargs
+        self._creator: typing.Final[
+            typing.Callable[P, typing.ContextManager[T_co] | typing.AsyncContextManager[T_co]]
+        ] = normalized_creator
+        self._args: typing.Final[P.args] = args
+        self._kwargs: typing.Final[P.kwargs] = kwargs
 
     @abc.abstractmethod
     def _fetch_context(self) -> ResourceContext[T_co]: ...
