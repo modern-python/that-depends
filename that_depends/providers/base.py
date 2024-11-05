@@ -146,7 +146,7 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
         **kwargs: P.kwargs,
     ) -> None:
         super().__init__()
-        is_async, normalized_creator = _ResourceCreatorNormalizer.normalize(self, creator, *args, **kwargs)
+        is_async, normalized_creator = _ResourceCreatorNormalizer.normalize(creator, *args, **kwargs)
         self._is_async = is_async
         self._creator: typing.Final[
             typing.Callable[P, typing.ContextManager[T_co] | typing.AsyncContextManager[T_co]]
@@ -207,10 +207,9 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
             **{k: v.sync_resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
         )
 
-        if isinstance(cm, typing.AsyncContextManager):
-            msg = "AsyncResource cannot be resolved synchronously"
-            # TODO(zerlok): change to TypeError # noqa: TD003, FIX002
-            raise RuntimeError(msg, cm)  # noqa: TRY004
+        if not isinstance(cm, typing.ContextManager):
+            msg = "A ContextManager type was expected in synchronous resolve"
+            raise TypeError(msg, cm)
 
         context.context_stack = contextlib.ExitStack()
         context.instance = context.context_stack.enter_context(cm)
@@ -223,7 +222,6 @@ class _ResourceCreatorNormalizer:
     @classmethod
     def normalize(  # noqa: C901
         cls,
-        resource: object,
         creator: ResourceCreator[P, T_co],
         *args: P.args,
         **kwargs: P.kwargs,
@@ -262,9 +260,8 @@ class _ResourceCreatorNormalizer:
                 return False, cm_sync_func
 
             case _:
-                # TODO(zerlok): suggest use TypeError instead, backward incompatible change. # noqa: TD003, FIX002
-                msg = f"{type(resource).__name__} must be generator function"
-                raise RuntimeError(msg)
+                msg = "Creator is not of a valid type"
+                raise TypeError(msg, creator)
 
     @classmethod
     def _check_creator_is_async_context_manager(

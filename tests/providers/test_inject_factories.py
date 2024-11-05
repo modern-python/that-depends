@@ -45,7 +45,7 @@ async def test_async_provider() -> None:
 
 async def test_sync_provider() -> None:
     injected_factories = await DIContainer.injected_factories()
-    with pytest.raises(RuntimeError, match="AsyncResource cannot be resolved synchronously"):
+    with pytest.raises(TypeError, match="A ContextManager type was expected"):
         injected_factories.sync_factory()
 
     await DIContainer.init_resources()

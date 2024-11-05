@@ -133,7 +133,7 @@ async def test_context_resources_init_and_tear_down() -> None:
 
 
 def test_context_resources_wrong_providers_init() -> None:
-    with pytest.raises(RuntimeError, match="ContextResource must be generator function"):
+    with pytest.raises(TypeError, match="Creator is not of a valid type"):
         providers.ContextResource(lambda: None)  # type: ignore[arg-type,return-value]
 
 
