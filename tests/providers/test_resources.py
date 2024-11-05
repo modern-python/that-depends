@@ -107,6 +107,15 @@ async def do_invalid_creator_stuff_inner_func() -> typing.Callable[[], typing.Aw
     return do_stuff_inner
 
 
+# NOTE: this is a special case for resource creator normalizer, it has to be invalid, because return type annotation is
+# not specified here.
+@asynccontextmanager
+async def do_invalid_creator_stuff_cm_without_annotation():  # type: ignore[no-untyped-def] # noqa: ANN201
+    await _switch_routines()
+    yield _VALUE
+    await _switch_routines()
+
+
 @pytest.mark.parametrize(
     ("creator", "args", "kwargs", "error_msg"),
     [
@@ -130,6 +139,13 @@ async def do_invalid_creator_stuff_inner_func() -> typing.Callable[[], typing.Aw
             {},
             "Creator is not of a valid type",
             id="inner coroutine func",
+        ),
+        pytest.param(
+            do_invalid_creator_stuff_cm_without_annotation,
+            (),
+            {},
+            "Creator is not of a valid type",
+            id="cm without annotation",
         ),
         pytest.param(
             SimpleCM(),
