@@ -31,12 +31,12 @@ def test_failed_sync_resolve() -> None:
     with pytest.raises(RuntimeError, match="AsyncFactory cannot be resolved synchronously"):
         DIContainer.async_factory.sync_resolve()
 
-    with pytest.raises(RuntimeError, match="AsyncResource cannot be resolved synchronously"):
+    with pytest.raises(TypeError, match="A ContextManager type was expected"):
         DIContainer.async_resource.sync_resolve()
 
 
 def test_wrong_providers_init() -> None:
-    with pytest.raises(RuntimeError, match="Resource must be generator function"):
+    with pytest.raises(TypeError, match="Creator is not of a valid type"):
         providers.Resource(lambda: None)  # type: ignore[arg-type,return-value]
 
 

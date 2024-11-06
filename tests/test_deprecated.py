@@ -17,8 +17,8 @@ async def test_init_async_resources() -> None:
 
 
 def test_wrong_deprecated_providers_init() -> None:
-    with pytest.raises(RuntimeError, match="AsyncContextResource must be generator function"):
+    with pytest.raises(TypeError, match="Creator is not of a valid type"):
         providers.AsyncContextResource(lambda: None)  # type: ignore[arg-type,return-value]
 
-    with pytest.raises(RuntimeError, match="AsyncResource must be generator function"):
+    with pytest.raises(TypeError, match="Creator is not of a valid type"):
         providers.AsyncResource(lambda: None)  # type: ignore[arg-type,return-value]
