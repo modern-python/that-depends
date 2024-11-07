@@ -31,7 +31,7 @@ async def test_list_provider() -> None:
 
 
 def test_list_failed_sync_resolve() -> None:
-    with pytest.raises(TypeError, match="A ContextManager type was expected"):
+    with pytest.raises(RuntimeError, match="AsyncResource cannot be resolved synchronously"):
         DIContainer.sequence.sync_resolve()
 
 

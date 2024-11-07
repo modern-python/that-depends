@@ -8,7 +8,8 @@ from contextvars import ContextVar, Token
 from functools import wraps
 from types import TracebackType
 
-from that_depends.providers.base import AbstractResource, ResourceContext
+from that_depends.entities.resource_context import ResourceContext
+from that_depends.providers.base import AbstractResource
 
 
 logger: typing.Final = logging.getLogger(__name__)
