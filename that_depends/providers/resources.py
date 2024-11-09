@@ -1,7 +1,8 @@
 import typing
 import warnings
 
-from that_depends.providers.base import AbstractResource, ResourceContext, ResourceCreator
+from that_depends.entities.resource_context import ResourceContext
+from that_depends.providers.base import AbstractResource, ResourceCreatorType
 
 
 T_co = typing.TypeVar("T_co", covariant=True)
@@ -20,7 +21,7 @@ class Resource(AbstractResource[T_co]):
 
     def __init__(
         self,
-        creator: ResourceCreator[P, T_co],
+        creator: ResourceCreatorType[P, T_co],
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> None:
