@@ -3,6 +3,7 @@ import random
 import typing
 
 import pytest
+from pydantic import BaseModel
 
 from that_depends.container import BaseContainer
 from that_depends.injection import Provide, inject
@@ -10,6 +11,10 @@ from that_depends.providers.context_resources import ContextResource, container_
 
 
 random.seed(1)
+
+
+class Config(BaseModel):
+    some_str_value: str = "some_string_value"
 
 
 async def async_yields_string() -> typing.AsyncIterator[str]:
@@ -20,9 +25,14 @@ def sync_yields_string() -> typing.Iterator[str]:
     yield str(random.random())  # noqa: S311
 
 
+def sync_yields_config() -> typing.Iterator[Config]:
+    yield Config()
+
+
 class MyContainer(BaseContainer):
     async_resource: ContextResource[str] = ContextResource(async_yields_string)
     sync_resource: ContextResource[str] = ContextResource(sync_yields_string)
+    sync_config: ContextResource[Config] = ContextResource(sync_yields_config)
 
 
 @MyContainer.sync_resource.sync_context()
@@ -180,6 +190,11 @@ def test_reset_context_sync() -> None:
             assert val_1 != val_2
 
 
+@container_context()
+def test_attr_getter_sync() -> None:
+    assert MyContainer.sync_config.sync_resolve().some_str_value
+
+
 if __name__ == "__main__":
     asyncio.run(async_main())
     sync_main()
@@ -190,3 +205,4 @@ if __name__ == "__main__":
     check_sync_global_passing()
     asyncio.run(test_reset_context_async())
     test_reset_context_sync()
+    test_attr_getter_sync()

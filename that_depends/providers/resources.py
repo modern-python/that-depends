@@ -11,7 +11,7 @@ P = typing.ParamSpec("P")
 
 class Resource(AbstractResource[T_co]):
     __slots__ = (
-        "_is_async",
+        "is_async",
         "_creator",
         "_args",
         "_kwargs",
@@ -26,7 +26,7 @@ class Resource(AbstractResource[T_co]):
         **kwargs: P.kwargs,
     ) -> None:
         super().__init__(creator, *args, **kwargs)
-        self._context: typing.Final[ResourceContext[T_co]] = ResourceContext(is_async=self._is_async)
+        self._context: typing.Final[ResourceContext[T_co]] = ResourceContext(is_async=self.is_async)
 
     def _fetch_context(self) -> ResourceContext[T_co]:
         return self._context

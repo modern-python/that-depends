@@ -84,7 +84,7 @@ def test_sync_context_resource(sync_context_resource: providers.ContextResource[
 
 
 async def test_async_context_resource_in_sync_context(async_context_resource: providers.ContextResource[str]) -> None:
-    with pytest.raises(RuntimeError, match="AsyncResource cannot be resolved in an sync context."), container_context():
+    with pytest.raises(RuntimeError, match="Context is not set. Use container_context"), container_context():
         await async_context_resource()
 
 

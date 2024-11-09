@@ -68,36 +68,52 @@ def some_async_settings_provider(request: pytest.FixtureRequest) -> providers.Ab
     return typing.cast(providers.AbstractProvider[Settings], request.param)
 
 
-@container_context()
 def test_attr_getter_with_zero_attribute_depth_sync(
     some_sync_settings_provider: providers.AbstractProvider[Settings],
 ) -> None:
-    attr_getter = some_sync_settings_provider.some_str_value
-    assert attr_getter.sync_resolve() == Settings().some_str_value
+    with container_context(
+        providers=[some_sync_settings_provider]
+        if isinstance(some_sync_settings_provider, providers.ContextResource)
+        else []
+    ):
+        attr_getter = some_sync_settings_provider.some_str_value
+        assert attr_getter.sync_resolve() == Settings().some_str_value
 
 
-@container_context()
 async def test_attr_getter_with_zero_attribute_depth_async(
     some_async_settings_provider: providers.AbstractProvider[Settings],
 ) -> None:
-    attr_getter = some_async_settings_provider.some_str_value
-    assert await attr_getter.async_resolve() == Settings().some_str_value
+    async with container_context(
+        providers=[some_async_settings_provider]
+        if isinstance(some_async_settings_provider, providers.ContextResource)
+        else []
+    ):
+        attr_getter = some_async_settings_provider.some_str_value
+        assert await attr_getter.async_resolve() == Settings().some_str_value
 
 
-@container_context()
 def test_attr_getter_with_more_than_zero_attribute_depth_sync(
     some_sync_settings_provider: providers.AbstractProvider[Settings],
 ) -> None:
-    attr_getter = some_sync_settings_provider.nested1_attr.nested2_attr.some_const
-    assert attr_getter.sync_resolve() == Nested2().some_const
+    with container_context(
+        providers=[some_sync_settings_provider]
+        if isinstance(some_sync_settings_provider, providers.ContextResource)
+        else []
+    ):
+        attr_getter = some_sync_settings_provider.nested1_attr.nested2_attr.some_const
+        assert attr_getter.sync_resolve() == Nested2().some_const
 
 
-@container_context()
 async def test_attr_getter_with_more_than_zero_attribute_depth_async(
     some_async_settings_provider: providers.AbstractProvider[Settings],
 ) -> None:
-    attr_getter = some_async_settings_provider.nested1_attr.nested2_attr.some_const
-    assert await attr_getter.async_resolve() == Nested2().some_const
+    async with container_context(
+        providers=[some_async_settings_provider]
+        if isinstance(some_async_settings_provider, providers.ContextResource)
+        else []
+    ):
+        attr_getter = some_async_settings_provider.nested1_attr.nested2_attr.some_const
+        assert await attr_getter.async_resolve() == Nested2().some_const
 
 
 @pytest.mark.parametrize(

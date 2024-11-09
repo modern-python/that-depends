@@ -55,7 +55,7 @@ class ContextResource(
     AbstractContextManager[ResourceContext[T_co]],
 ):
     __slots__ = (
-        "_is_async",
+        "is_async",
         "_creator",
         "_args",
         "_kwargs",
@@ -64,6 +64,9 @@ class ContextResource(
         "_context",
         "_token",
     )
+
+    def __repr__(self) -> str:
+        return f"ContextResource({self._creator.__name__})"
 
     def __init__(
         self,
@@ -147,10 +150,6 @@ class ContextResource(
             return typing.cast(typing.Callable[[typing.Callable[P, T]], typing.Callable[P, T]], self.async_context())
         return typing.cast(typing.Callable[[typing.Callable[P, T]], typing.Callable[P, T]], self.sync_context())
 
-    @property
-    def is_async(self) -> bool:
-        return inspect.iscoroutinefunction(self._creator)
-
     def _fetch_context(self) -> ResourceContext[T_co]:
         try:
             return self._context.get()
@@ -180,6 +179,14 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
         preserve_globals: bool = False,
         reset_resource_context: bool = False,
     ) -> None:
+        """Initialize a container context.
+
+        :param initial_context: existing context to use
+        :param providers: providers to reset context of.
+        :param containers: containers to reset context of.
+        :param preserve_globals: whether to preserve global context vars.
+        :param reset_resource_context: whether to reset resource context.
+        """
         if preserve_globals and initial_context:
             self._initial_context = {**_get_container_context(), **initial_context}
         else:
