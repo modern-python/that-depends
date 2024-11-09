@@ -36,7 +36,7 @@ def test_failed_sync_resolve() -> None:
 
 
 def test_wrong_providers_init() -> None:
-    with pytest.raises(RuntimeError, match="Resource must be generator function"):
+    with pytest.raises(TypeError, match="Unsupported resource type"):
         providers.Resource(lambda: None)  # type: ignore[arg-type,return-value]
 
 

@@ -10,8 +10,9 @@ from types import TracebackType
 
 from typing_extensions import TypeIs
 
+from that_depends.entities.resource_context import ResourceContext
 from that_depends.meta import BaseContainerMeta
-from that_depends.providers.base import AbstractResource, ResourceContext
+from that_depends.providers.base import AbstractResource
 
 
 if typing.TYPE_CHECKING:
@@ -75,7 +76,7 @@ class ContextResource(
         self._token: Token[ResourceContext[T_co]] | None = None
 
     def __enter__(self) -> ResourceContext[T_co]:
-        if self._is_creator_async(self._creator):
+        if self.is_async:
             msg = "You must enter async context for async creators."
             raise RuntimeError(msg)
         return self._enter()
@@ -84,7 +85,7 @@ class ContextResource(
         return self._enter()
 
     def _enter(self) -> ResourceContext[T_co]:
-        self._token = self._context.set(ResourceContext(is_async=self._is_creator_async(self._creator)))
+        self._token = self._context.set(ResourceContext(is_async=self.is_async))
         return self._context.get()
 
     def __exit__(
@@ -119,7 +120,7 @@ class ContextResource(
 
     @contextlib.contextmanager
     def sync_context(self) -> typing.Iterator[ResourceContext[T_co]]:
-        if self._is_creator_async(self._creator):
+        if self.is_async:
             msg = "Please use async context instead."
             raise RuntimeError(msg)
         token = self._token
@@ -142,13 +143,13 @@ class ContextResource(
         :return: A context manager for the resource.
         :rtype: typing.ContextManager[ResourceContext[T_co]] | typing.AsyncContextManager[ResourceContext[T_co]]
         """
-        if self._is_creator_async(self._creator):
+        if self.is_async:
             return typing.cast(typing.Callable[[typing.Callable[P, T]], typing.Callable[P, T]], self.async_context())
         return typing.cast(typing.Callable[[typing.Callable[P, T]], typing.Callable[P, T]], self.sync_context())
 
     @property
     def is_async(self) -> bool:
-        return self._is_creator_async(self._creator)
+        return inspect.iscoroutinefunction(self._creator)
 
     def _fetch_context(self) -> ResourceContext[T_co]:
         try:
@@ -177,7 +178,7 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
         providers: list[ContextResource[typing.Any]] | None = None,
         containers: list[ContainerType] | None = None,
         preserve_globals: bool = False,
-        reset_resource_context: bool = False
+        reset_resource_context: bool = False,
     ) -> None:
         if preserve_globals and initial_context:
             self._initial_context = {**_get_container_context(), **initial_context}
@@ -275,14 +276,18 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
 
             @wraps(func)
             async def _async_inner(*args: P.args, **kwargs: P.kwargs) -> T_co:
-                async with container_context(providers=list(self._providers), reset_resource_context=self._reset_resource_context):
+                async with container_context(
+                    providers=list(self._providers), reset_resource_context=self._reset_resource_context
+                ):
                     return await func(*args, **kwargs)  # type: ignore[no-any-return]
 
             return typing.cast(typing.Callable[P, T_co], _async_inner)
 
         @wraps(func)
         def _sync_inner(*args: P.args, **kwargs: P.kwargs) -> T_co:
-            with container_context(providers=list(self._providers), reset_resource_context=self._reset_resource_context):
+            with container_context(
+                providers=list(self._providers), reset_resource_context=self._reset_resource_context
+            ):
                 return func(*args, **kwargs)
 
         return _sync_inner

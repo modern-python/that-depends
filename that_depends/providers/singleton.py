@@ -30,8 +30,10 @@ class Singleton(AbstractProvider[T_co]):
         async with self._resolving_lock:
             if self._instance is None:
                 self._instance = self._factory(
-                    *[await x.async_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
-                    **{
+                    *[  # type: ignore[arg-type]
+                        await x.async_resolve() if isinstance(x, AbstractProvider) else x for x in self._args
+                    ],
+                    **{  # type: ignore[arg-type]
                         k: await v.async_resolve() if isinstance(v, AbstractProvider) else v
                         for k, v in self._kwargs.items()
                     },
@@ -44,8 +46,12 @@ class Singleton(AbstractProvider[T_co]):
 
         if self._instance is None:
             self._instance = self._factory(
-                *[x.sync_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
-                **{k: v.sync_resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
+                *[  # type: ignore[arg-type]
+                    x.sync_resolve() if isinstance(x, AbstractProvider) else x for x in self._args
+                ],
+                **{  # type: ignore[arg-type]
+                    k: v.sync_resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()
+                },
             )
         return self._instance
 

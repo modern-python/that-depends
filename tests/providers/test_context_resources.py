@@ -7,8 +7,8 @@ from contextlib import AsyncExitStack
 import pytest
 
 from that_depends import BaseContainer, Provide, fetch_context_item, inject, providers
+from that_depends.entities.resource_context import ResourceContext
 from that_depends.providers import container_context
-from that_depends.providers.base import ResourceContext
 
 
 logger = logging.getLogger(__name__)
@@ -133,7 +133,7 @@ async def test_context_resources_init_and_tear_down() -> None:
 
 
 def test_context_resources_wrong_providers_init() -> None:
-    with pytest.raises(RuntimeError, match="ContextResource must be generator function"):
+    with pytest.raises(TypeError, match="Unsupported resource type"):
         providers.ContextResource(lambda: None)  # type: ignore[arg-type,return-value]
 
 

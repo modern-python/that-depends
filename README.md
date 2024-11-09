@@ -19,10 +19,6 @@ It is production-ready and gives you the following:
 
 📚 [Documentation](https://that-depends.readthedocs.io)
 
-# Projects with `That Depends`:
-- [fastapi-sqlalchemy-template](https://github.com/modern-python/fastapi-sqlalchemy-template) - FastAPI template with sqlalchemy2 and PostgreSQL
-- [litestar-sqlalchemy-template](https://github.com/modern-python/litestar-sqlalchemy-template) - LiteStar template with sqlalchemy2 and PostgreSQL
-
 # Quickstart
 ## Install
 ```bash

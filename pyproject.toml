@@ -24,8 +24,8 @@ packages = [
 repository = "https://github.com/modern-python/that-depends"
 docs = "https://that-depends.readthedocs.io"
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "fastapi",
     "litestar",
     "httpx",
@@ -33,7 +33,7 @@ dev-dependencies = [
     "pytest-cov",
     "pytest-asyncio",
     "ruff",
-    "mypy==1.10.1",
+    "mypy",
     "typing-extensions",
     "pre-commit"
 ]
@@ -78,6 +78,7 @@ isort.no-lines-before = ["standard-library", "local-folder"]
 [tool.pytest.ini_options]
 addopts = "--cov=. --cov-report term-missing"
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 
 [tool.coverage.report]
 exclude_also = ["if typing.TYPE_CHECKING:"]

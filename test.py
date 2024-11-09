@@ -128,7 +128,6 @@ async def check_async_container_context() -> None:
 
 async def check_async_global_passing() -> None:
     with pytest.raises(RuntimeError):
-        # TODO: This perhaps should not throw an exception because to just set an empty dict if no context was entered before.
         async with container_context(preserve_globals=True) as gs:
             assert gs
     my_global_resources = {"test_1": "test_1", "test_2": "test_2"}
@@ -147,10 +146,8 @@ async def check_async_global_passing() -> None:
 
 
 def check_sync_global_passing() -> None:
-    with pytest.raises(RuntimeError):
-        # TODO: This perhaps should not throw an exception because to just set an empty dict if no context was entered before.
-        with container_context(preserve_globals=True) as gs:
-            assert gs
+    with pytest.raises(RuntimeError), container_context(preserve_globals=True) as gs:
+        assert gs
     my_global_resources = {"test_1": "test_1", "test_2": "test_2"}
 
     with container_context(initial_context=my_global_resources):
