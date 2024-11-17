@@ -71,3 +71,33 @@ def test_litestar_di() -> None:
             "local_dependency": 1,
             "router_dependency": "",
         }
+
+
+def test_litestar_di_override_fail_on_provider_override() -> None:
+    with TestClient(app=app) as client, DIContainer.int_fn.override_context(12345364758999):
+        response = client.get("/router/controller/handler")
+
+    assert response.status_code == HTTP_200_OK, response.text
+    assert response.json() == {
+        "app_dependency": False,
+        "controller_dependency": ["some"],
+        "local_dependency": 12345364758999,  # ASSERTION ERROR HERE
+        "router_dependency": "",
+    }
+
+
+def test_litestar_di_override_fail_on_override_providers() -> None:
+    overrides = {
+        "int_fn": 12345364758999,
+    }
+
+    with TestClient(app=app) as client, DIContainer.override_providers(overrides):
+        response = client.get("/router/controller/handler")
+
+    assert response.status_code == HTTP_200_OK, response.text
+    assert response.json() == {
+        "app_dependency": False,
+        "controller_dependency": ["some"],
+        "local_dependency": 12345364758999,  # ASSERTION ERROR HERE
+        "router_dependency": "",
+    }
