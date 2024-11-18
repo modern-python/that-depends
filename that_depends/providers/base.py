@@ -5,6 +5,8 @@ import typing
 from contextlib import contextmanager
 from operator import attrgetter
 
+import typing_extensions
+
 from that_depends.entities.resource_context import ResourceContext
 
 
@@ -21,6 +23,9 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
     def __init__(self) -> None:
         super().__init__()
         self._override: typing.Any = None
+
+    def __deepcopy__(self, *_: object, **__: object) -> typing_extensions.Self:
+        return self
 
     def __getattr__(self, attr_name: str) -> typing.Any:  # noqa: ANN401
         if attr_name.startswith("_"):
