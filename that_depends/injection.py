@@ -27,18 +27,24 @@ def _inject_to_async(
     @functools.wraps(func)
     async def inner(*args: P.args, **kwargs: P.kwargs) -> T:
         injected = False
+
+        for field_name, field_value in kwargs.items():
+            if isinstance(field_value, Provide):
+                kwargs[field_name] = await field_value.provider.async_resolve()
+
         for i, (field_name, field_value) in enumerate(signature.parameters.items()):
             if i < len(args):
                 continue
 
-            if not isinstance(field_value.default, AbstractProvider):
+            if not isinstance(field_value.default, Provide):
                 continue
 
             if field_name in kwargs:
                 continue
 
-            kwargs[field_name] = await field_value.default.async_resolve()
+            kwargs[field_name] = await field_value.default.provider.async_resolve()
             injected = True
+
         if not injected:
             warnings.warn(
                 "Expected injection, but nothing found. Remove @inject decorator.", RuntimeWarning, stacklevel=1
@@ -56,14 +62,22 @@ def _inject_to_sync(
     @functools.wraps(func)
     def inner(*args: P.args, **kwargs: P.kwargs) -> T:
         injected = False
+
+        for field_name, field_value in kwargs.items():
+            if isinstance(field_value, Provide):
+                kwargs[field_name] = field_value.provider.sync_resolve()
+
         for i, (field_name, field_value) in enumerate(signature.parameters.items()):
             if i < len(args):
                 continue
-            if not isinstance(field_value.default, AbstractProvider):
+
+            if not isinstance(field_value.default, Provide):
                 continue
+
             if field_name in kwargs:
                 continue
-            kwargs[field_name] = field_value.default.sync_resolve()
+
+            kwargs[field_name] = field_value.default.provider.sync_resolve()
             injected = True
 
         if not injected:
@@ -78,7 +92,9 @@ def _inject_to_sync(
 
 class ClassGetItemMeta(type):
     def __getitem__(cls, provider: AbstractProvider[T]) -> T:
-        return typing.cast(T, provider)
+        return typing.cast(T, cls(provider))
 
 
-class Provide(metaclass=ClassGetItemMeta): ...
+class Provide(metaclass=ClassGetItemMeta):
+    def __init__(self, provider: AbstractProvider[T]) -> None:
+        self.provider = provider
