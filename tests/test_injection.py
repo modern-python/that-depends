@@ -26,7 +26,23 @@ async def test_injection(
     assert fixture_one == 1
 
 
-async def test_injection_with_overriding() -> None:
+def test_injection_with_overriding_sync() -> None:
+    @inject
+    def inner(
+        arg1: bool,
+        arg2: container.SimpleFactory = Provide[container.DIContainer.simple_factory],
+    ) -> None:
+        _ = arg1
+        original_obj = container.DIContainer.simple_factory.sync_resolve()
+        assert arg2.dep1 != original_obj.dep1
+        assert arg2.dep2 != original_obj.dep2
+
+    inner(arg1=True, arg2=container.SimpleFactory(dep1="1", dep2=2))
+    inner(True, container.SimpleFactory(dep1="1", dep2=2))
+    inner(True, arg2=container.SimpleFactory(dep1="1", dep2=2))
+
+
+async def test_injection_with_overriding_async() -> None:
     @inject
     async def inner(
         arg1: bool,
