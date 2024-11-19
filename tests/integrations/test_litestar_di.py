@@ -1,7 +1,11 @@
 import typing
+from functools import partial
+from typing import Annotated
+from unittest.mock import Mock
 
 from litestar import Controller, Litestar, Router, get
 from litestar.di import Provide
+from litestar.params import Dependency
 from litestar.status_codes import HTTP_200_OK
 from litestar.testing import TestClient
 
@@ -24,18 +28,32 @@ def int_fn() -> int:
     return 1
 
 
+class SomeService:
+    def do_smth(self) -> str:
+        return "something"
+
+
 class DIContainer(BaseContainer):
     bool_fn = providers.Factory(bool_fn, value=False)
     str_fn = providers.Factory(str_fn)
     list_fn = providers.Factory(list_fn)
     int_fn = providers.Factory(int_fn)
+    some_service = providers.Factory(SomeService)
+
+
+_NoValidationDependency = partial(Dependency, skip_validation=True)
 
 
 class MyController(Controller):
     path = "/controller"
     dependencies = {"controller_dependency": Provide(DIContainer.list_fn)}  # noqa: RUF012
 
-    @get(path="/handler", dependencies={"local_dependency": Provide(DIContainer.int_fn)})
+    @get(
+        path="/handler",
+        dependencies={
+            "local_dependency": Provide(DIContainer.int_fn),
+        },
+    )
     async def my_route_handler(
         self,
         app_dependency: bool,
@@ -50,6 +68,12 @@ class MyController(Controller):
             "local_dependency": local_dependency,
         }
 
+    @get(path="/mock_overriding", dependencies={"some_service": Provide(DIContainer.some_service)})
+    async def mock_overriding_endpoint_handler(
+        self, some_service: Annotated[SomeService, _NoValidationDependency()]
+    ) -> dict[str, typing.Any]:
+        return {"object": some_service.do_smth()}
+
 
 my_router = Router(
     path="/router",
@@ -59,6 +83,16 @@ my_router = Router(
 
 # on the app
 app = Litestar(route_handlers=[my_router], dependencies={"app_dependency": Provide(DIContainer.bool_fn)}, debug=True)
+
+
+def test_litestar_endpoint_with_mock_overriding() -> None:
+    some_service_mock = Mock(do_smth=lambda: "mock func")
+
+    with DIContainer.some_service.override_context(some_service_mock), TestClient(app=app) as client:
+        response = client.get("/router/controller/mock_overriding")
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["object"] == "mock func"
 
 
 def test_litestar_di() -> None:
