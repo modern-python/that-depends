@@ -69,7 +69,7 @@ async def my_func():
 ### Context Hierarchy
 Each time you enter `container_context` a new context is created in the background.
 Resources are cached in the context after first resolution.
-Resources created in a context are torn down again when `container_context` exits.
+Resources created in a context are turn down again when `container_context` exits.
 ```python
 async with container_context():
     value_outer = await MyContainer.resource.async_resolve()
