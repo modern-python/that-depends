@@ -1,10 +1,21 @@
+import abc
 import typing
 
-from that_depends.providers.base import AbstractFactory, AbstractProvider
+from that_depends.providers.base import AbstractProvider
 
 
 T_co = typing.TypeVar("T_co", covariant=True)
 P = typing.ParamSpec("P")
+
+
+class AbstractFactory(AbstractProvider[T_co], abc.ABC):
+    @property
+    def provider(self) -> typing.Callable[[], typing.Coroutine[typing.Any, typing.Any, T_co]]:
+        return self.async_resolve
+
+    @property
+    def sync_provider(self) -> typing.Callable[[], T_co]:
+        return self.sync_resolve
 
 
 class Factory(AbstractFactory[T_co]):

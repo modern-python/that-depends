@@ -164,7 +164,7 @@ class ContextResource(AbstractResource[T_co]):
             return typing.cast(ResourceContext[T_co], resource_context)
 
         resource_context = ResourceContext(is_async=_is_container_context_async())
-        container_context[self._internal_name] = resource_context
+        container_context.setdefault(self._internal_name, resource_context)
         return resource_context
 
 

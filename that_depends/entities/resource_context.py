@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import threading
 import typing
 
 
@@ -7,7 +8,7 @@ T_co = typing.TypeVar("T_co", covariant=True)
 
 
 class ResourceContext(typing.Generic[T_co]):
-    __slots__ = "context_stack", "instance", "resolving_lock", "is_async"
+    __slots__ = "context_stack", "instance", "asyncio_lock", "threading_lock", "is_async"
 
     def __init__(self, is_async: bool) -> None:
         """Create a new ResourceContext instance.
@@ -17,7 +18,8 @@ class ResourceContext(typing.Generic[T_co]):
         :type is_async: bool
         """
         self.instance: T_co | None = None
-        self.resolving_lock: typing.Final = asyncio.Lock()
+        self.asyncio_lock: typing.Final = asyncio.Lock()
+        self.threading_lock: typing.Final = threading.Lock()
         self.context_stack: contextlib.AsyncExitStack | contextlib.ExitStack | None = None
         self.is_async = is_async
 
