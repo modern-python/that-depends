@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import logging
 import typing
@@ -189,3 +190,24 @@ async def test_async_container_context_with_different_stack() -> None:
         return await some_injected(depth + 1)
 
     await some_injected(1)
+
+
+@pytest.mark.repeat(10)
+async def test_async_context_resource_asyncio_concurrency() -> None:
+    calls: int = 0
+
+    async def create_client() -> typing.AsyncIterator[str]:
+        nonlocal calls
+        calls += 1
+        await asyncio.sleep(0)
+        yield ""
+
+    resource = providers.ContextResource(create_client)
+
+    async def resolve_resource() -> str:
+        return await resource.async_resolve()
+
+    async with container_context():
+        await asyncio.gather(resolve_resource(), resolve_resource())
+
+    assert calls == 1

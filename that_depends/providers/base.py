@@ -122,7 +122,7 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
             raise RuntimeError(msg)
 
         # lock to prevent race condition while resolving
-        async with context.resolving_lock:
+        async with context.asyncio_lock:
             if context.instance is not None:
                 return context.instance
 
@@ -159,24 +159,19 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
             msg = "AsyncResource cannot be resolved synchronously"
             raise RuntimeError(msg)
 
-        cm = self._creator(
-            *[x.sync_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
-            **{k: v.sync_resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
-        )
-        context.context_stack = contextlib.ExitStack()
-        context.instance = context.context_stack.enter_context(cm)
+        # lock to prevent race condition while resolving
+        with context.threading_lock:
+            if context.instance is not None:
+                return context.instance
 
-        return context.instance
+            cm = self._creator(
+                *[x.sync_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
+                **{k: v.sync_resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
+            )
+            context.context_stack = contextlib.ExitStack()
+            context.instance = context.context_stack.enter_context(cm)
 
-
-class AbstractFactory(AbstractProvider[T_co], abc.ABC):
-    @property
-    def provider(self) -> typing.Callable[[], typing.Coroutine[typing.Any, typing.Any, T_co]]:
-        return self.async_resolve
-
-    @property
-    def sync_provider(self) -> typing.Callable[[], T_co]:
-        return self.sync_resolve
+            return context.instance
 
 
 def _get_value_from_object_by_dotted_path(obj: typing.Any, path: str) -> typing.Any:  # noqa: ANN401

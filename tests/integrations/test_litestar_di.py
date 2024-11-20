@@ -29,8 +29,7 @@ def int_fn() -> int:
 
 
 class SomeService:
-    def do_smth(self) -> str:
-        return "something"
+    pass
 
 
 class DIContainer(BaseContainer):
@@ -71,8 +70,8 @@ class MyController(Controller):
     @get(path="/mock_overriding", dependencies={"some_service": Provide(DIContainer.some_service)})
     async def mock_overriding_endpoint_handler(
         self, some_service: Annotated[SomeService, _NoValidationDependency()]
-    ) -> dict[str, typing.Any]:
-        return {"object": some_service.do_smth()}
+    ) -> None:
+        assert isinstance(some_service, Mock)
 
 
 my_router = Router(
@@ -86,13 +85,12 @@ app = Litestar(route_handlers=[my_router], dependencies={"app_dependency": Provi
 
 
 def test_litestar_endpoint_with_mock_overriding() -> None:
-    some_service_mock = Mock(do_smth=lambda: "mock func")
+    some_service_mock = Mock()
 
     with DIContainer.some_service.override_context(some_service_mock), TestClient(app=app) as client:
         response = client.get("/router/controller/mock_overriding")
 
     assert response.status_code == HTTP_200_OK
-    assert response.json()["object"] == "mock func"
 
 
 def test_litestar_di() -> None:
