@@ -69,3 +69,44 @@ class Singleton(AbstractProvider[T_co]):
     async def tear_down(self) -> None:
         if self._instance is not None:
             self._instance = None
+
+
+class AsyncSingleton(AbstractProvider[T_co]):
+    __slots__ = "_factory", "_args", "_kwargs", "_override", "_instance", "_asyncio_lock", "_threading_lock"
+
+    def __init__(self, factory: typing.Callable[P, typing.Awaitable[T_co]], *args: P.args, **kwargs: P.kwargs) -> None:
+        super().__init__()
+        self._factory: typing.Final[typing.Callable[P, typing.Awaitable[T_co]]] = factory
+        self._args: typing.Final[P.args] = args
+        self._kwargs: typing.Final[P.kwargs] = kwargs
+        self._instance: T_co | None = None
+        self._asyncio_lock: typing.Final = asyncio.Lock()
+
+    async def async_resolve(self) -> T_co:
+        if self._override is not None:
+            return typing.cast(T_co, self._override)
+
+        if self._instance is not None:
+            return self._instance
+
+        # lock to prevent resolving several times
+        async with self._asyncio_lock:
+            if self._instance is not None:
+                return self._instance
+
+            self._instance = await self._factory(
+                *[await x.async_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
+                **{
+                    k: await v.async_resolve() if isinstance(v, AbstractProvider) else v
+                    for k, v in self._kwargs.items()
+                },
+            )
+            return self._instance
+
+    def sync_resolve(self) -> typing.NoReturn:
+        msg = "AsyncSingleton cannot be resolved in an sync context."
+        raise RuntimeError(msg)
+
+    async def tear_down(self) -> None:
+        if self._instance is not None:
+            self._instance = None
