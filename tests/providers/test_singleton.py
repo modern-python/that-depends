@@ -77,7 +77,7 @@ async def test_singleton_async_provider_concurrent() -> None:
         singleton_async(),
     )
 
-    assert set(results) == {results[0]}
+    assert all(val is results[0] for val in results)
 
 
 async def test_singleton_async_provider_sync_resolve() -> None:
