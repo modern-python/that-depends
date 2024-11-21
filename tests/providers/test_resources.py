@@ -135,10 +135,7 @@ async def test_async_resource_asyncio_concurrency() -> None:
 
     resource = providers.Resource(create_resource)
 
-    async def resolve_resource() -> str:
-        return await resource.async_resolve()
-
-    await asyncio.gather(resolve_resource(), resolve_resource())
+    await asyncio.gather(resource.async_resolve(), resource.async_resolve())
 
     assert calls == 1
 
@@ -157,15 +154,12 @@ def test_resource_threading_concurrency() -> None:
 
     resource = providers.Resource(create_resource)
 
-    def resolve_resource() -> str:
-        return resource.sync_resolve()
-
     with ThreadPoolExecutor(max_workers=4) as pool:
         tasks = [
-            pool.submit(resolve_resource),
-            pool.submit(resolve_resource),
-            pool.submit(resolve_resource),
-            pool.submit(resolve_resource),
+            pool.submit(resource.sync_resolve),
+            pool.submit(resource.sync_resolve),
+            pool.submit(resource.sync_resolve),
+            pool.submit(resource.sync_resolve),
         ]
         results = [x.result() for x in as_completed(tasks)]
 
