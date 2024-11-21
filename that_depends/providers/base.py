@@ -26,7 +26,9 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
 
     def __deepcopy__(self, *_: object, **__: object) -> typing_extensions.Self:
         """Hack for Litestar to prevent cloning object.
-        More info here https://github.com/modern-python/that-depends/issues/119"""
+
+        More info here https://github.com/modern-python/that-depends/issues/119.
+        """
         return self
 
     def __getattr__(self, attr_name: str) -> typing.Any:  # noqa: ANN401
