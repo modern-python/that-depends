@@ -60,10 +60,10 @@ async def test_singleton_async_provider() -> None:
 
 async def test_singleton_async_provider_override() -> None:
     singleton_async = providers.AsyncSingleton(create_async_obj, "foo")
-    singleton_async.override("bar")
+    singleton_async.override(SingletonFactory(dep1="bar"))
 
     result = await singleton_async.async_resolve()
-    assert result == "bar"
+    assert result == SingletonFactory(dep1="bar")
 
 
 async def test_singleton_async_provider_concurrent() -> None:
