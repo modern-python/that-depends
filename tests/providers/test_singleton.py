@@ -11,7 +11,7 @@ import pytest
 from that_depends import BaseContainer, providers
 
 
-@dataclasses.dataclass(kw_only=True, slots=True)
+@dataclasses.dataclass(frozen=True, kw_only=True, slots=True)
 class SingletonFactory:
     dep1: str
 
@@ -21,9 +21,15 @@ class Settings(pydantic.BaseModel):
     other_setting: str = "other_value"
 
 
+async def create_async_obj(value: str) -> SingletonFactory:
+    await asyncio.sleep(0.001)
+    return SingletonFactory(dep1=f"async {value}")
+
+
 class DIContainer(BaseContainer):
     settings: Settings = providers.Singleton(Settings).cast
     singleton = providers.Singleton(SingletonFactory, dep1=settings.some_setting)
+    singleton_async = providers.AsyncSingleton(create_async_obj, value=settings.some_setting)
 
 
 async def test_singleton_provider() -> None:
@@ -37,6 +43,46 @@ async def test_singleton_provider() -> None:
     assert singleton4 is not singleton1
 
     await DIContainer.tear_down()
+
+
+async def test_singleton_async_provider() -> None:
+    singleton1 = await DIContainer.singleton_async()
+    singleton2 = await DIContainer.singleton_async()
+    singleton3 = await DIContainer.singleton_async.async_resolve()
+    await DIContainer.singleton_async.tear_down()
+    singleton4 = await DIContainer.singleton_async.async_resolve()
+
+    assert singleton1 is singleton2 is singleton3
+    assert singleton4 is not singleton1
+
+    await DIContainer.tear_down()
+
+
+async def test_singleton_async_provider_override() -> None:
+    singleton_async = providers.AsyncSingleton(create_async_obj, "foo")
+    singleton_async.override(SingletonFactory(dep1="bar"))
+
+    result = await singleton_async.async_resolve()
+    assert result == SingletonFactory(dep1="bar")
+
+
+async def test_singleton_async_provider_concurrent() -> None:
+    singleton_async = providers.AsyncSingleton(create_async_obj, "foo")
+
+    results = await asyncio.gather(
+        singleton_async(),
+        singleton_async(),
+        singleton_async(),
+        singleton_async(),
+        singleton_async(),
+    )
+
+    assert all(val is results[0] for val in results)
+
+
+async def test_singleton_async_provider_sync_resolve() -> None:
+    with pytest.raises(RuntimeError, match="AsyncSingleton cannot be resolved in an sync context."):
+        DIContainer.singleton_async.sync_resolve()
 
 
 async def test_singleton_attr_getter() -> None:
