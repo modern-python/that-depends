@@ -11,7 +11,7 @@ import pytest
 from that_depends import BaseContainer, providers
 
 
-@dataclasses.dataclass(kw_only=True, slots=True)
+@dataclasses.dataclass(frozen=True, kw_only=True, slots=True)
 class SingletonFactory:
     dep1: str
 
