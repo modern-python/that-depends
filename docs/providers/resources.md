@@ -1,12 +1,10 @@
 # Resource
-
 - resolve the dependency only once and cache the resolved instance for future injections;
 - unlike `Singleton` has finalization logic;
 - generator or async generator can be used;
 - context manager derived from `typing.ContextManager` or `typing.AsyncContextManager` can be used;
 
 ## How it works
-
 ```python
 import typing
 
