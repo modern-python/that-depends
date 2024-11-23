@@ -1,7 +1,5 @@
 # Application settings
-
 For example, you have application settings in `pydantic_settings`
-
 ```python
 import pydantic_settings
 
