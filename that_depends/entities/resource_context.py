@@ -8,7 +8,7 @@ T_co = typing.TypeVar("T_co", covariant=True)
 
 
 class ResourceContext(typing.Generic[T_co]):
-    __slots__ = "context_stack", "instance", "asyncio_lock", "threading_lock", "is_async"
+    __slots__ = "asyncio_lock", "context_stack", "instance", "is_async", "threading_lock"
 
     def __init__(self, is_async: bool) -> None:
         """Create a new ResourceContext instance.

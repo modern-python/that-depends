@@ -18,6 +18,7 @@ __all__ = [
     "AsyncContextResource",
     "AsyncFactory",
     "AsyncResource",
+    "AsyncSingleton",
     "AttrGetter",
     "ContextResource",
     "DIContextMiddleware",
@@ -28,6 +29,5 @@ __all__ = [
     "Resource",
     "Selector",
     "Singleton",
-    "AsyncSingleton",
     "container_context",
 ]

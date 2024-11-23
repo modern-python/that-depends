@@ -19,7 +19,7 @@ class AbstractFactory(AbstractProvider[T_co], abc.ABC):
 
 
 class Factory(AbstractFactory[T_co]):
-    __slots__ = "_factory", "_args", "_kwargs", "_override"
+    __slots__ = "_args", "_factory", "_kwargs", "_override"
 
     def __init__(self, factory: typing.Callable[P, T_co], *args: P.args, **kwargs: P.kwargs) -> None:
         super().__init__()
@@ -55,7 +55,7 @@ class Factory(AbstractFactory[T_co]):
 
 
 class AsyncFactory(AbstractFactory[T_co]):
-    __slots__ = "_factory", "_args", "_kwargs", "_override"
+    __slots__ = "_args", "_factory", "_kwargs", "_override"
 
     def __init__(self, factory: typing.Callable[P, typing.Awaitable[T_co]], *args: P.args, **kwargs: P.kwargs) -> None:
         super().__init__()

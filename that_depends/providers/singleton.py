@@ -10,7 +10,7 @@ P = typing.ParamSpec("P")
 
 
 class Singleton(AbstractProvider[T_co]):
-    __slots__ = "_factory", "_args", "_kwargs", "_override", "_instance", "_asyncio_lock", "_threading_lock"
+    __slots__ = "_args", "_asyncio_lock", "_factory", "_instance", "_kwargs", "_override", "_threading_lock"
 
     def __init__(self, factory: typing.Callable[P, T_co], *args: P.args, **kwargs: P.kwargs) -> None:
         super().__init__()
@@ -72,7 +72,7 @@ class Singleton(AbstractProvider[T_co]):
 
 
 class AsyncSingleton(AbstractProvider[T_co]):
-    __slots__ = "_factory", "_args", "_kwargs", "_override", "_instance", "_asyncio_lock"
+    __slots__ = "_args", "_asyncio_lock", "_factory", "_instance", "_kwargs", "_override"
 
     def __init__(self, factory: typing.Callable[P, typing.Awaitable[T_co]], *args: P.args, **kwargs: P.kwargs) -> None:
         super().__init__()

@@ -38,7 +38,7 @@ class container_context(  # noqa: N801
     When used as sync-context-manager, it will only allow setup & teardown of sync resources.
     """
 
-    __slots__ = "_initial_context", "_context_token"
+    __slots__ = "_context_token", "_initial_context"
 
     def __init__(self, initial_context: ContextType | None = None) -> None:
         self._initial_context: ContextType = initial_context or {}
@@ -141,12 +141,12 @@ def fetch_context_item(key: str, default: typing.Any = None) -> typing.Any:  # n
 
 class ContextResource(AbstractResource[T_co]):
     __slots__ = (
-        "_is_async",
-        "_creator",
         "_args",
+        "_creator",
+        "_internal_name",
+        "_is_async",
         "_kwargs",
         "_override",
-        "_internal_name",
     )
 
     def __init__(

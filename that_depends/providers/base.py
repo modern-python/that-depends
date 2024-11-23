@@ -186,7 +186,7 @@ def _get_value_from_object_by_dotted_path(obj: typing.Any, path: str) -> typing.
 class AttrGetter(
     AbstractProvider[T_co],
 ):
-    __slots__ = "_provider", "_attrs"
+    __slots__ = "_attrs", "_provider"
 
     def __init__(self, provider: AbstractProvider[T_co], attr_name: str) -> None:
         super().__init__()
