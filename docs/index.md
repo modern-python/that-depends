@@ -22,7 +22,6 @@
     providers/context-resources
     providers/singleton
     providers/factories
-    providers/async-factory
     providers/collections
     providers/selector
     providers/object
@@ -31,6 +30,7 @@
     :maxdepth: 1
     :caption: Testing
     
+    testing/fixture
     testing/provider-overriding
 
 .. toctree::
