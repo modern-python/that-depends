@@ -4,7 +4,7 @@
 
 When using dependency injection in tests, it's important to properly tear down resources after tests complete.
 
-Without proper teardown, the Python event loop might close before resources have a chance to shut down properly, leading to errors like `RuntimeError: Event loop is closed`. This can happen because pytest closes the event loop after test completion, but any remaining open connections or resources might still try to perform cleanup operations.
+Without proper teardown, the Python event loop might close before resources have a chance to shut down properly, leading to errors like `RuntimeError: Event loop is closed`.
 
 You can set up automatic teardown using a pytest fixture:
 
