@@ -1,7 +1,5 @@
 # Fixture
-
 ## Dependencies teardown
-
 When using dependency injection in tests, it's important to properly tear down resources after tests complete.
 
 Without proper teardown, the Python event loop might close before resources have a chance to shut down properly, leading to errors like `RuntimeError: Event loop is closed`.
@@ -16,6 +14,8 @@ from my_project import DIContainer
 
 @pytest_asyncio.fixture(autouse=True)
 async def di_container_teardown() -> AsyncGenerator[None]:
-    yield
-    await DIContainer.tear_down()
+    try:
+        yield
+    finally:
+        await DIContainer.tear_down()
 ```
