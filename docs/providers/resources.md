@@ -33,9 +33,7 @@ class MyContainer(BaseContainer):
 ```
 
 ## Concurrency safety
-
 `Resource` is safe to use in threading and asyncio concurrency:
-
 ```python
 # calling async_resolve concurrently in different coroutines will create only one instance
 await MyContainer.async_resource.async_resolve()
