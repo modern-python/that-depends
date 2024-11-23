@@ -4,7 +4,7 @@
 - generator or async generator can be used;
 - context manager derived from `typing.ContextManager` or `typing.AsyncContextManager` can be used;
 
-# How it works
+## How it works
 ```python
 import typing
 
