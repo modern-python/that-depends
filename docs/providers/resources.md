@@ -1,10 +1,12 @@
 # Resource
+
 - resolve the dependency only once and cache the resolved instance for future injections;
 - unlike `Singleton` has finalization logic;
 - generator or async generator can be used;
 - context manager derived from `typing.ContextManager` or `typing.AsyncContextManager` can be used;
 
-# How it works
+## How it works
+
 ```python
 import typing
 
@@ -33,7 +35,9 @@ class MyContainer(BaseContainer):
 ```
 
 ## Concurrency safety
+
 `Resource` is safe to use in threading and asyncio concurrency:
+
 ```python
 # calling async_resolve concurrently in different coroutines will create only one instance
 await MyContainer.async_resource.async_resolve()
