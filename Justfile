@@ -21,3 +21,7 @@ publish:
     rm -rf dist
     uv build
     uv publish --token $PYPI_TOKEN
+
+hook:
+    echo "just lint" > .git/hooks/pre-commit
+    chmod +x .git/hooks/pre-commit
