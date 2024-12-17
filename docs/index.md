@@ -9,6 +9,7 @@
     introduction/ioc-container
     introduction/fastapi
     introduction/litestar
+    introduction/faststream
     introduction/inject-factories
     introduction/multiple-containers
     introduction/dynamic-container
