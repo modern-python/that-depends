@@ -233,4 +233,3 @@ def test_litestar_endpoint_with_overriding() -> None:
 
 More about `Dependency` 
 in the [Litestar documentation](https://docs.litestar.dev/2/usage/dependency-injection.html#the-dependency-function).
-
