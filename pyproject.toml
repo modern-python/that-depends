@@ -39,18 +39,6 @@ dev = [
     "typing-extensions",
     "pre-commit"
 ]
-dev313 = [
-    "fastapi",
-    "httpx",
-    "pytest",
-    "pytest-cov",
-    "pytest-asyncio",
-    "pytest-repeat",
-    "ruff",
-    "mypy",
-    "typing-extensions",
-    "pre-commit"
-]
 
 [build-system]
 requires = ["hatchling", "hatch-vcs"]
