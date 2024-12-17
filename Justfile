@@ -2,7 +2,11 @@ default: install lint test
 
 install:
     uv lock --upgrade
-    uv sync --all-extras --frozen
+    uv sync --only-dev --frozen
+
+install-313:
+    uv lock --upgrade
+    uv sync --only-dev --no-install-package litestar --no-install-package msgspec --frozen
 
 lint:
     uv run ruff format
@@ -15,7 +19,7 @@ lint-ci:
     uv run mypy .
 
 test *args:
-    uv run pytest {{ args }}
+    uv run --no-sync pytest {{ args }}
 
 publish:
     rm -rf dist
