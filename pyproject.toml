@@ -27,8 +27,6 @@ docs = "https://that-depends.readthedocs.io"
 
 [dependency-groups]
 dev = [
-    "fastapi",
-    "litestar",
     "httpx",
     "pytest",
     "pytest-cov",
@@ -37,7 +35,11 @@ dev = [
     "ruff",
     "mypy",
     "typing-extensions",
-    "pre-commit"
+    "pre-commit",
+    # integrations tests
+    "fastapi",
+    "litestar",
+    "faststream[nats]",
 ]
 
 [build-system]
