@@ -4,10 +4,6 @@ install:
     uv lock --upgrade
     uv sync --only-dev --frozen
 
-install-313:
-    uv lock --upgrade
-    uv sync --only-dev --no-install-package litestar --no-install-package msgspec --frozen
-
 lint:
     uv run ruff format
     uv run ruff check --fix

@@ -41,10 +41,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "**/pyproject.toml"
       - run: uv python install ${{ matrix.python-version }}
-      - if: ${{ matrix.python-version == 3.13 }}
-        run: just install-313
-      - if: ${{ matrix.python-version < 3.13 }}
-        run: just install
+      - run: just install
       - run: just test . --cov=. --cov-report xml
       - uses: codecov/codecov-action@v4.0.1
         env:
