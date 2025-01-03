@@ -8,3 +8,8 @@ repos:
     language: system
     types: [python] 
     pass_filenames: false
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v5.0.0
+  hooks:
+    -   id: end-of-file-fixer
+    -   id: mixed-line-ending

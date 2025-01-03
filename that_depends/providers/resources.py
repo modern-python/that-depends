@@ -14,9 +14,11 @@ class Resource(AbstractResource[T_co]):
         "is_async",
         "_creator",
         "_args",
+        "_context",
+        "_creator",
+        "_is_async",
         "_kwargs",
         "_override",
-        "_context",
     )
 
     def __init__(

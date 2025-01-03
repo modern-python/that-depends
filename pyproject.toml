@@ -12,6 +12,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Typing :: Typed",
     "Topic :: Software Development :: Libraries",
 ]
@@ -26,16 +27,19 @@ docs = "https://that-depends.readthedocs.io"
 
 [dependency-groups]
 dev = [
-    "fastapi",
-    "litestar",
     "httpx",
     "pytest",
     "pytest-cov",
     "pytest-asyncio",
+    "pytest-repeat",
     "ruff",
     "mypy",
     "typing-extensions",
-    "pre-commit"
+    "pre-commit",
+    # integrations tests
+    "fastapi",
+    "litestar",
+    "faststream[nats]",
 ]
 
 [build-system]
@@ -65,8 +69,6 @@ ignore = [
     "S101", # allow asserts
     "TCH", # ignore flake8-type-checking
     "FBT", # allow boolean args
-    "ANN101", # missing-type-self
-    "ANN102", # missing-type-cls
     "D203", # "one-blank-line-before-class" conflicting with D211
     "D213", # "multi-line-summary-second-line" conflicting with D212
     "COM812", # flake8-commas "Trailing comma missing"

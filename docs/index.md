@@ -9,6 +9,7 @@
     introduction/ioc-container
     introduction/fastapi
     introduction/litestar
+    introduction/faststream
     introduction/inject-factories
     introduction/multiple-containers
     introduction/dynamic-container
@@ -22,7 +23,6 @@
     providers/context-resources
     providers/singleton
     providers/factories
-    providers/async-factory
     providers/collections
     providers/selector
     providers/object
@@ -31,6 +31,7 @@
     :maxdepth: 1
     :caption: Testing
     
+    testing/fixture
     testing/provider-overriding
 
 .. toctree::

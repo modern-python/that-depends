@@ -15,7 +15,9 @@ class Object(AbstractProvider[T_co]):
         self._obj: typing.Final = obj
 
     async def async_resolve(self) -> T_co:
-        return self._obj
+        return self.sync_resolve()
 
     def sync_resolve(self) -> T_co:
+        if self._override is not None:
+            return typing.cast(T_co, self._override)
         return self._obj

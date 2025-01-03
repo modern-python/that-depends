@@ -32,7 +32,7 @@ async def read_root(
         container.DependentFactory,
         fastapi.Depends(container.DIContainer.dependent_factory),
     ],
-) -> datetime.datetime:
+) -> str:
     return some_dependency.async_resource
 
 

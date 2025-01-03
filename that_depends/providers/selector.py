@@ -7,7 +7,7 @@ T_co = typing.TypeVar("T_co", covariant=True)
 
 
 class Selector(AbstractProvider[T_co]):
-    __slots__ = "_selector", "_providers", "_override"
+    __slots__ = "_override", "_providers", "_selector"
 
     def __init__(self, selector: typing.Callable[[], str], **providers: AbstractProvider[T_co]) -> None:
         super().__init__()

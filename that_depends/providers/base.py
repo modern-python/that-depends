@@ -5,6 +5,8 @@ import typing
 from contextlib import contextmanager
 from operator import attrgetter
 
+import typing_extensions
+
 from that_depends.entities.resource_context import ResourceContext
 
 
@@ -21,6 +23,13 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
     def __init__(self) -> None:
         super().__init__()
         self._override: typing.Any = None
+
+    def __deepcopy__(self, *_: object, **__: object) -> typing_extensions.Self:
+        """Hack for Litestar to prevent cloning object.
+
+        More info here https://github.com/modern-python/that-depends/issues/119.
+        """
+        return self
 
     def __getattr__(self, attr_name: str) -> typing.Any:  # noqa: ANN401
         if attr_name.startswith("_"):
@@ -117,7 +126,7 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
             raise RuntimeError(msg)
 
         # lock to prevent race condition while resolving
-        async with context.resolving_lock:
+        async with context.asyncio_lock:
             if context.instance is not None:
                 return context.instance
 
@@ -154,24 +163,19 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
             msg = "AsyncResource cannot be resolved synchronously"
             raise RuntimeError(msg)
 
-        cm = self._creator(
-            *[x.sync_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
-            **{k: v.sync_resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
-        )
-        context.context_stack = contextlib.ExitStack()
-        context.instance = context.context_stack.enter_context(cm)
+        # lock to prevent race condition while resolving
+        with context.threading_lock:
+            if context.instance is not None:
+                return context.instance
 
-        return context.instance
+            cm = self._creator(
+                *[x.sync_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
+                **{k: v.sync_resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
+            )
+            context.context_stack = contextlib.ExitStack()
+            context.instance = context.context_stack.enter_context(cm)
 
-
-class AbstractFactory(AbstractProvider[T_co], abc.ABC):
-    @property
-    def provider(self) -> typing.Callable[[], typing.Coroutine[typing.Any, typing.Any, T_co]]:
-        return self.async_resolve
-
-    @property
-    def sync_provider(self) -> typing.Callable[[], T_co]:
-        return self.sync_resolve
+            return context.instance
 
 
 def _get_value_from_object_by_dotted_path(obj: typing.Any, path: str) -> typing.Any:  # noqa: ANN401
@@ -182,7 +186,7 @@ def _get_value_from_object_by_dotted_path(obj: typing.Any, path: str) -> typing.
 class AttrGetter(
     AbstractProvider[T_co],
 ):
-    __slots__ = "_provider", "_attrs"
+    __slots__ = "_attrs", "_provider"
 
     def __init__(self, provider: AbstractProvider[T_co], attr_name: str) -> None:
         super().__init__()
