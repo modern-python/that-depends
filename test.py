@@ -47,13 +47,13 @@ async def async_injected(val: str = Provide[MyContainer.async_resource]) -> str:
     return val
 
 
-@MyContainer.async_resource.context()
+@MyContainer.async_resource.context
 @inject
 async def async_injected_implicit(val: str = Provide[MyContainer.async_resource]) -> str:
     return val
 
 
-@MyContainer.sync_resource.context()
+@MyContainer.sync_resource.context
 @inject
 def sync_injected_implicit(val: str = Provide[MyContainer.sync_resource]) -> str:
     return val
@@ -195,6 +195,20 @@ def test_attr_getter_sync() -> None:
     assert MyContainer.sync_config.sync_resolve().some_str_value
 
 
+async def test_inject_sync_into_async() -> None:
+    @MyContainer.async_resource.context
+    async def _inner() -> str:
+        return await MyContainer.async_resource.async_resolve()
+
+    @MyContainer.sync_resource.context
+    async def _sync_injected() -> str:
+        return MyContainer.sync_resource.sync_resolve()
+
+    value_1 = await _inner()
+    value_2 = await _sync_injected()
+    assert value_1 != value_2
+
+
 if __name__ == "__main__":
     asyncio.run(async_main())
     sync_main()
@@ -206,3 +220,4 @@ if __name__ == "__main__":
     asyncio.run(test_reset_context_async())
     test_reset_context_sync()
     test_attr_getter_sync()
+    asyncio.run(test_inject_sync_into_async())

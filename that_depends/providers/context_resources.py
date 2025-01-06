@@ -138,17 +138,28 @@ class ContextResource(
             yield val
         self._token = token
 
-    def context(
-        self,
-    ) -> typing.Callable[[typing.Callable[P, T]], typing.Callable[P, T]]:
+    def context(self, func: typing.Callable[P, T]) -> typing.Callable[P, T]:
         """Create a new context manager for the resource, the context manager will be async if the resource is async.
 
         :return: A context manager for the resource.
         :rtype: typing.ContextManager[ResourceContext[T_co]] | typing.AsyncContextManager[ResourceContext[T_co]]
         """
-        if self.is_async:
-            return typing.cast(typing.Callable[[typing.Callable[P, T]], typing.Callable[P, T]], self.async_context())
-        return typing.cast(typing.Callable[[typing.Callable[P, T]], typing.Callable[P, T]], self.sync_context())
+        if inspect.iscoroutinefunction(func):
+
+            @wraps(func)
+            async def _async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+                async with self.async_context():
+                    return await func(*args, **kwargs)  # type: ignore[no-any-return]
+
+            return typing.cast(typing.Callable[P, T], _async_wrapper)
+
+        # wrapped function is sync
+        @wraps(func)
+        def _sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+            with self.sync_context():
+                return func(*args, **kwargs)
+
+        return typing.cast(typing.Callable[P, T], _sync_wrapper)
 
     def _fetch_context(self) -> ResourceContext[T_co]:
         try:

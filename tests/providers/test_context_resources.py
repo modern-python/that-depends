@@ -3,7 +3,7 @@ import datetime
 import logging
 import typing
 import uuid
-from contextlib import AsyncExitStack
+from contextlib import AsyncExitStack, ExitStack
 
 import pytest
 
@@ -192,6 +192,47 @@ async def test_async_container_context_with_different_stack() -> None:
     await some_injected(1)
 
 
+async def test_async_injection_when_resetting_resource_specific_context(
+    async_context_resource: providers.ContextResource[str],
+) -> None:
+    """Async context resources should be able to reset the context for themselves."""
+
+    @async_context_resource.context
+    @inject
+    async def _async_injected(val: str = Provide[async_context_resource]) -> str:
+        assert isinstance(async_context_resource._fetch_context().context_stack, AsyncExitStack)  # noqa: SLF001
+        return val
+
+    async_result = await _async_injected()
+    assert async_result != await _async_injected()
+    assert isinstance(async_result, str)
+
+
+async def test_sync_injection_when_resetting_resource_specific_context(
+    sync_context_resource: providers.ContextResource[str],
+) -> None:
+    """Sync context resources should be able to reset the context for themselves."""
+
+    @sync_context_resource.context
+    @inject
+    async def _async_injected(val: str = Provide[sync_context_resource]) -> str:
+        assert isinstance(sync_context_resource._fetch_context().context_stack, ExitStack)  # noqa: SLF001
+        return val
+
+    @sync_context_resource.context
+    @inject
+    def _sync_injected(val: str = Provide[sync_context_resource]) -> str:
+        assert isinstance(sync_context_resource._fetch_context().context_stack, ExitStack)  # noqa: SLF001
+        return val
+
+    async_result = await _async_injected()
+    assert async_result != await _async_injected()
+    assert isinstance(async_result, str)
+    sync_result = _sync_injected()
+    assert sync_result != _sync_injected()
+    assert isinstance(sync_result, str)
+
+
 @pytest.mark.repeat(10)
 async def test_async_context_resource_asyncio_concurrency() -> None:
     calls: int = 0
@@ -207,7 +248,27 @@ async def test_async_context_resource_asyncio_concurrency() -> None:
     async def resolve_resource() -> str:
         return await resource.async_resolve()
 
-    async with container_context():
+    async with resource.async_context():
+        await asyncio.gather(resolve_resource(), resolve_resource())
+
+    assert calls == 1
+
+
+@pytest.mark.repeat(10)
+async def test_sync_context_resource_asyncio_concurrency() -> None:
+    calls: int = 0
+
+    def create_client() -> typing.Iterator[str]:
+        nonlocal calls
+        calls += 1
+        yield ""
+
+    resource = providers.ContextResource(create_client)
+
+    async def resolve_resource() -> str:
+        return resource.sync_resolve()
+
+    with resource.sync_context():
         await asyncio.gather(resolve_resource(), resolve_resource())
 
     assert calls == 1
