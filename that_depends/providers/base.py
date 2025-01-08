@@ -121,10 +121,6 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
         if context.instance is not None:
             return context.instance
 
-        if not context.is_async and self.is_async:
-            msg = "AsyncResource cannot be resolved in an sync context."
-            raise RuntimeError(msg)
-
         # lock to prevent race condition while resolving
         async with context.asyncio_lock:
             if context.instance is not None:

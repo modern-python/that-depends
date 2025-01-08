@@ -547,7 +547,7 @@ def test_sync_container_context_wrapper(sync_context_resource: providers.Context
 
 
 async def test_async_context_resource_with_dependent_container() -> None:
-    """Container should init async context resource for depedent containers."""
+    """Container should initialize async context resource for dependent containers."""
     async with DIContainer.async_context():
         val_1 = await DependentDiContainer.dependent_async_context_resource.async_resolve()
         val_2 = await DependentDiContainer.dependent_async_context_resource.async_resolve()
@@ -555,8 +555,56 @@ async def test_async_context_resource_with_dependent_container() -> None:
 
 
 def test_sync_context_resource_with_dependent_container() -> None:
-    """Container should init sync context resource for depedent containers."""
+    """Container should initialize sync context resource for dependent containers."""
     with DIContainer.sync_context():
         val_1 = DependentDiContainer.dependent_sync_context_resource.sync_resolve()
         val_2 = DependentDiContainer.dependent_sync_context_resource.sync_resolve()
         assert val_1 == val_2
+
+
+def test_containers_support_sync_context() -> None:
+    assert DIContainer.supports_sync_context()
+
+
+def test_enter_sync_context_for_async_resource_should_throw(
+    async_context_resource: providers.ContextResource[str],
+) -> None:
+    with pytest.raises(RuntimeError):
+        async_context_resource.__enter__()
+
+
+def test_exit_sync_context_before_enter_should_throw(sync_context_resource: providers.ContextResource[str]) -> None:
+    with pytest.raises(RuntimeError):
+        sync_context_resource.__exit__(None, None, None)
+
+
+async def test_exit_async_context_before_enter_should_throw(
+    async_context_resource: providers.ContextResource[str],
+) -> None:
+    with pytest.raises(RuntimeError):
+        await async_context_resource.__aexit__(None, None, None)
+
+
+def test_enter_sync_context_from_async_resource_should_throw(
+    async_context_resource: providers.ContextResource[str],
+) -> None:
+    with pytest.raises(RuntimeError), ExitStack() as stack:
+        stack.enter_context(async_context_resource.sync_context())
+
+
+async def test_preserve_globals_and_initial_context() -> None:
+    initial_context = {"test_1": "test_1", "test_2": "test_2"}
+
+    async with container_context(initial_context=initial_context):
+        for key, item in initial_context.items():
+            assert fetch_context_item(key) == item
+        new_context = {"test_3": "test_3"}
+        async with container_context(initial_context=new_context, preserve_globals=True):
+            for key, item in new_context.items():
+                assert fetch_context_item(key) == item
+            for key, item in initial_context.items():
+                assert fetch_context_item(key) == item
+        for key, item in initial_context.items():
+            assert fetch_context_item(key) == item
+        for key in new_context:
+            assert fetch_context_item(key) is None

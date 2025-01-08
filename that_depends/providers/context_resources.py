@@ -91,9 +91,6 @@ class ContextResource(
         "is_async",
     )
 
-    def __repr__(self) -> str:
-        return f"ContextResource({self._creator.__name__})"
-
     def __init__(
         self,
         creator: typing.Callable[P, typing.Iterator[T_co] | typing.AsyncIterator[T_co]],

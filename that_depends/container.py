@@ -24,7 +24,8 @@ class BaseContainer(SupportsContext[None], metaclass=BaseContainerMeta):
         msg = f"{cls.__name__} should not be instantiated"
         raise RuntimeError(msg)
 
-    def supports_sync_context(self) -> bool:
+    @classmethod
+    def supports_sync_context(cls) -> bool:
         return True
 
     @classmethod
