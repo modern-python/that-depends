@@ -5,7 +5,7 @@ from contextlib import AsyncExitStack, ExitStack, asynccontextmanager, contextma
 
 from that_depends.meta import BaseContainerMeta
 from that_depends.providers import AbstractProvider, Resource, Singleton
-from that_depends.providers.context_resources import ContextResource
+from that_depends.providers.context_resources import ContextResource, SupportsContext
 
 
 if typing.TYPE_CHECKING:
@@ -16,7 +16,7 @@ T = typing.TypeVar("T")
 P = typing.ParamSpec("P")
 
 
-class BaseContainer(metaclass=BaseContainerMeta):
+class BaseContainer(SupportsContext[None], metaclass=BaseContainerMeta):
     providers: dict[str, AbstractProvider[typing.Any]]
     containers: list[type["BaseContainer"]]
 
@@ -37,7 +37,7 @@ class BaseContainer(metaclass=BaseContainerMeta):
 
     @classmethod
     @asynccontextmanager
-    async def async_context(cls) -> typing.AsyncIterator[None]:
+    async def async_context(cls) -> typing.AsyncIterator[None]:  # type: ignore[override]
         async with AsyncExitStack() as stack:
             for container in cls.get_containers():
                 await stack.enter_async_context(container.async_context())

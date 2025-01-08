@@ -1,8 +1,10 @@
+import abc
 import contextlib
 import inspect
 import logging
 import typing
 import warnings
+from abc import abstractmethod
 from contextlib import AbstractAsyncContextManager, AbstractContextManager
 from contextvars import ContextVar, Token
 from functools import wraps
@@ -47,12 +49,32 @@ def fetch_context_item(key: str, default: typing.Any = None) -> typing.Any:  # n
 
 
 T = typing.TypeVar("T")
+CT = typing.TypeVar("CT")
+
+
+class SupportsContext(typing.Generic[CT], abc.ABC):
+    @abstractmethod
+    def context(self, func: typing.Callable[P, T]) -> typing.Callable[P, T]:
+        """Initialize context for the given function.
+
+        :param func: function to wrap.
+        :return: wrapped function with context.
+        """
+
+    @abstractmethod
+    async def async_context(self) -> typing.AsyncContextManager[CT]:
+        """Initialize async context."""
+
+    @abstractmethod
+    def sync_context(self) -> typing.ContextManager[CT]:
+        """Initialize sync context."""
 
 
 class ContextResource(
     AbstractResource[T_co],
     AbstractAsyncContextManager[ResourceContext[T_co]],
     AbstractContextManager[ResourceContext[T_co]],
+    SupportsContext[ResourceContext[T_co]],
 ):
     __slots__ = (
         "_args",
@@ -132,7 +154,7 @@ class ContextResource(
         self._token = token
 
     @contextlib.asynccontextmanager
-    async def async_context(self) -> typing.AsyncIterator[ResourceContext[T_co]]:
+    async def async_context(self) -> typing.AsyncIterator[ResourceContext[T_co]]:  # type: ignore[override]
         token = self._token
         async with self as val:
             yield val

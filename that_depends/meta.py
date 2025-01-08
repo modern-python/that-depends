@@ -1,3 +1,4 @@
+import abc
 import typing
 from threading import Lock
 
@@ -6,7 +7,7 @@ if typing.TYPE_CHECKING:
     from that_depends.container import BaseContainer
 
 
-class BaseContainerMeta(type):
+class BaseContainerMeta(abc.ABCMeta):
     _instances: typing.ClassVar[list[type["BaseContainer"]]] = []
 
     _lock: Lock = Lock()
