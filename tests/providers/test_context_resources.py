@@ -37,6 +37,14 @@ class DIContainer(BaseContainer):
     )
 
 
+class DependentDiContainer(BaseContainer):
+    dependent_sync_context_resource = providers.ContextResource(create_sync_context_resource)
+    dependent_async_context_resource = providers.ContextResource(create_async_context_resource)
+
+
+DIContainer.connect_containers(DependentDiContainer)
+
+
 @pytest.fixture(autouse=True)
 async def _clear_di_container() -> typing.AsyncIterator[None]:
     try:
@@ -391,8 +399,8 @@ async def test_async_container_context_resolution(
 
 async def test_async_global_context_resolution() -> None:
     with pytest.raises(RuntimeError):
-        async with container_context(preserve_globals=True) as gs:
-            assert gs
+        async with AsyncExitStack() as stack:
+            await stack.enter_async_context(container_context(preserve_globals=True))
     my_global_resources = {"test_1": "test_1", "test_2": "test_2"}
 
     async with container_context(initial_context=my_global_resources):
@@ -417,8 +425,8 @@ async def test_async_global_context_resolution() -> None:
 
 
 def test_sync_global_context_resolution() -> None:
-    with pytest.raises(RuntimeError), container_context(preserve_globals=True) as gs:
-        assert gs
+    with pytest.raises(RuntimeError), ExitStack() as stack:
+        stack.enter_context(container_context(preserve_globals=True))
     my_global_resources = {"test_1": "test_1", "test_2": "test_2"}
     with container_context(initial_context=my_global_resources):
         for key, item in my_global_resources.items():
@@ -536,3 +544,19 @@ def test_sync_container_context_wrapper(sync_context_resource: providers.Context
         return val
 
     assert _explicit_injected() != _explicit_injected()
+
+
+async def test_async_context_resource_with_dependent_container() -> None:
+    """Container should init async context resource for depedent containers."""
+    async with DIContainer.async_context():
+        val_1 = await DependentDiContainer.dependent_async_context_resource.async_resolve()
+        val_2 = await DependentDiContainer.dependent_async_context_resource.async_resolve()
+        assert val_1 == val_2
+
+
+def test_sync_context_resource_with_dependent_container() -> None:
+    """Container should init sync context resource for depedent containers."""
+    with DIContainer.sync_context():
+        val_1 = DependentDiContainer.dependent_sync_context_resource.sync_resolve()
+        val_2 = DependentDiContainer.dependent_sync_context_resource.sync_resolve()
+        assert val_1 == val_2
