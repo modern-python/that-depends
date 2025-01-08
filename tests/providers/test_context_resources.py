@@ -272,3 +272,231 @@ async def test_sync_context_resource_asyncio_concurrency() -> None:
         await asyncio.gather(resolve_resource(), resolve_resource())
 
     assert calls == 1
+
+
+async def test_async_injection_when_explicitly_resetting_resource_specific_context(
+    async_context_resource: providers.ContextResource[str],
+) -> None:
+    """Async context resources should be able to reset the context for themselves explicitly."""
+
+    @async_context_resource.async_context()
+    @inject
+    async def _async_injected(val: str = Provide[async_context_resource]) -> str:
+        assert isinstance(async_context_resource._fetch_context().context_stack, AsyncExitStack)  # noqa: SLF001
+        return val
+
+    async_result = await _async_injected()
+    assert async_result != await _async_injected()
+    assert isinstance(async_result, str)
+
+
+async def test_sync_injection_when_explicitly_resetting_resource_specific_context(
+    sync_context_resource: providers.ContextResource[str],
+) -> None:
+    """Sync context resources should be able to reset the context for themselves explicitly."""
+
+    @sync_context_resource.async_context()
+    @inject
+    async def _async_injected(val: str = Provide[sync_context_resource]) -> str:
+        assert isinstance(sync_context_resource._fetch_context().context_stack, ExitStack)  # noqa: SLF001
+        return val
+
+    @sync_context_resource.sync_context()
+    @inject
+    def _sync_injected(val: str = Provide[sync_context_resource]) -> str:
+        assert isinstance(sync_context_resource._fetch_context().context_stack, ExitStack)  # noqa: SLF001
+        return val
+
+    async_result = await _async_injected()
+    assert async_result != await _async_injected()
+    assert isinstance(async_result, str)
+    sync_result = _sync_injected()
+    assert sync_result != _sync_injected()
+    assert isinstance(sync_result, str)
+
+
+async def test_async_resolution_when_explicitly_resolving(
+    async_context_resource: providers.ContextResource[str],
+) -> None:
+    """Async context should cache resources until a new one is created."""
+    async with async_context_resource.async_context():
+        val_1 = await async_context_resource.async_resolve()
+        val_2 = await async_context_resource.async_resolve()
+        assert val_1 == val_2
+        async with async_context_resource.async_context():
+            val_3 = await async_context_resource.async_resolve()
+            assert val_1 != val_3
+            async with async_context_resource.async_context():
+                val_4 = await async_context_resource.async_resolve()
+                assert val_1 != val_4 != val_3
+            val_5 = await async_context_resource.async_resolve()
+            assert val_5 == val_3
+        val_6 = await async_context_resource.async_resolve()
+        assert val_6 == val_1
+
+
+def test_sync_resolution_when_explicitly_resolving(
+    sync_context_resource: providers.ContextResource[str],
+) -> None:
+    """Sync context should cache resources until a new one is created."""
+    with sync_context_resource.sync_context():
+        val_1 = sync_context_resource.sync_resolve()
+        val_2 = sync_context_resource.sync_resolve()
+        assert val_1 == val_2
+        with sync_context_resource.sync_context():
+            val_3 = sync_context_resource.sync_resolve()
+            assert val_1 != val_3
+            with sync_context_resource.sync_context():
+                val_4 = sync_context_resource.sync_resolve()
+                assert val_1 != val_4 != val_3
+            val_5 = sync_context_resource.sync_resolve()
+            assert val_5 == val_3
+        val_6 = sync_context_resource.sync_resolve()
+        assert val_6 == val_1
+
+
+def test_sync_container_context_resolution(
+    sync_context_resource: providers.ContextResource[str],
+) -> None:
+    """container_context should reset context for sync provider."""
+    with container_context(providers=[sync_context_resource]):
+        val_1 = sync_context_resource.sync_resolve()
+        val_2 = sync_context_resource.sync_resolve()
+        assert val_1 == val_2
+        with container_context(providers=[sync_context_resource]):
+            val_3 = sync_context_resource.sync_resolve()
+            assert val_3 != val_1
+        val_4 = sync_context_resource.sync_resolve()
+        assert val_4 == val_1
+    with pytest.raises(RuntimeError):
+        sync_context_resource.sync_resolve()
+
+
+async def test_async_container_context_resolution(
+    async_context_resource: providers.ContextResource[str],
+) -> None:
+    """container_context should reset context for async provider."""
+    async with container_context(providers=[async_context_resource]):
+        val_1 = await async_context_resource.async_resolve()
+        val_2 = await async_context_resource.async_resolve()
+        assert val_1 == val_2
+        async with container_context(providers=[async_context_resource]):
+            val_3 = await async_context_resource.async_resolve()
+            assert val_3 != val_1
+        val_4 = await async_context_resource.async_resolve()
+        assert val_4 == val_1
+    with pytest.raises(RuntimeError):
+        await async_context_resource.async_resolve()
+
+
+async def test_async_global_context_resolution() -> None:
+    with pytest.raises(RuntimeError):
+        async with container_context(preserve_globals=True) as gs:
+            assert gs
+    my_global_resources = {"test_1": "test_1", "test_2": "test_2"}
+
+    async with container_context(initial_context=my_global_resources):
+        for key, item in my_global_resources.items():
+            assert fetch_context_item(key) == item
+
+        async with container_context(preserve_globals=True):
+            for key, item in my_global_resources.items():
+                assert fetch_context_item(key) == item
+
+            async with container_context(preserve_globals=False):
+                for key in my_global_resources:
+                    assert fetch_context_item(key) is None
+
+            for key, item in my_global_resources.items():
+                assert fetch_context_item(key) == item
+
+        for key, item in my_global_resources.items():
+            assert fetch_context_item(key) == item
+    with pytest.raises(RuntimeError):
+        fetch_context_item("test_1")
+
+
+def test_sync_global_context_resolution() -> None:
+    with pytest.raises(RuntimeError), container_context(preserve_globals=True) as gs:
+        assert gs
+    my_global_resources = {"test_1": "test_1", "test_2": "test_2"}
+    with container_context(initial_context=my_global_resources):
+        for key, item in my_global_resources.items():
+            assert fetch_context_item(key) == item
+        with container_context(preserve_globals=True):
+            for key, item in my_global_resources.items():
+                assert fetch_context_item(key) == item
+            with container_context(preserve_globals=False):
+                for key in my_global_resources:
+                    assert fetch_context_item(key) is None
+            for key, item in my_global_resources.items():
+                assert fetch_context_item(key) == item
+        for key, item in my_global_resources.items():
+            assert fetch_context_item(key) == item
+
+    with pytest.raises(RuntimeError):
+        fetch_context_item("test_1")
+
+
+async def test_async_global_context_reset(async_context_resource: providers.ContextResource[str]) -> None:
+    """container_context should reset async providers."""
+    async with container_context():
+        val_1 = await async_context_resource.async_resolve()
+        val_2 = await async_context_resource.async_resolve()
+        assert val_1 == val_2
+        async with container_context():
+            val_3 = await async_context_resource.async_resolve()
+            assert val_3 != val_1
+        val_4 = await async_context_resource.async_resolve()
+        assert val_4 == val_1
+
+
+def test_sync_global_context_reset(sync_context_resource: providers.ContextResource[str]) -> None:
+    """container_context should reset sync providers."""
+    with container_context():
+        val_1 = sync_context_resource.sync_resolve()
+        val_2 = sync_context_resource.sync_resolve()
+        assert val_1 == val_2
+        with container_context():
+            val_3 = sync_context_resource.sync_resolve()
+            assert val_3 != val_1
+        val_4 = sync_context_resource.sync_resolve()
+        assert val_4 == val_1
+
+
+async def test_async_context_with_container(
+    async_context_resource: providers.ContextResource[str],
+    sync_context_resource: providers.ContextResource[str],
+) -> None:
+    """Containers should enter async context for all its providers."""
+    async with DIContainer.async_context():
+        val_1 = await async_context_resource.async_resolve()
+        val_2 = await async_context_resource.async_resolve()
+        assert val_1 == val_2
+        val_1_sync = sync_context_resource.sync_resolve()
+        val_2_sync = sync_context_resource.sync_resolve()
+        assert val_1_sync == val_2_sync
+        async with DIContainer.async_context():
+            val_3 = await async_context_resource.async_resolve()
+            val_3_sync = sync_context_resource.sync_resolve()
+            assert val_3 != val_1
+            assert val_3_sync != val_1_sync
+        val_4 = await async_context_resource.async_resolve()
+        val_4_sync = sync_context_resource.sync_resolve()
+        assert val_4 == val_1
+        assert val_4_sync == val_1_sync
+
+
+def test_sync_context_with_container(
+    sync_context_resource: providers.ContextResource[str],
+) -> None:
+    """Containers should enter sync context for all its providers."""
+    with DIContainer.sync_context():
+        val_1 = sync_context_resource.sync_resolve()
+        val_2 = sync_context_resource.sync_resolve()
+        assert val_1 == val_2
+        with DIContainer.sync_context():
+            val_3 = sync_context_resource.sync_resolve()
+            assert val_3 != val_1
+        val_4 = sync_context_resource.sync_resolve()
+        assert val_4 == val_1

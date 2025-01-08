@@ -11,14 +11,14 @@ P = typing.ParamSpec("P")
 
 class Resource(AbstractResource[T_co]):
     __slots__ = (
-        "is_async",
-        "_creator",
         "_args",
         "_context",
+        "_creator",
         "_creator",
         "_is_async",
         "_kwargs",
         "_override",
+        "is_async",
     )
 
     def __init__(

@@ -1,10 +1,11 @@
 import inspect
 import typing
 import warnings
-from contextlib import contextmanager
+from contextlib import AsyncExitStack, ExitStack, asynccontextmanager, contextmanager
 
 from that_depends.meta import BaseContainerMeta
 from that_depends.providers import AbstractProvider, Resource, Singleton
+from that_depends.providers.context_resources import ContextResource
 
 
 if typing.TYPE_CHECKING:
@@ -22,6 +23,44 @@ class BaseContainer(metaclass=BaseContainerMeta):
     def __new__(cls, *_: typing.Any, **__: typing.Any) -> "typing_extensions.Self":  # noqa: ANN401
         msg = f"{cls.__name__} should not be instantiated"
         raise RuntimeError(msg)
+
+    @classmethod
+    @contextmanager
+    def sync_context(cls) -> typing.Iterator[None]:
+        with ExitStack() as stack:
+            for container in cls.get_containers():
+                stack.enter_context(container.sync_context())
+            for provider in cls.get_providers().values():
+                if isinstance(provider, ContextResource) and not provider.is_async:
+                    stack.enter_context(provider.sync_context())
+            yield
+
+    @classmethod
+    @asynccontextmanager
+    async def async_context(cls) -> typing.AsyncIterator[None]:
+        async with AsyncExitStack() as stack:
+            for container in cls.get_containers():
+                await stack.enter_async_context(container.async_context())
+            for provider in cls.get_providers().values():
+                if isinstance(provider, ContextResource):
+                    await stack.enter_async_context(provider.async_context())
+            yield
+
+    @classmethod
+    def context(cls, func: typing.Callable[P, T]) -> typing.Callable[P, T]:
+        if inspect.iscoroutinefunction(func):
+
+            async def _async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+                async with cls.async_context():
+                    return await func(*args, **kwargs)  # type: ignore[no-any-return]
+
+            return typing.cast(typing.Callable[P, T], _async_wrapper)
+
+        def _sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+            with cls.sync_context():
+                return func(*args, **kwargs)
+
+        return _sync_wrapper
 
     @classmethod
     def connect_containers(cls, *containers: type["BaseContainer"]) -> None:

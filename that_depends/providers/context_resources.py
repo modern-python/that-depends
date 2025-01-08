@@ -55,14 +55,14 @@ class ContextResource(
     AbstractContextManager[ResourceContext[T_co]],
 ):
     __slots__ = (
-        "is_async",
-        "_creator",
         "_args",
+        "_context",
+        "_creator",
+        "_internal_name",
         "_kwargs",
         "_override",
-        "_internal_name",
-        "_context",
         "_token",
+        "is_async",
     )
 
     def __repr__(self) -> str:
