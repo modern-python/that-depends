@@ -147,10 +147,10 @@ def test_context_resources_wrong_providers_init() -> None:
 
 
 async def test_context_resource_with_dynamic_resource() -> None:
-    async with container_context({"resource_type": "sync"}):
+    async with container_context(initial_context={"resource_type": "sync"}):
         assert (await DIContainer.dynamic_context_resource()).startswith("sync")
 
-    async with container_context({"resource_type": "async_"}):
+    async with container_context(initial_context={"resource_type": "async_"}):
         assert (await DIContainer.dynamic_context_resource()).startswith("async")
 
     async with container_context():
@@ -367,11 +367,11 @@ def test_sync_container_context_resolution(
     sync_context_resource: providers.ContextResource[str],
 ) -> None:
     """container_context should reset context for sync provider."""
-    with container_context(providers=[sync_context_resource]):
+    with container_context(sync_context_resource):
         val_1 = sync_context_resource.sync_resolve()
         val_2 = sync_context_resource.sync_resolve()
         assert val_1 == val_2
-        with container_context(providers=[sync_context_resource]):
+        with container_context(sync_context_resource):
             val_3 = sync_context_resource.sync_resolve()
             assert val_3 != val_1
         val_4 = sync_context_resource.sync_resolve()
@@ -384,11 +384,11 @@ async def test_async_container_context_resolution(
     async_context_resource: providers.ContextResource[str],
 ) -> None:
     """container_context should reset context for async provider."""
-    async with container_context(providers=[async_context_resource]):
+    async with container_context(async_context_resource):
         val_1 = await async_context_resource.async_resolve()
         val_2 = await async_context_resource.async_resolve()
         assert val_1 == val_2
-        async with container_context(providers=[async_context_resource]):
+        async with container_context(async_context_resource):
             val_3 = await async_context_resource.async_resolve()
             assert val_3 != val_1
         val_4 = await async_context_resource.async_resolve()

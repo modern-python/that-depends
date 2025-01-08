@@ -69,6 +69,10 @@ class SupportsContext(typing.Generic[CT], abc.ABC):
     def sync_context(self) -> typing.ContextManager[CT]:
         """Initialize sync context."""
 
+    @abstractmethod
+    def supports_sync_context(self) -> bool:
+        """Check if the resource supports sync context."""
+
 
 class ContextResource(
     AbstractResource[T_co],
@@ -99,6 +103,9 @@ class ContextResource(
         super().__init__(creator, *args, **kwargs)
         self._context: ContextVar[ResourceContext[T_co]] = ContextVar(f"{self._creator.__name__}-context")
         self._token: Token[ResourceContext[T_co]] | None = None
+
+    def supports_sync_context(self) -> bool:
+        return not self.is_async
 
     def __enter__(self) -> ResourceContext[T_co]:
         if self.is_async:
@@ -206,9 +213,8 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
 
     def __init__(
         self,
+        *args: SupportsContext[typing.Any],
         initial_context: ContextType | None = None,
-        providers: list[ContextResource[typing.Any]] | None = None,
-        containers: list[ContainerType] | None = None,
         preserve_globals: bool = False,
         reset_resource_context: bool = False,
     ) -> None:
@@ -225,17 +231,8 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
         else:
             self._initial_context: ContextType = _get_container_context() if preserve_globals else initial_context or {}  # type: ignore[no-redef]
         self._context_token: Token[ContextType] | None = None
-        self._providers: set[ContextResource[typing.Any]] = set()
-        self._reset_resource_context: typing.Final[bool] = (not containers and not providers) or reset_resource_context
-        if providers:
-            for provider in providers:
-                if isinstance(provider, ContextResource):
-                    self._providers.add(provider)
-                else:
-                    msg = "Provider is not a ContextResource"
-                    raise TypeError(msg)
-        if containers:
-            self._add_providers_from_containers(containers)
+        self._context_items: set[SupportsContext[typing.Any]] = set(args)
+        self._reset_resource_context: typing.Final[bool] = (not args) or reset_resource_context
         if self._reset_resource_context:
             self._add_providers_from_containers(BaseContainerMeta.get_instances())
 
@@ -245,22 +242,19 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
         for container in containers:
             for container_provider in container.get_providers().values():
                 if isinstance(container_provider, ContextResource):
-                    self._providers.add(container_provider)
+                    self._context_items.add(container_provider)
 
     def __enter__(self) -> ContextType:
         self._context_stack = contextlib.ExitStack()
-        for provider in self._providers:
-            if self._reset_resource_context:
-                if not provider.is_async:
-                    self._context_stack.enter_context(provider.sync_context())
-            else:
-                self._context_stack.enter_context(provider.sync_context())
+        for item in self._context_items:
+            if item.supports_sync_context():
+                self._context_stack.enter_context(item.sync_context())
         return self._enter_globals()
 
     async def __aenter__(self) -> ContextType:
         self._context_stack = contextlib.AsyncExitStack()
-        for provider in self._providers:
-            await self._context_stack.enter_async_context(provider.async_context())
+        for item in self._context_items:
+            await self._context_stack.enter_async_context(item.async_context())  # type: ignore[arg-type]
         return self._enter_globals()
 
     def _enter_globals(self) -> ContextType:
@@ -316,18 +310,14 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
 
             @wraps(func)
             async def _async_inner(*args: P.args, **kwargs: P.kwargs) -> T_co:
-                async with container_context(
-                    providers=list(self._providers), reset_resource_context=self._reset_resource_context
-                ):
+                async with container_context(*self._context_items, reset_resource_context=self._reset_resource_context):
                     return await func(*args, **kwargs)  # type: ignore[no-any-return]
 
             return typing.cast(typing.Callable[P, T_co], _async_inner)
 
         @wraps(func)
         def _sync_inner(*args: P.args, **kwargs: P.kwargs) -> T_co:
-            with container_context(
-                providers=list(self._providers), reset_resource_context=self._reset_resource_context
-            ):
+            with container_context(*self._context_items, reset_resource_context=self._reset_resource_context):
                 return func(*args, **kwargs)
 
         return _sync_inner
