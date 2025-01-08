@@ -500,3 +500,39 @@ def test_sync_context_with_container(
             assert val_3 != val_1
         val_4 = sync_context_resource.sync_resolve()
         assert val_4 == val_1
+
+
+async def test_async_container_context_wrapper(async_context_resource: providers.ContextResource[str]) -> None:
+    """Container context wrapper should correctly enter async context for wrapped function."""
+
+    @DIContainer.context
+    @inject
+    async def _injected(val: str = Provide[async_context_resource]) -> str:
+        return val
+
+    assert await _injected() != await _injected()
+
+    @DIContainer.async_context()
+    @inject
+    async def _explicit_injected(val: str = Provide[async_context_resource]) -> str:
+        return val
+
+    assert await _explicit_injected() != await _explicit_injected()
+
+
+def test_sync_container_context_wrapper(sync_context_resource: providers.ContextResource[str]) -> None:
+    """Container context wrapper should correctly enter sync context for wrapped function."""
+
+    @DIContainer.context
+    @inject
+    def _injected(val: str = Provide[sync_context_resource]) -> str:
+        return val
+
+    assert _injected() != _injected()
+
+    @DIContainer.sync_context()
+    @inject
+    def _explicit_injected(val: str = Provide[sync_context_resource]) -> str:
+        return val
+
+    assert _explicit_injected() != _explicit_injected()
