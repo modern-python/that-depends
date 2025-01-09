@@ -210,26 +210,30 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
 
     def __init__(
         self,
-        *args: SupportsContext[typing.Any],
-        initial_context: ContextType | None = None,
-        preserve_globals: bool = False,
-        reset_resource_context: bool = False,
+        *context_items: SupportsContext[typing.Any],
+        global_context: ContextType | None = None,
+        preserve_global_context: bool = False,
+        reset_all_containers: bool = False,
     ) -> None:
-        """Initialize a container context.
+        """Initialize a new container context.
 
-        :param initial_context: existing context to use
-        :param providers: providers to reset context of.
-        :param containers: containers to reset context of.
-        :param preserve_globals: whether to preserve global context vars.
-        :param reset_resource_context: whether to reset resource context.
+        :param context_items: context items to initialize new context for.
+        :param global_context: existing context to use
+        :param preserve_global_context: whether to preserve old global context.
+        Will merge old context with the new context if this option is set to True.
+        :param reset_all_containers: Create a new context for all containers.
         """
-        if preserve_globals and initial_context:
-            self._initial_context = {**_get_container_context(), **initial_context}
+        if preserve_global_context and global_context:
+            self._initial_context = {**_get_container_context(), **global_context}
         else:
-            self._initial_context: ContextType = _get_container_context() if preserve_globals else initial_context or {}  # type: ignore[no-redef]
+            self._initial_context: ContextType = (  # type: ignore[no-redef]
+                _get_container_context() if preserve_global_context else global_context or {}
+            )
         self._context_token: Token[ContextType] | None = None
-        self._context_items: set[SupportsContext[typing.Any]] = set(args)
-        self._reset_resource_context: typing.Final[bool] = (not args) or reset_resource_context
+        self._context_items: set[SupportsContext[typing.Any]] = set(context_items)
+        self._reset_resource_context: typing.Final[bool] = (
+            not context_items and not global_context
+        ) or reset_all_containers
         if self._reset_resource_context:
             self._add_providers_from_containers(BaseContainerMeta.get_instances())
 
@@ -307,14 +311,14 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
 
             @wraps(func)
             async def _async_inner(*args: P.args, **kwargs: P.kwargs) -> T_co:
-                async with container_context(*self._context_items, reset_resource_context=self._reset_resource_context):
+                async with container_context(*self._context_items, reset_all_containers=self._reset_resource_context):
                     return await func(*args, **kwargs)  # type: ignore[no-any-return]
 
             return typing.cast(typing.Callable[P, T_co], _async_inner)
 
         @wraps(func)
         def _sync_inner(*args: P.args, **kwargs: P.kwargs) -> T_co:
-            with container_context(*self._context_items, reset_resource_context=self._reset_resource_context):
+            with container_context(*self._context_items, reset_all_containers=self._reset_resource_context):
                 return func(*args, **kwargs)
 
         return _sync_inner

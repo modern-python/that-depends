@@ -14,7 +14,7 @@ class ContextMiddleware(BaseMiddleware):
         call_next: typing.Callable[..., typing.Awaitable[typing.Any]],
         msg: StreamMessage[typing.Any],
     ) -> typing.Any:  # noqa: ANN401
-        async with container_context(initial_context={"request": msg}):
+        async with container_context(global_context={"request": msg}):
             return await call_next(msg)
 
 
