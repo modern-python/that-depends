@@ -62,7 +62,7 @@ class SupportsContext(typing.Generic[CT], abc.ABC):
         """
 
     @abstractmethod
-    async def async_context(self) -> typing.AsyncContextManager[CT]:
+    def async_context(self) -> typing.AsyncContextManager[CT]:
         """Initialize async context."""
 
     @abstractmethod
@@ -158,7 +158,7 @@ class ContextResource(
         self._token = token
 
     @contextlib.asynccontextmanager
-    async def async_context(self) -> typing.AsyncIterator[ResourceContext[T_co]]:  # type: ignore[override]
+    async def async_context(self) -> typing.AsyncIterator[ResourceContext[T_co]]:
         token = self._token
         async with self as val:
             yield val
@@ -251,7 +251,7 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
     async def __aenter__(self) -> ContextType:
         self._context_stack = contextlib.AsyncExitStack()
         for item in self._context_items:
-            await self._context_stack.enter_async_context(item.async_context())  # type: ignore[arg-type]
+            await self._context_stack.enter_async_context(item.async_context())
         return self._enter_globals()
 
     def _enter_globals(self) -> ContextType:

@@ -41,7 +41,7 @@ class BaseContainer(SupportsContext[None], metaclass=BaseContainerMeta):
 
     @classmethod
     @asynccontextmanager
-    async def async_context(cls) -> typing.AsyncIterator[None]:  # type: ignore[override]
+    async def async_context(cls) -> typing.AsyncIterator[None]:
         async with AsyncExitStack() as stack:
             for container in cls.get_containers():
                 await stack.enter_async_context(container.async_context())
