@@ -324,9 +324,22 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
 
 
 class DIContextMiddleware:
-    def __init__(self, app: ASGIApp) -> None:
+    def __init__(
+        self,
+        *context_items: SupportsContext[typing.Any],
+        app: ASGIApp,
+        global_context: dict[str, typing.Any] | None = None,
+    ) -> None:
         self.app: typing.Final = app
+        self._context_items: set[SupportsContext[typing.Any]] = set(context_items)
+        self._global_context: dict[str, typing.Any] | None = global_context
 
-    @container_context()
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        return await self.app(scope, receive, send)
+        if self._context_items:
+            pass
+        async with (
+            container_context(*self._context_items, global_context=self._global_context)
+            if self._context_items
+            else container_context(global_context=self._global_context)
+        ):
+            return await self.app(scope, receive, send)
