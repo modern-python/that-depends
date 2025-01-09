@@ -3,7 +3,6 @@ import contextlib
 import inspect
 import logging
 import typing
-import warnings
 from abc import abstractmethod
 from contextlib import AbstractAsyncContextManager, AbstractContextManager
 from contextvars import ContextVar, Token
@@ -322,17 +321,6 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
                 return func(*args, **kwargs)
 
         return _sync_inner
-
-
-class AsyncContextResource(ContextResource[T_co]):
-    def __init__(
-        self,
-        creator: typing.Callable[P, typing.AsyncIterator[T_co]],
-        *args: P.args,
-        **kwargs: P.kwargs,
-    ) -> None:
-        warnings.warn("AsyncContextResource is deprecated, use ContextResource instead", RuntimeWarning, stacklevel=1)
-        super().__init__(creator, *args, **kwargs)
 
 
 class DIContextMiddleware:
