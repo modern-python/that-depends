@@ -1,5 +1,4 @@
 import typing
-import warnings
 
 from that_depends.entities.resource_context import ResourceContext
 from that_depends.providers.base import AbstractResource, ResourceCreatorType
@@ -33,14 +32,3 @@ class Resource(AbstractResource[T_co]):
 
     async def tear_down(self) -> None:
         await self._fetch_context().tear_down()
-
-
-class AsyncResource(Resource[T_co]):
-    def __init__(
-        self,
-        creator: typing.Callable[P, typing.AsyncIterator[T_co]],
-        *args: P.args,
-        **kwargs: P.kwargs,
-    ) -> None:
-        warnings.warn("AsyncResource is deprecated, use Resource instead", RuntimeWarning, stacklevel=1)
-        super().__init__(creator, *args, **kwargs)

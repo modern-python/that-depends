@@ -2,7 +2,6 @@ import inspect
 import logging
 import typing
 import uuid
-import warnings
 from contextlib import AbstractAsyncContextManager, AbstractContextManager
 from contextvars import ContextVar, Token
 from functools import wraps
@@ -166,14 +165,3 @@ class ContextResource(AbstractResource[T_co]):
         resource_context = ResourceContext(is_async=_is_container_context_async())
         container_context.setdefault(self._internal_name, resource_context)
         return resource_context
-
-
-class AsyncContextResource(ContextResource[T_co]):
-    def __init__(
-        self,
-        creator: typing.Callable[P, typing.AsyncIterator[T_co]],
-        *args: P.args,
-        **kwargs: P.kwargs,
-    ) -> None:
-        warnings.warn("AsyncContextResource is deprecated, use ContextResource instead", RuntimeWarning, stacklevel=1)
-        super().__init__(creator, *args, **kwargs)

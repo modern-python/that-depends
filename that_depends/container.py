@@ -1,6 +1,5 @@
 import inspect
 import typing
-import warnings
 from contextlib import contextmanager
 
 from that_depends.providers import AbstractProvider, Resource, Singleton
@@ -56,11 +55,6 @@ class BaseContainer:
 
         for container in cls.get_containers():
             await container.init_resources()
-
-    @classmethod
-    async def init_async_resources(cls) -> None:
-        warnings.warn("init_async_resources is deprecated, use init_resources instead", RuntimeWarning, stacklevel=1)
-        await cls.init_resources()
 
     @classmethod
     async def tear_down(cls) -> None:
