@@ -326,8 +326,8 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
 class DIContextMiddleware:
     def __init__(
         self,
-        *context_items: SupportsContext[typing.Any],
         app: ASGIApp,
+        *context_items: SupportsContext[typing.Any],
         global_context: dict[str, typing.Any] | None = None,
     ) -> None:
         self.app: typing.Final = app
