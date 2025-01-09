@@ -1,4 +1,20 @@
-# ContextResource
+# Context Dependent Resources
+
+`that_depends` provides a way to manage two types of contexts:
+
+- a *global context* dict where you can store objects to retrieve later.
+- *resource specific contexts* which are managed by the `ContextResource` provider.
+
+
+To interact with both types of contexts there are two separate interfaces:
+
+1. Use the `container_context()` context manager to interact with the global context and manage `ContextResource` providers.
+2. Directly manage a `ContextResource` context by using use `SupportsContext` interface, which both containers
+and `ContextResource` providers implement.
+
+## Global Context
+
+
 Instances injected with the `ContextResource` provider have a managed lifecycle.
 
 ```python
