@@ -329,10 +329,12 @@ class DIContextMiddleware:
         app: ASGIApp,
         *context_items: SupportsContext[typing.Any],
         global_context: dict[str, typing.Any] | None = None,
+        reset_all_containers: bool = True,
     ) -> None:
         self.app: typing.Final = app
         self._context_items: set[SupportsContext[typing.Any]] = set(context_items)
         self._global_context: dict[str, typing.Any] | None = global_context
+        self._reset_all_containers: bool = reset_all_containers
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if self._context_items:
@@ -340,6 +342,6 @@ class DIContextMiddleware:
         async with (
             container_context(*self._context_items, global_context=self._global_context)
             if self._context_items
-            else container_context(global_context=self._global_context)
+            else container_context(global_context=self._global_context, reset_all_containers=self._reset_all_containers)
         ):
             return await self.app(scope, receive, send)

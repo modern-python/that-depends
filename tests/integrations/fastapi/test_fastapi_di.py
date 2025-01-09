@@ -20,7 +20,10 @@ def fastapi_app(request: pytest.FixtureRequest) -> fastapi.FastAPI:
     if request.param:
         app.add_middleware(DIContextMiddleware, request.param, global_context=_GLOBAL_CONTEXT)
     else:
-        app.add_middleware(DIContextMiddleware, global_context=_GLOBAL_CONTEXT)
+        app.add_middleware(
+            DIContextMiddleware,
+            global_context=_GLOBAL_CONTEXT,
+        )
 
     @app.get("/")
     async def read_root(
@@ -37,11 +40,13 @@ def fastapi_app(request: pytest.FixtureRequest) -> fastapi.FastAPI:
             fastapi.Depends(container.DIContainer.singleton),
         ],
         singleton_attribute: typing.Annotated[bool, fastapi.Depends(container.DIContainer.singleton.dep1)],
+        context_resource: typing.Annotated[datetime.datetime, fastapi.Depends(container.DIContainer.context_resource)],
     ) -> datetime.datetime:
         assert dependency.sync_resource == free_dependency.dependent_factory.sync_resource
         assert dependency.async_resource == free_dependency.dependent_factory.async_resource
         assert singleton.dep1 is True
         assert singleton_attribute is True
+        assert context_resource == await container.DIContainer.context_resource.async_resolve()
         for key, value in _GLOBAL_CONTEXT.items():
             assert fetch_context_item(key) == value
         return dependency.async_resource
