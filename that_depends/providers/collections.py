@@ -1,4 +1,4 @@
-import typing
+import typing  # noqa: A005
 
 from that_depends.providers.base import AbstractProvider
 
