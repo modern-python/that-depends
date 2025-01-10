@@ -1,4 +1,3 @@
-
 # Context-Dependent Resources
 
 `that_depends` provides a way to manage two types of contexts:
