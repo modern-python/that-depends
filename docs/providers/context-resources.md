@@ -1,3 +1,5 @@
+from that_depends import fetch_context_itemfrom that_depends import fetch_context_itemfrom that_depends import Providefrom that_depends import inject
+
 # Context Dependent Resources
 
 `that_depends` provides a way to manage two types of contexts:
@@ -12,15 +14,16 @@ To interact with both types of contexts there are two separate interfaces:
 2. Directly manage a `ContextResource` context by using use `SupportsContext` interface, which both containers
 and `ContextResource` providers implement.
 
-## Global Context
 
+## Quick Start
 
-Instances injected with the `ContextResource` provider have a managed lifecycle.
+You have to initialize a context before being able to resolve a `ContextResource`.
 
+**Setup:**
 ```python
 import typing
 
-from that_depends import BaseContainer, providers
+from that_depends import BaseContainer, providers, inject, Provide
 
 
 async def my_async_resource() -> typing.AsyncIterator[str]:
@@ -43,6 +46,72 @@ class MyContainer(BaseContainer):
     async_resource = providers.ContextResource(my_async_resource)
     sync_resource = providers.ContextResource(my_sync_resource)
 ```
+
+Then you can resolve the resource by initializing its context:
+```python
+@MyContainer.async_resource.context
+@inject
+async func(dep: str = Provide[MyContainer.async_resource]):
+    return dep
+    
+await func() # returns `async resource`
+```
+This will initialize a new context for `async_resource` on each call of our `func`.
+
+## Global Context
+
+A global context can be initialized by using `container_context` context manager.
+
+```python
+from that_depends import container_context, fetch_context_item
+
+async with container_context(global_context={"key": "value"}):
+    # run some code
+    fetch_context_item("key") # returns 'value'
+```
+
+You can also use `container_context` as a decorator:
+```python
+@container_context(global_context={"key": "value"})
+async def func():
+    # run some code
+    fetch_context_item("key")
+```
+
+The values stored in the `global_context` can be resolved as long as:
+1. You are still within the scope of the context manager.
+2. You have not initialized a new context:
+```python
+async with container_context(global_context={"key": "value"}):
+    # run some code
+    fetch_context_item("key")
+    async with container_context(): # this will reset all contexts including the global context.
+        fetch_context_item("key") # Error! key not found
+```
+If you want to maintain the global context, you can initialize a new context with the `preserve_global_context` argument:
+```python
+
+async with container_context(global_context={"key": "value"}):
+    # run some code
+    fetch_context_item("key")
+    async with container_context(preserve_global_context=True): # this will preserve the global context.
+        fetch_context_item("key") # returns 'value`
+```
+Additionally, you can use the `global_context` arguemnt in combination with `preserve_global_context` to
+extend the global context, this will merge the two contexts together by key with the new global_context taking precedence:
+```python
+async with container_context(global_context={"key_1": "value_1", "key_2": "value_2"}):
+    # run some code
+    fetch_context_item("key_1") # returns `value_1`
+    async with container_context(
+            global_context={"key_2": "new_value", "key_3": "value_3"},
+            preserve_global_context=True): # this will preserve the global context.
+        
+        fetch_context_item("key_1") # returns 'value_1`
+        fetch_context_item("key_2") # returns 'new_value`
+        fetch_context_item("key_3") # returns 'value_3`
+```
+## Context Resources
 
 To be able to resolve `ContextResource` one must first enter `container_context`:
 ```python
