@@ -94,11 +94,13 @@ class ContextResource(
         self,
         creator: typing.Callable[P, typing.Iterator[T_co] | typing.AsyncIterator[T_co]],
         *args: P.args,
+        auto_context: bool = False,
         **kwargs: P.kwargs,
     ) -> None:
         super().__init__(creator, *args, **kwargs)
         self._context: ContextVar[ResourceContext[T_co]] = ContextVar(f"{self._creator.__name__}-context")
         self._token: Token[ResourceContext[T_co]] | None = None
+        self._auto_context: bool = auto_context
 
     def supports_sync_context(self) -> bool:
         return not self.is_async
@@ -185,6 +187,18 @@ class ContextResource(
                 return func(*args, **kwargs)
 
         return typing.cast(typing.Callable[P, T], _sync_wrapper)
+
+    def sync_resolve(self) -> T_co:
+        if self._auto_context:
+            with self:
+                return super().sync_resolve()
+        return super().sync_resolve()
+
+    async def async_resolve(self) -> T_co:
+        if self._auto_context:
+            async with self:
+                return await super().async_resolve()
+        return await super().async_resolve()
 
     def _fetch_context(self) -> ResourceContext[T_co]:
         try:

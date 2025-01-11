@@ -608,3 +608,17 @@ async def test_preserve_globals_and_initial_context() -> None:
             assert fetch_context_item(key) == item
         for key in new_context:
             assert fetch_context_item(key) is None
+
+def test_sync_auto_context_resource() -> None:
+    r = providers.ContextResource(create_sync_context_resource, auto_context=True)
+    assert r.sync_resolve() != r.sync_resolve()
+    assert isinstance(r.sync_resolve(), str)
+
+async def test_async_auto_context_resource() -> None:
+    r = providers.ContextResource(create_async_context_resource, auto_context=True)
+    assert await r.async_resolve() != await r.async_resolve()
+    assert isinstance(await r.async_resolve(), str)
+
+
+
+
