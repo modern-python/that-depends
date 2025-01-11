@@ -13,9 +13,11 @@ class Resource(AbstractResource[T_co]):
         "_args",
         "_context",
         "_creator",
+        "_creator",
         "_is_async",
         "_kwargs",
         "_override",
+        "is_async",
     )
 
     def __init__(
@@ -25,7 +27,7 @@ class Resource(AbstractResource[T_co]):
         **kwargs: P.kwargs,
     ) -> None:
         super().__init__(creator, *args, **kwargs)
-        self._context: typing.Final[ResourceContext[T_co]] = ResourceContext(is_async=self._is_async)
+        self._context: typing.Final[ResourceContext[T_co]] = ResourceContext(is_async=self.is_async)
 
     def _fetch_context(self) -> ResourceContext[T_co]:
         return self._context

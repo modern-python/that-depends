@@ -1,5 +1,5 @@
 from that_depends.providers.base import AbstractProvider, AttrGetter
-from that_depends.providers.collections import Dict, List
+from that_depends.providers.collection import Dict, List
 from that_depends.providers.context_resources import (
     ContextResource,
     DIContextMiddleware,

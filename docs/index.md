@@ -36,8 +36,18 @@
 
 .. toctree::
     :maxdepth: 1
+    :caption: Migration
+    
+    migration/v2
+
+
+.. toctree::
+    :maxdepth: 1
     :caption: For developers
 
     dev/main-decisions
     dev/contributing
+    
+
+
 ```

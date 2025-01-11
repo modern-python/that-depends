@@ -9,7 +9,7 @@ from that_depends import BaseContainer, container_context, fetch_context_item, p
 
 
 async def init_di_context(request: fastapi.Request) -> typing.AsyncIterator[None]:
-    async with container_context({"request": request}):
+    async with container_context(global_context={"request": request}):
         yield
 
 

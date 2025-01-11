@@ -67,3 +67,4 @@ class DIContainer(BaseContainer):
     )
     singleton = providers.Singleton(SingletonFactory, dep1=True)
     object = providers.Object(object())
+    context_resource = providers.ContextResource(create_async_resource)

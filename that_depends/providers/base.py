@@ -91,16 +91,16 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
         super().__init__()
         self._creator: typing.Any
         if inspect.isasyncgenfunction(creator):
-            self._is_async = True
+            self.is_async = True
             self._creator = contextlib.asynccontextmanager(creator)
         elif inspect.isgeneratorfunction(creator):
-            self._is_async = False
+            self.is_async = False
             self._creator = contextlib.contextmanager(creator)
         elif isinstance(creator, type) and issubclass(creator, typing.AsyncContextManager):
-            self._is_async = True
+            self.is_async = True
             self._creator = creator
         elif isinstance(creator, type) and issubclass(creator, typing.ContextManager):
-            self._is_async = False
+            self.is_async = False
             self._creator = creator
         else:
             msg = "Unsupported resource type"
@@ -120,10 +120,6 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
 
         if context.instance is not None:
             return context.instance
-
-        if not context.is_async and self._is_async:
-            msg = "AsyncResource cannot be resolved in an sync context."
-            raise RuntimeError(msg)
 
         # lock to prevent race condition while resolving
         async with context.asyncio_lock:
@@ -159,7 +155,7 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
         if context.instance is not None:
             return context.instance
 
-        if self._is_async:
+        if self.is_async:
             msg = "AsyncResource cannot be resolved synchronously"
             raise RuntimeError(msg)
 
