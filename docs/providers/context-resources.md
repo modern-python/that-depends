@@ -187,9 +187,11 @@ async with container_context():
 
 ### Resolving resources whenever a function is called
 
-`container_context` can be used as a decorator:
+The `ContextResource` provider accepts the `auto_context` keyword argument.
+When `auto_context` is set to `True`, a new context will be initialized each time the resource is resolved:
 ```python
-@MyContainer.session.context  # wrap with a session-specific context
+session = providers.ContextResource(create_db_session, auto_context=True)
+
 @inject
 async def insert_into_database(session=Provide[MyContainer.session]):
     ...

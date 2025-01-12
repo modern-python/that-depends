@@ -93,8 +93,8 @@ class ContextResource(
     def __init__(
         self,
         creator: typing.Callable[P, typing.Iterator[T_co] | typing.AsyncIterator[T_co]],
-        *args: P.args,
         auto_context: bool = False,
+        *args: P.args,
         **kwargs: P.kwargs,
     ) -> None:
         super().__init__(creator, *args, **kwargs)
