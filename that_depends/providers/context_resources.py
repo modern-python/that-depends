@@ -56,8 +56,12 @@ class SupportsContext(typing.Generic[CT], abc.ABC):
     def context(self, func: typing.Callable[P, T]) -> typing.Callable[P, T]:
         """Initialize context for the given function.
 
-        :param func: function to wrap.
-        :return: wrapped function with context.
+        Args:
+            func: function to wrap.
+
+        Returns:
+            wrapped function with context.
+
         """
 
     @abstractmethod
@@ -166,8 +170,10 @@ class ContextResource(
     def context(self, func: typing.Callable[P, T]) -> typing.Callable[P, T]:
         """Create a new context manager for the resource, the context manager will be async if the resource is async.
 
-        :return: A context manager for the resource.
-        :rtype: typing.ContextManager[ResourceContext[T_co]] | typing.AsyncContextManager[ResourceContext[T_co]]
+        Returns:
+            typing.ContextManager[ResourceContext[T_co]] | typing.AsyncContextManager[ResourceContext[T_co]]:
+            A context manager for the resource.
+
         """
         if inspect.iscoroutinefunction(func):
 
@@ -216,11 +222,15 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
     ) -> None:
         """Initialize a new container context.
 
-        :param context_items: context items to initialize new context for.
-        :param global_context: existing context to use
-        :param preserve_global_context: whether to preserve old global context.
+        Args:
+            *context_items: context items to initialize new context for.
+            global_context: existing context to use
+            preserve_global_context: whether to preserve old global
+                context.
+            reset_all_containers: Create a new context for all
+                containers.
         Will merge old context with the new context if this option is set to True.
-        :param reset_all_containers: Create a new context for all containers.
+
         """
         if preserve_global_context and global_context:
             self._initial_context = {**_get_container_context(), **global_context}

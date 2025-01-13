@@ -13,9 +13,11 @@ class ResourceContext(typing.Generic[T_co]):
     def __init__(self, is_async: bool) -> None:
         """Create a new ResourceContext instance.
 
-        :param is_async: Whether the ResourceContext was created in an async context.
+        Args:
+            is_async (bool): Whether the ResourceContext was created in
+                an async context.
         For example within a ``async with container_context(): ...`` statement.
-        :type is_async: bool
+
         """
         self.instance: T_co | None = None
         self.asyncio_lock: typing.Final = asyncio.Lock()
