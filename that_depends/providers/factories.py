@@ -1,5 +1,6 @@
 import abc
 import typing
+from typing import override
 
 from that_depends.providers.base import AbstractProvider
 
@@ -27,6 +28,7 @@ class Factory(AbstractFactory[T_co]):
         self._args: typing.Final = args
         self._kwargs: typing.Final = kwargs
 
+    @override
     async def async_resolve(self) -> T_co:
         if self._override:
             return typing.cast(T_co, self._override)
@@ -40,6 +42,7 @@ class Factory(AbstractFactory[T_co]):
             },
         )
 
+    @override
     def sync_resolve(self) -> T_co:
         if self._override:
             return typing.cast(T_co, self._override)
@@ -63,6 +66,7 @@ class AsyncFactory(AbstractFactory[T_co]):
         self._args: typing.Final = args
         self._kwargs: typing.Final = kwargs
 
+    @override
     async def async_resolve(self) -> T_co:
         if self._override:
             return typing.cast(T_co, self._override)
@@ -76,6 +80,7 @@ class AsyncFactory(AbstractFactory[T_co]):
             },
         )
 
+    @override
     def sync_resolve(self) -> typing.NoReturn:
         msg = "AsyncFactory cannot be resolved synchronously"
         raise RuntimeError(msg)

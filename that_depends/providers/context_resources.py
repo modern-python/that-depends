@@ -8,6 +8,7 @@ from contextlib import AbstractAsyncContextManager, AbstractContextManager
 from contextvars import ContextVar, Token
 from functools import wraps
 from types import TracebackType
+from typing import override
 
 from typing_extensions import TypeIs
 
@@ -104,6 +105,7 @@ class ContextResource(
         self._context: ContextVar[ResourceContext[T_co]] = ContextVar(f"{self._creator.__name__}-context")
         self._token: Token[ResourceContext[T_co]] | None = None
 
+    @override
     def supports_sync_context(self) -> bool:
         return not self.is_async
 
@@ -151,6 +153,7 @@ class ContextResource(
             self._context.reset(self._token)
 
     @contextlib.contextmanager
+    @override
     def sync_context(self) -> typing.Iterator[ResourceContext[T_co]]:
         if self.is_async:
             msg = "Please use async context instead."
@@ -161,12 +164,14 @@ class ContextResource(
         self._token = token
 
     @contextlib.asynccontextmanager
+    @override
     async def async_context(self) -> typing.AsyncIterator[ResourceContext[T_co]]:
         token = self._token
         async with self as val:
             yield val
         self._token = token
 
+    @override
     def context(self, func: typing.Callable[P, T]) -> typing.Callable[P, T]:
         """Create a new context manager for the resource, the context manager will be async if the resource is async.
 

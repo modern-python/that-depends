@@ -4,6 +4,7 @@ import inspect
 import typing
 from contextlib import contextmanager
 from operator import attrgetter
+from typing import override
 
 import typing_extensions
 
@@ -20,6 +21,8 @@ ResourceCreatorType: typing.TypeAlias = typing.Callable[
 
 
 class AbstractProvider(typing.Generic[T_co], abc.ABC):
+    """Base class for all providers."""
+
     def __init__(self) -> None:
         super().__init__()
         self._override: typing.Any = None
@@ -113,6 +116,7 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
     @abc.abstractmethod
     def _fetch_context(self) -> ResourceContext[T_co]: ...
 
+    @override
     async def async_resolve(self) -> T_co:
         if self._override:
             return typing.cast(T_co, self._override)
@@ -148,6 +152,7 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
 
         return context.instance
 
+    @override
     def sync_resolve(self) -> T_co:
         if self._override:
             return typing.cast(T_co, self._override)
@@ -197,12 +202,14 @@ class AttrGetter(
         self._attrs.append(attr)
         return self
 
-    async def async_resolve(self) -> typing.Any:  # noqa: ANN401
+    @override
+    async def async_resolve(self) -> typing.Any:
         resolved_provider_object = await self._provider.async_resolve()
         attribute_path = ".".join(self._attrs)
         return _get_value_from_object_by_dotted_path(resolved_provider_object, attribute_path)
 
-    def sync_resolve(self) -> typing.Any:  # noqa: ANN401
+    @override
+    def sync_resolve(self) -> typing.Any:
         resolved_provider_object = self._provider.sync_resolve()
         attribute_path = ".".join(self._attrs)
         return _get_value_from_object_by_dotted_path(resolved_provider_object, attribute_path)

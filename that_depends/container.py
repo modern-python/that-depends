@@ -1,6 +1,7 @@
 import inspect
 import typing
 from contextlib import AsyncExitStack, ExitStack, asynccontextmanager, contextmanager
+from typing import override
 
 from that_depends.meta import BaseContainerMeta
 from that_depends.providers import AbstractProvider, Resource, Singleton
@@ -24,11 +25,13 @@ class BaseContainer(SupportsContext[None], metaclass=BaseContainerMeta):
         raise RuntimeError(msg)
 
     @classmethod
+    @override
     def supports_sync_context(cls) -> bool:
         return True
 
     @classmethod
     @contextmanager
+    @override
     def sync_context(cls) -> typing.Iterator[None]:
         with ExitStack() as stack:
             for container in cls.get_containers():
@@ -40,6 +43,7 @@ class BaseContainer(SupportsContext[None], metaclass=BaseContainerMeta):
 
     @classmethod
     @asynccontextmanager
+    @override
     async def async_context(cls) -> typing.AsyncIterator[None]:
         async with AsyncExitStack() as stack:
             for container in cls.get_containers():
@@ -50,6 +54,7 @@ class BaseContainer(SupportsContext[None], metaclass=BaseContainerMeta):
             yield
 
     @classmethod
+    @override
     def context(cls, func: typing.Callable[P, T]) -> typing.Callable[P, T]:
         if inspect.iscoroutinefunction(func):
 

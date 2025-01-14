@@ -1,4 +1,5 @@
 import typing
+from typing import override
 
 from that_depends.providers.base import AbstractProvider
 
@@ -17,9 +18,11 @@ class List(AbstractProvider[list[T_co]]):
         msg = f"'{type(self)}' object has no attribute '{attr_name}'"
         raise AttributeError(msg)
 
+    @override
     async def async_resolve(self) -> list[T_co]:
         return [await x.async_resolve() for x in self._providers]
 
+    @override
     def sync_resolve(self) -> list[T_co]:
         return [x.sync_resolve() for x in self._providers]
 
@@ -38,8 +41,10 @@ class Dict(AbstractProvider[dict[str, T_co]]):
         msg = f"'{type(self)}' object has no attribute '{attr_name}'"
         raise AttributeError(msg)
 
+    @override
     async def async_resolve(self) -> dict[str, T_co]:
         return {key: await provider.async_resolve() for key, provider in self._providers.items()}
 
+    @override
     def sync_resolve(self) -> dict[str, T_co]:
         return {key: provider.sync_resolve() for key, provider in self._providers.items()}
