@@ -608,3 +608,18 @@ async def test_preserve_globals_and_initial_context() -> None:
             assert fetch_context_item(key) == item
         for key in new_context:
             assert fetch_context_item(key) is None
+
+
+async def test_async_context_switching() -> None:
+    async def slow_async_creator() -> typing.AsyncIterator[str]:
+        await asyncio.sleep(0.1)
+        yield str(uuid.uuid4())
+
+    class MyContainer(BaseContainer):
+        slow_provider = providers.ContextResource(slow_async_creator)
+
+    async def _injected() -> str:
+        async with MyContainer.slow_provider.async_context():
+            return await MyContainer.slow_provider.async_resolve()
+
+    await asyncio.gather(*[_injected() for _ in range(10)])

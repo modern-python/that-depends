@@ -1,4 +1,5 @@
 import abc
+import asyncio
 import contextlib
 import inspect
 import logging
@@ -8,7 +9,7 @@ from contextlib import AbstractAsyncContextManager, AbstractContextManager
 from contextvars import ContextVar, Token
 from functools import wraps
 from types import TracebackType
-from typing import override
+from typing import Final, override
 
 from typing_extensions import TypeIs
 
@@ -104,6 +105,7 @@ class ContextResource(
         super().__init__(creator, *args, **kwargs)
         self._context: ContextVar[ResourceContext[T_co]] = ContextVar(f"{self._creator.__name__}-context")
         self._token: Token[ResourceContext[T_co]] | None = None
+        self._lock: Final = asyncio.Lock()
 
     @override
     def supports_sync_context(self) -> bool:
@@ -167,8 +169,14 @@ class ContextResource(
     @override
     async def async_context(self) -> typing.AsyncIterator[ResourceContext[T_co]]:
         token = self._token
-        async with self as val:
-            yield val
+
+        async with self._lock:
+            val = await self.__aenter__()
+            temp_token = self._token
+        yield val
+        async with self._lock:
+            self._token = temp_token
+            await self.__aexit__(None, None, None)
         self._token = token
 
     @override
