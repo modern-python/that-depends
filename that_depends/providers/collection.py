@@ -9,13 +9,22 @@ T_co = typing.TypeVar("T_co", covariant=True)
 
 
 class List(AbstractProvider[list[T_co]]):
+    """Provides multiple resources as a list."""
+
     __slots__ = ("_providers",)
 
     def __init__(self, *providers: AbstractProvider[T_co]) -> None:
+        """Create a new List provider instance.
+
+        Args:
+            *providers: list of providers to resolve.
+
+        """
         super().__init__()
         self._providers: typing.Final = providers
 
-    def __getattr__(self, attr_name: str) -> typing.Any:  # noqa: ANN401
+    @override
+    def __getattr__(self, attr_name: str) -> typing.Any:
         msg = f"'{type(self)}' object has no attribute '{attr_name}'"
         raise AttributeError(msg)
 
@@ -27,18 +36,28 @@ class List(AbstractProvider[list[T_co]]):
     def sync_resolve(self) -> list[T_co]:
         return [x.sync_resolve() for x in self._providers]
 
+    @override
     async def __call__(self) -> list[T_co]:
         return await self.async_resolve()
 
 
 class Dict(AbstractProvider[dict[str, T_co]]):
+    """Provides multiple resources as a dictionary."""
+
     __slots__ = ("_providers",)
 
     def __init__(self, **providers: AbstractProvider[T_co]) -> None:
+        """Create a new Dict provider instance.
+
+        Args:
+            **providers: dictionary of providers to resolve.
+
+        """
         super().__init__()
         self._providers: typing.Final = providers
 
-    def __getattr__(self, attr_name: str) -> typing.Any:  # noqa: ANN401
+    @override
+    def __getattr__(self, attr_name: str) -> typing.Any:
         msg = f"'{type(self)}' object has no attribute '{attr_name}'"
         raise AttributeError(msg)
 

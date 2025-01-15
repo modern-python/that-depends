@@ -10,9 +10,17 @@ P = typing.ParamSpec("P")
 
 
 class Object(AbstractProvider[T_co]):
+    """Provides an object as is."""
+
     __slots__ = ("_obj",)
 
     def __init__(self, obj: T_co) -> None:
+        """Create a new Object instance.
+
+        Args:
+            obj: object to provide.
+
+        """
         super().__init__()
         self._obj: typing.Final = obj
 

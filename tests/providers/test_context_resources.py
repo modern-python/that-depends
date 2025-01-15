@@ -208,7 +208,7 @@ async def test_async_injection_when_resetting_resource_specific_context(
     @async_context_resource.context
     @inject
     async def _async_injected(val: str = Provide[async_context_resource]) -> str:
-        assert isinstance(async_context_resource._fetch_context().context_stack, AsyncExitStack)  # noqa: SLF001
+        assert isinstance(async_context_resource._fetch_context().context_stack, AsyncExitStack)
         return val
 
     async_result = await _async_injected()
@@ -224,13 +224,13 @@ async def test_sync_injection_when_resetting_resource_specific_context(
     @sync_context_resource.context
     @inject
     async def _async_injected(val: str = Provide[sync_context_resource]) -> str:
-        assert isinstance(sync_context_resource._fetch_context().context_stack, ExitStack)  # noqa: SLF001
+        assert isinstance(sync_context_resource._fetch_context().context_stack, ExitStack)
         return val
 
     @sync_context_resource.context
     @inject
     def _sync_injected(val: str = Provide[sync_context_resource]) -> str:
-        assert isinstance(sync_context_resource._fetch_context().context_stack, ExitStack)  # noqa: SLF001
+        assert isinstance(sync_context_resource._fetch_context().context_stack, ExitStack)
         return val
 
     async_result = await _async_injected()
@@ -290,7 +290,7 @@ async def test_async_injection_when_explicitly_resetting_resource_specific_conte
     @async_context_resource.async_context()
     @inject
     async def _async_injected(val: str = Provide[async_context_resource]) -> str:
-        assert isinstance(async_context_resource._fetch_context().context_stack, AsyncExitStack)  # noqa: SLF001
+        assert isinstance(async_context_resource._fetch_context().context_stack, AsyncExitStack)
         return val
 
     async_result = await _async_injected()
@@ -306,13 +306,13 @@ async def test_sync_injection_when_explicitly_resetting_resource_specific_contex
     @sync_context_resource.async_context()
     @inject
     async def _async_injected(val: str = Provide[sync_context_resource]) -> str:
-        assert isinstance(sync_context_resource._fetch_context().context_stack, ExitStack)  # noqa: SLF001
+        assert isinstance(sync_context_resource._fetch_context().context_stack, ExitStack)
         return val
 
     @sync_context_resource.sync_context()
     @inject
     def _sync_injected(val: str = Provide[sync_context_resource]) -> str:
-        assert isinstance(sync_context_resource._fetch_context().context_stack, ExitStack)  # noqa: SLF001
+        assert isinstance(sync_context_resource._fetch_context().context_stack, ExitStack)
         return val
 
     async_result = await _async_injected()

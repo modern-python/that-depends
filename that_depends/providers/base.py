@@ -24,6 +24,7 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
     """Base class for all providers."""
 
     def __init__(self) -> None:
+        """Create a new provider."""
         super().__init__()
         self._override: typing.Any = None
 
@@ -35,6 +36,15 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
         return self
 
     def __getattr__(self, attr_name: str) -> typing.Any:  # noqa: ANN401
+        """Get an attribute from the resolve object.
+
+        Args:
+            attr_name: name of attribute to get.
+
+        Returns:
+            An `AttrGetter` provider that will get the attribute after resolving the current provider.
+
+        """
         if attr_name.startswith("_"):
             msg = f"'{type(self)}' object has no attribute '{attr_name}'"
             raise AttributeError(msg)
@@ -49,13 +59,32 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
         """Resolve dependency synchronously."""
 
     async def __call__(self) -> T_co:
+        """Resolve dependency asynchronously."""
         return await self.async_resolve()
 
     def override(self, mock: object) -> None:
+        """Override the provider with a mock object.
+
+        Args:
+            mock: object to resolve while the provider is overridden.
+
+        Returns:
+            None
+
+        """
         self._override = mock
 
     @contextmanager
     def override_context(self, mock: object) -> typing.Iterator[None]:
+        """Override the provider with a mock object temporarily.
+
+        Args:
+            mock: object to resolve while the provider is overridden.
+
+        Returns:
+            None
+
+        """
         self.override(mock)
         try:
             yield
@@ -63,6 +92,11 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
             self.reset_override()
 
     def reset_override(self) -> None:
+        """Reset the provider to its original state.
+
+        Use this is you have previously called `override` or `override_context`
+        to reset the provider to its original state.
+        """
         self._override = None
 
     @property
@@ -86,12 +120,22 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
 
 
 class AbstractResource(AbstractProvider[T_co], abc.ABC):
+    """Base class for Resource providers."""
+
     def __init__(
         self,
         creator: ResourceCreatorType[P, T_co],
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> None:
+        """Create a new resource.
+
+        Args:
+            creator: sync or async iterator or context manager that yields resource.
+            *args: arguments to pass to the creator.
+            **kwargs: keyword arguments to pass to the creator.
+
+        """
         super().__init__()
         self._creator: typing.Any
         if inspect.isasyncgenfunction(creator):
@@ -188,13 +232,23 @@ def _get_value_from_object_by_dotted_path(obj: typing.Any, path: str) -> typing.
 class AttrGetter(
     AbstractProvider[T_co],
 ):
+    """Provides an attribute after resolving the wrapped provider."""
+
     __slots__ = "_attrs", "_provider"
 
     def __init__(self, provider: AbstractProvider[T_co], attr_name: str) -> None:
+        """Create a new AttrGetter instance.
+
+        Args:
+            provider: provider to wrap.
+            attr_name: attribute name to resolve when the provider is resolved.
+
+        """
         super().__init__()
         self._provider = provider
         self._attrs = [attr_name]
 
+    @override
     def __getattr__(self, attr: str) -> "AttrGetter[T_co]":
         if attr.startswith("_"):
             msg = f"'{type(self)}' object has no attribute '{attr}'"

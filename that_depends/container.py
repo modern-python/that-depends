@@ -18,10 +18,13 @@ P = typing.ParamSpec("P")
 
 
 class BaseContainer(SupportsContext[None], metaclass=BaseContainerMeta):
+    """Base container class."""
+
     providers: dict[str, AbstractProvider[typing.Any]]
     containers: list[type["BaseContainer"]]
 
-    def __new__(cls, *_: typing.Any, **__: typing.Any) -> "typing_extensions.Self":  # noqa: ANN401
+    @override
+    def __new__(cls, *_: typing.Any, **__: typing.Any) -> "typing_extensions.Self":
         msg = f"{cls.__name__} should not be instantiated"
         raise RuntimeError(msg)
 
@@ -85,12 +88,14 @@ class BaseContainer(SupportsContext[None], metaclass=BaseContainerMeta):
 
     @classmethod
     def get_providers(cls) -> dict[str, AbstractProvider[typing.Any]]:
+        """Get all connected providers."""
         if not hasattr(cls, "providers"):
             cls.providers = {k: v for k, v in cls.__dict__.items() if isinstance(v, AbstractProvider)}
         return cls.providers
 
     @classmethod
     def get_containers(cls) -> list[type["BaseContainer"]]:
+        """Get all connected containers."""
         if not hasattr(cls, "containers"):
             cls.containers = []
 
@@ -98,6 +103,7 @@ class BaseContainer(SupportsContext[None], metaclass=BaseContainerMeta):
 
     @classmethod
     async def init_resources(cls) -> None:
+        """Initialize all resources."""
         for provider in cls.get_providers().values():
             if isinstance(provider, Resource):
                 await provider.async_resolve()
@@ -107,6 +113,7 @@ class BaseContainer(SupportsContext[None], metaclass=BaseContainerMeta):
 
     @classmethod
     async def tear_down(cls) -> None:
+        """Tear down all resources."""
         for provider in reversed(cls.get_providers().values()):
             if isinstance(provider, Resource | Singleton):
                 await provider.tear_down()
@@ -116,11 +123,22 @@ class BaseContainer(SupportsContext[None], metaclass=BaseContainerMeta):
 
     @classmethod
     def reset_override(cls) -> None:
+        """Reset all provider overrides."""
         for v in cls.get_providers().values():
             v.reset_override()
 
     @classmethod
     def resolver(cls, item: typing.Callable[P, T]) -> typing.Callable[[], typing.Awaitable[T]]:
+        """Decorate a function to automatically resolve dependencies on call by name.
+
+        Args:
+            item: objects for which the dependencies should be resolved.
+
+        Returns:
+            Async wrapped callable with auto-injected dependencies.
+
+        """
+
         async def _inner() -> T:
             return await cls.resolve(item)
 
@@ -128,6 +146,7 @@ class BaseContainer(SupportsContext[None], metaclass=BaseContainerMeta):
 
     @classmethod
     async def resolve(cls, object_to_resolve: typing.Callable[..., T]) -> T:
+        """Inject dependencies into an object automatically by name."""
         signature: typing.Final = inspect.signature(object_to_resolve)
         kwargs = {}
         providers: typing.Final = cls.get_providers()
@@ -146,6 +165,15 @@ class BaseContainer(SupportsContext[None], metaclass=BaseContainerMeta):
     @classmethod
     @contextmanager
     def override_providers(cls, providers_for_overriding: dict[str, typing.Any]) -> typing.Iterator[None]:
+        """Override several providers with mocks simultaneously.
+
+        Args:
+            providers_for_overriding: {provider_name: mock} dictionary.
+
+        Returns:
+            None
+
+        """
         current_providers: typing.Final = cls.get_providers()
         current_provider_names: typing.Final = set(current_providers.keys())
         given_provider_names: typing.Final = set(providers_for_overriding.keys())
