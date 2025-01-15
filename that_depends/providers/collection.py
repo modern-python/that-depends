@@ -1,5 +1,6 @@
 import typing
-from typing import override
+
+from typing_extensions import override
 
 from that_depends.providers.base import AbstractProvider
 

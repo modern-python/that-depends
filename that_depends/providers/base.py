@@ -4,9 +4,9 @@ import inspect
 import typing
 from contextlib import contextmanager
 from operator import attrgetter
-from typing import override
 
 import typing_extensions
+from typing_extensions import override
 
 from that_depends.entities.resource_context import ResourceContext
 

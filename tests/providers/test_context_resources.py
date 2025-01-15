@@ -570,19 +570,19 @@ def test_enter_sync_context_for_async_resource_should_throw(
     async_context_resource: providers.ContextResource[str],
 ) -> None:
     with pytest.raises(RuntimeError):
-        async_context_resource.__enter__()
+        async_context_resource._enter_sync_context()
 
 
 def test_exit_sync_context_before_enter_should_throw(sync_context_resource: providers.ContextResource[str]) -> None:
     with pytest.raises(RuntimeError):
-        sync_context_resource.__exit__(None, None, None)
+        sync_context_resource._exit_sync_context()
 
 
 async def test_exit_async_context_before_enter_should_throw(
     async_context_resource: providers.ContextResource[str],
 ) -> None:
     with pytest.raises(RuntimeError):
-        await async_context_resource.__aexit__(None, None, None)
+        await async_context_resource._exit_async_context()
 
 
 def test_enter_sync_context_from_async_resource_should_throw(

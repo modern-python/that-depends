@@ -9,9 +9,9 @@ from contextlib import AbstractAsyncContextManager, AbstractContextManager
 from contextvars import ContextVar, Token
 from functools import wraps
 from types import TracebackType
-from typing import Final, override
+from typing import Final
 
-from typing_extensions import TypeIs
+from typing_extensions import TypeIs, override
 
 from that_depends.entities.resource_context import ResourceContext
 from that_depends.meta import BaseContainerMeta
@@ -81,8 +81,6 @@ class SupportsContext(typing.Generic[CT], abc.ABC):
 
 class ContextResource(
     AbstractResource[T_co],
-    AbstractAsyncContextManager[ResourceContext[T_co]],
-    AbstractContextManager[ResourceContext[T_co]],
     SupportsContext[ResourceContext[T_co]],
 ):
     __slots__ = (
@@ -111,24 +109,22 @@ class ContextResource(
     def supports_sync_context(self) -> bool:
         return not self.is_async
 
-    def __enter__(self) -> ResourceContext[T_co]:
+    def _enter_sync_context(self) -> ResourceContext[T_co]:
         if self.is_async:
             msg = "You must enter async context for async creators."
             raise RuntimeError(msg)
         return self._enter()
 
-    async def __aenter__(self) -> ResourceContext[T_co]:
+    async def _enter_async_context(self) -> ResourceContext[T_co]:
         return self._enter()
 
     def _enter(self) -> ResourceContext[T_co]:
         self._token = self._context.set(ResourceContext(is_async=self.is_async))
         return self._context.get()
 
-    def __exit__(
-        self, exc_type: type[BaseException] | None, exc_value: BaseException | None, traceback: TracebackType | None
-    ) -> None:
+    def _exit_sync_context(self) -> None:
         if not self._token:
-            msg = "Context is not set, call ``__enter__`` first"
+            msg = "Context is not set, call ``_enter_sync_context`` first"
             raise RuntimeError(msg)
 
         try:
@@ -138,11 +134,9 @@ class ContextResource(
         finally:
             self._context.reset(self._token)
 
-    async def __aexit__(
-        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, traceback: TracebackType | None
-    ) -> None:
+    async def _exit_async_context(self) -> None:
         if self._token is None:
-            msg = "Context is not set, call ``__aenter__`` first"
+            msg = "Context is not set, call ``_enter_async_context`` first"
             raise RuntimeError(msg)
 
         try:
@@ -161,8 +155,11 @@ class ContextResource(
             msg = "Please use async context instead."
             raise RuntimeError(msg)
         token = self._token
-        with self as val:
-            yield val
+        val = self._enter_sync_context()
+        temp_token = self._token
+        yield val
+        self._token = temp_token
+        self._exit_sync_context()
         self._token = token
 
     @contextlib.asynccontextmanager
@@ -171,12 +168,12 @@ class ContextResource(
         token = self._token
 
         async with self._lock:
-            val = await self.__aenter__()
+            val = await self._enter_async_context()
             temp_token = self._token
         yield val
         async with self._lock:
             self._token = temp_token
-            await self.__aexit__(None, None, None)
+            await self._exit_async_context()
         self._token = token
 
     @override

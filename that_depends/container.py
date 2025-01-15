@@ -1,7 +1,8 @@
 import inspect
 import typing
 from contextlib import AsyncExitStack, ExitStack, asynccontextmanager, contextmanager
-from typing import override
+
+from typing_extensions import override
 
 from that_depends.meta import BaseContainerMeta
 from that_depends.providers import AbstractProvider, Resource, Singleton
