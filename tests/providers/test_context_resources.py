@@ -208,7 +208,7 @@ async def test_async_injection_when_resetting_resource_specific_context(
     @async_context_resource.context
     @inject
     async def _async_injected(val: str = Provide[async_context_resource]) -> str:
-        assert isinstance(async_context_resource._fetch_context().context_stack, AsyncExitStack)  # noqa: SLF001
+        assert isinstance(async_context_resource._fetch_context().context_stack, AsyncExitStack)
         return val
 
     async_result = await _async_injected()
@@ -224,13 +224,13 @@ async def test_sync_injection_when_resetting_resource_specific_context(
     @sync_context_resource.context
     @inject
     async def _async_injected(val: str = Provide[sync_context_resource]) -> str:
-        assert isinstance(sync_context_resource._fetch_context().context_stack, ExitStack)  # noqa: SLF001
+        assert isinstance(sync_context_resource._fetch_context().context_stack, ExitStack)
         return val
 
     @sync_context_resource.context
     @inject
     def _sync_injected(val: str = Provide[sync_context_resource]) -> str:
-        assert isinstance(sync_context_resource._fetch_context().context_stack, ExitStack)  # noqa: SLF001
+        assert isinstance(sync_context_resource._fetch_context().context_stack, ExitStack)
         return val
 
     async_result = await _async_injected()
@@ -290,7 +290,7 @@ async def test_async_injection_when_explicitly_resetting_resource_specific_conte
     @async_context_resource.async_context()
     @inject
     async def _async_injected(val: str = Provide[async_context_resource]) -> str:
-        assert isinstance(async_context_resource._fetch_context().context_stack, AsyncExitStack)  # noqa: SLF001
+        assert isinstance(async_context_resource._fetch_context().context_stack, AsyncExitStack)
         return val
 
     async_result = await _async_injected()
@@ -306,13 +306,13 @@ async def test_sync_injection_when_explicitly_resetting_resource_specific_contex
     @sync_context_resource.async_context()
     @inject
     async def _async_injected(val: str = Provide[sync_context_resource]) -> str:
-        assert isinstance(sync_context_resource._fetch_context().context_stack, ExitStack)  # noqa: SLF001
+        assert isinstance(sync_context_resource._fetch_context().context_stack, ExitStack)
         return val
 
     @sync_context_resource.sync_context()
     @inject
     def _sync_injected(val: str = Provide[sync_context_resource]) -> str:
-        assert isinstance(sync_context_resource._fetch_context().context_stack, ExitStack)  # noqa: SLF001
+        assert isinstance(sync_context_resource._fetch_context().context_stack, ExitStack)
         return val
 
     async_result = await _async_injected()
@@ -570,19 +570,19 @@ def test_enter_sync_context_for_async_resource_should_throw(
     async_context_resource: providers.ContextResource[str],
 ) -> None:
     with pytest.raises(RuntimeError):
-        async_context_resource.__enter__()
+        async_context_resource._enter_sync_context()
 
 
 def test_exit_sync_context_before_enter_should_throw(sync_context_resource: providers.ContextResource[str]) -> None:
     with pytest.raises(RuntimeError):
-        sync_context_resource.__exit__(None, None, None)
+        sync_context_resource._exit_sync_context()
 
 
 async def test_exit_async_context_before_enter_should_throw(
     async_context_resource: providers.ContextResource[str],
 ) -> None:
     with pytest.raises(RuntimeError):
-        await async_context_resource.__aexit__(None, None, None)
+        await async_context_resource._exit_async_context()
 
 
 def test_enter_sync_context_from_async_resource_should_throw(
@@ -608,3 +608,18 @@ async def test_preserve_globals_and_initial_context() -> None:
             assert fetch_context_item(key) == item
         for key in new_context:
             assert fetch_context_item(key) is None
+
+
+async def test_async_context_switching() -> None:
+    async def slow_async_creator() -> typing.AsyncIterator[str]:
+        await asyncio.sleep(0.1)
+        yield str(uuid.uuid4())
+
+    class MyContainer(BaseContainer):
+        slow_provider = providers.ContextResource(slow_async_creator)
+
+    async def _injected() -> str:
+        async with MyContainer.slow_provider.async_context():
+            return await MyContainer.slow_provider.async_resolve()
+
+    await asyncio.gather(*[_injected() for _ in range(10)])

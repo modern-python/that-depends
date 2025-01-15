@@ -21,14 +21,14 @@ async def test_included_container() -> None:
     assert all(isinstance(x, datetime.datetime) for x in sequence)
 
     await OuterContainer.tear_down()
-    assert InnerContainer.sync_resource._context.instance is None  # noqa: SLF001
-    assert InnerContainer.async_resource._context.instance is None  # noqa: SLF001
+    assert InnerContainer.sync_resource._context.instance is None
+    assert InnerContainer.async_resource._context.instance is None
 
     await OuterContainer.init_resources()
-    sync_resource_context = InnerContainer.sync_resource._context  # noqa: SLF001
+    sync_resource_context = InnerContainer.sync_resource._context
     assert sync_resource_context
     assert sync_resource_context.instance is not None
-    async_resource_context = InnerContainer.async_resource._context  # noqa: SLF001
+    async_resource_context = InnerContainer.async_resource._context
     assert async_resource_context
     assert async_resource_context.instance is not None
     await OuterContainer.tear_down()

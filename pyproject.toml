@@ -65,7 +65,8 @@ extend-exclude = [
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
-    "D1", # allow missing docstrings
+    "D100", # ignore missing module docstrings.
+    "D105", # ignore missing docstrings in magic methods.
     "S101", # allow asserts
     "TCH", # ignore flake8-type-checking
     "FBT", # allow boolean args
@@ -76,6 +77,7 @@ ignore = [
 ]
 isort.lines-after-imports = 2
 isort.no-lines-before = ["standard-library", "local-folder"]
+per-file-ignores = { "tests/*"= ["D1", "SLF001"]}
 
 [tool.pytest.ini_options]
 addopts = "--cov=. --cov-report term-missing"

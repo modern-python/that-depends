@@ -13,6 +13,23 @@ T = typing.TypeVar("T")
 def inject(
     func: typing.Callable[P, T],
 ) -> typing.Callable[P, T]:
+    """Decorate a function to enable dependency injection.
+
+    Args:
+        func: sync or async function with dependencies.
+
+    Returns:
+        function that will resolve dependencies on call.
+
+
+    Example:
+        ```python
+        @inject
+        async def func(a: str = Provide[Container.a_provider]) -> str:
+            ...
+        ```
+
+    """
     if inspect.iscoroutinefunction(func):
         return typing.cast(typing.Callable[P, T], _inject_to_async(func))
 
@@ -77,8 +94,11 @@ def _inject_to_sync(
 
 
 class ClassGetItemMeta(type):
+    """Metaclass to support Provide[provider] syntax."""
+
     def __getitem__(cls, provider: AbstractProvider[T]) -> T:
         return typing.cast(T, provider)
 
 
-class Provide(metaclass=ClassGetItemMeta): ...
+class Provide(metaclass=ClassGetItemMeta):
+    """Marker to dependency injection."""

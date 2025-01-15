@@ -8,14 +8,18 @@ T_co = typing.TypeVar("T_co", covariant=True)
 
 
 class ResourceContext(typing.Generic[T_co]):
+    """Class to manage a resources' context."""
+
     __slots__ = "asyncio_lock", "context_stack", "instance", "is_async", "threading_lock"
 
     def __init__(self, is_async: bool) -> None:
         """Create a new ResourceContext instance.
 
-        :param is_async: Whether the ResourceContext was created in an async context.
+        Args:
+            is_async (bool): Whether the ResourceContext was created in
+                an async context.
         For example within a ``async with container_context(): ...`` statement.
-        :type is_async: bool
+
         """
         self.instance: T_co | None = None
         self.asyncio_lock: typing.Final = asyncio.Lock()
@@ -27,15 +31,18 @@ class ResourceContext(typing.Generic[T_co]):
     def is_context_stack_async(
         context_stack: contextlib.AsyncExitStack | contextlib.ExitStack | None,
     ) -> typing.TypeGuard[contextlib.AsyncExitStack]:
+        """Check if the context stack is an async context stack."""
         return isinstance(context_stack, contextlib.AsyncExitStack)
 
     @staticmethod
     def is_context_stack_sync(
         context_stack: contextlib.AsyncExitStack | contextlib.ExitStack,
     ) -> typing.TypeGuard[contextlib.ExitStack]:
+        """Check if the context stack is a sync context stack."""
         return isinstance(context_stack, contextlib.ExitStack)
 
     async def tear_down(self) -> None:
+        """Tear down the async context stack."""
         if self.context_stack is None:
             return
 
@@ -47,6 +54,7 @@ class ResourceContext(typing.Generic[T_co]):
         self.instance = None
 
     def sync_tear_down(self) -> None:
+        """Tear down the sync context stack."""
         if self.context_stack is None:
             return
 

@@ -1,4 +1,8 @@
+"""Selection based providers."""
+
 import typing
+
+from typing_extensions import override
 
 from that_depends.providers.base import AbstractProvider
 
@@ -7,13 +11,24 @@ T_co = typing.TypeVar("T_co", covariant=True)
 
 
 class Selector(AbstractProvider[T_co]):
+    """Select a provider based on a selector function."""
+
     __slots__ = "_override", "_providers", "_selector"
 
     def __init__(self, selector: typing.Callable[[], str], **providers: AbstractProvider[T_co]) -> None:
+        """Create a new Selector instance.
+
+        Args:
+            selector: function that resolves which provider to use,
+             should return the name of the provider to use as a string.
+            **providers: providers that can be selected.
+
+        """
         super().__init__()
         self._selector: typing.Final = selector
         self._providers: typing.Final = providers
 
+    @override
     async def async_resolve(self) -> T_co:
         if self._override:
             return typing.cast(T_co, self._override)
@@ -24,6 +39,7 @@ class Selector(AbstractProvider[T_co]):
             raise RuntimeError(msg)
         return await self._providers[selected_key].async_resolve()
 
+    @override
     def sync_resolve(self) -> T_co:
         if self._override:
             return typing.cast(T_co, self._override)

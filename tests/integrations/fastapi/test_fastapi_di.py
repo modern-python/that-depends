@@ -18,12 +18,11 @@ _GLOBAL_CONTEXT: typing.Final[dict[str, str]] = {"test2": "value2", "test1": "va
 def fastapi_app(request: pytest.FixtureRequest) -> fastapi.FastAPI:
     app = fastapi.FastAPI()
     if request.param:
-        app.add_middleware(DIContextMiddleware, request.param, global_context=_GLOBAL_CONTEXT)
-    else:
         app.add_middleware(
-            DIContextMiddleware,
-            global_context=_GLOBAL_CONTEXT,
+            DIContextMiddleware, request.param, global_context=_GLOBAL_CONTEXT, reset_all_containers=True
         )
+    else:
+        app.add_middleware(DIContextMiddleware, global_context=_GLOBAL_CONTEXT, reset_all_containers=True)
 
     @app.get("/")
     async def read_root(
