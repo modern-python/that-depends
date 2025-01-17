@@ -47,16 +47,20 @@ def _get_container_context() -> dict[str, typing.Any]:
 
 
 def fetch_context_item(key: str, default: typing.Any = None) -> typing.Any:  # noqa: ANN401
-    """Retrieve a context item from the global context.
-
-    You can set the global context by entering `with container_context(global_context=your_context):`.
+    """Retrieve a value from the global context.
 
     Args:
-        key: key to retrieve from the global context.
-        default: default value to return if key is not found.
+        key (str): The key to retrieve from the global context.
+        default (Any): The default value to return if the key is not found.
 
     Returns:
-        value from the global context.
+        Any: The value associated with the key in the global context or the default value.
+
+    Example:
+        ```python
+        async with container_context(global_context={"username": "john_doe"}):
+            user = fetch_context_item("username")
+        ```
 
     """
     return _get_container_context().get(key, default)
@@ -67,38 +71,83 @@ CT = typing.TypeVar("CT")
 
 
 class SupportsContext(typing.Generic[CT], abc.ABC):
-    """Interface for resources that support context initialization."""
+    """Interface for resources that support context initialization.
+
+    This interface defines methods to create synchronous and asynchronous
+    context managers, as well as a function decorator for context initialization.
+    """
 
     @abstractmethod
     def context(self, func: typing.Callable[P, T]) -> typing.Callable[P, T]:
-        """Initialize context for the given function.
+        """Wrap a function with a new context.
+
+        The returned function will automatically initialize and tear down
+        the context whenever it is called.
 
         Args:
-            func: function to wrap.
+            func (Callable[P, T]): The function to wrap.
 
         Returns:
-            wrapped function with context.
+            Callable[P, T]: The wrapped function.
+
+        Example:
+            ```python
+            @my_resource.context
+            def my_function():
+                return do_something()
+            ```
 
         """
 
     @abstractmethod
     def async_context(self) -> typing.AsyncContextManager[CT]:
-        """Initialize async context."""
+        """Create an async context manager for this resource.
+
+        Returns:
+            AsyncContextManager[CT]: An async context manager.
+
+        Example:
+            ```python
+            async with my_resource.async_context():
+                result = await my_resource.async_resolve()
+            ```
+
+        """
 
     @abstractmethod
     def sync_context(self) -> typing.ContextManager[CT]:
-        """Initialize sync context."""
+        """Create a sync context manager for this resource.
+
+        Returns:
+            ContextManager[CT]: A sync context manager.
+
+        Example:
+            ```python
+            with my_resource.sync_context():
+                result = my_resource.sync_resolve()
+            ```
+
+        """
 
     @abstractmethod
     def supports_sync_context(self) -> bool:
-        """Check if the resource supports sync context."""
+        """Check whether the resource supports sync context.
+
+        Returns:
+            bool: True if sync context is supported, False otherwise.
+
+        """
 
 
 class ContextResource(
     AbstractResource[T_co],
     SupportsContext[ResourceContext[T_co]],
 ):
-    """Context dependent provider that will only resolve resources if their context is initialized."""
+    """A context-dependent provider that resolves resources only if their context is initialized.
+
+    `ContextResource` handles both synchronous and asynchronous resource creators
+    and ensures they are properly torn down when the context exits.
+    """
 
     __slots__ = (
         "_args",
@@ -120,9 +169,10 @@ class ContextResource(
         """Initialize a new context resource.
 
         Args:
-            creator: sync or async iterator that yields the resource to be provided.
-            *args: arguments to pass to the creator.
-            **kwargs: keyword arguments to pass to the creator.
+            creator (Callable[P, Iterator[T_co] | AsyncIterator[T_co]]):
+                A sync or async iterator that yields the resource to be provided.
+            *args: Positional arguments to pass to the creator.
+            **kwargs: Keyword arguments to pass to the creator.
 
         """
         super().__init__(creator, *args, **kwargs)
@@ -156,7 +206,6 @@ class ContextResource(
         try:
             context_item = self._context.get()
             context_item.sync_tear_down()
-
         finally:
             self._context.reset(self._token)
 
@@ -242,7 +291,11 @@ ContainerType = typing.TypeVar("ContainerType", bound="type[BaseContainer]")
 
 
 class container_context(AbstractContextManager[ContextType], AbstractAsyncContextManager[ContextType]):  # noqa: N801
-    """Initializes contexts for the given resources."""
+    """Initialize contexts for the provided containers or resources.
+
+    Use this class to manage global and resource-specific contexts in both
+    synchronous and asynchronous scenarios.
+    """
 
     ___slots__ = (
         "_providers",
@@ -263,13 +316,16 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
         """Initialize a new container context.
 
         Args:
-            *context_items: context items to initialize new context for.
-            global_context: existing context to use
-            preserve_global_context: whether to preserve old global
-                context.
-            reset_all_containers: Create a new context for all
-                containers.
-        Will merge old context with the new context if this option is set to True.
+            *context_items (SupportsContext[Any]): Context items to initialize a new context for.
+            global_context (dict[str, Any] | None): A dictionary representing the global context.
+            preserve_global_context (bool): If True, merges the existing global context with the new one.
+            reset_all_containers (bool): If True, creates a new context for all containers in this scope.
+
+        Example:
+            ```python
+            async with container_context(MyContainer, global_context={"key": "value"}):
+                data = fetch_context_item("key")
+            ```
 
         """
         if preserve_global_context and global_context:
@@ -360,13 +416,24 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
             self._exit_globals()
 
     def __call__(self, func: typing.Callable[P, T_co]) -> typing.Callable[P, T_co]:
-        """Wrap a function with the provided context.
+        """Decorate a function to run within this container context.
+
+        The context is automatically initialized before the function is called and
+        torn down afterwards.
 
         Args:
-            func: sync or async callable.
+            func (Callable[P, T_co]): A sync or async callable.
 
         Returns:
-            wrapped function with pre-initialized context.
+            Callable[P, T_co]: The wrapped function.
+
+        Example:
+            ```python
+            @container_context(MyContainer)
+            async def my_async_function():
+                result = await MyContainer.some_resource.async_resolve()
+                return result
+            ```
 
         """
         if inspect.iscoroutinefunction(func):
@@ -387,7 +454,12 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
 
 
 class DIContextMiddleware:
-    """Middleware which automatically initializes prior to processing application request."""
+    """ASGI middleware that manages context initialization for incoming requests.
+
+    This middleware automatically creates and tears down context for each request,
+    ensuring that resources defined in containers or as context items are properly
+    initialized and cleaned up.
+    """
 
     def __init__(
         self,
@@ -396,13 +468,19 @@ class DIContextMiddleware:
         global_context: dict[str, typing.Any] | None = None,
         reset_all_containers: bool = False,
     ) -> None:
-        """Create a DIContextMiddleware instance.
+        """Initialize the DIContextMiddleware.
 
         Args:
-            app: ASGI application to wrap.
-            *context_items: containers & providers that context should be initialized for prior to request.
-            global_context: global context to set before any request is processed.
-            reset_all_containers: reset all containers in current scope before the request is processed.
+            app (ASGIApp): The ASGI application to wrap.
+            *context_items (SupportsContext[Any]): A collection of containers and providers that
+                need context initialization prior to a request.
+            global_context (dict[str, Any] | None): A global context dictionary to set before requests.
+            reset_all_containers (bool): Whether to reset all containers in the current scope before the request.
+
+        Example:
+            ```python
+            my_app.add_middleware(DIContextMiddleware, MyContainer, global_context={"api_key": "secret"})
+            ```
 
         """
         self.app: typing.Final = app
@@ -411,7 +489,20 @@ class DIContextMiddleware:
         self._reset_all_containers: bool = reset_all_containers
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        """Resolve application request."""
+        """Handle the incoming ASGI request by initializing and tearing down context.
+
+        The context is initialized before the request is processed and
+        closed after the request is completed.
+
+        Args:
+            scope (Scope): The ASGI scope.
+            receive (Receive): The receive call.
+            send (Send): The send call.
+
+        Returns:
+            None
+
+        """
         if self._context_items:
             pass
         async with (

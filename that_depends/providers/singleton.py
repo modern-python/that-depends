@@ -14,12 +14,36 @@ P = typing.ParamSpec("P")
 
 
 class Singleton(AbstractProvider[T_co]):
-    """Provider that creates an instance and caches it."""
+    """A provider that creates an instance once and caches it for subsequent injections.
+
+    This provider is safe to use concurrently in both threading and asyncio contexts.
+    On the first call to either ``sync_resolve()`` or ``async_resolve()``, the instance
+    is created by calling the provided factory. All future calls return the cached instance.
+
+    Example:
+        ```python
+        def my_factory() -> float:
+            return 0.5
+
+        singleton = Singleton(my_factory)
+        value1 = singleton.sync_resolve()
+        value2 = singleton.sync_resolve()
+        assert value1 == value2
+        ```
+
+    """
 
     __slots__ = "_args", "_asyncio_lock", "_factory", "_instance", "_kwargs", "_override", "_threading_lock"
 
     def __init__(self, factory: typing.Callable[P, T_co], *args: P.args, **kwargs: P.kwargs) -> None:
-        """Initialize the provider."""
+        """Initialize the Singleton provider.
+
+        Args:
+            factory: A callable that produces the instance to be provided.
+            *args: Positional arguments to pass to the factory.
+            **kwargs: Keyword arguments to pass to the factory.
+
+        """
         super().__init__()
         self._factory: typing.Final = factory
         self._args: typing.Final = args
@@ -76,23 +100,48 @@ class Singleton(AbstractProvider[T_co]):
             return self._instance
 
     async def tear_down(self) -> None:
-        """Tear down the instance."""
+        """Reset the cached instance.
+
+        After calling this method, the next resolve call will recreate the instance.
+        """
         if self._instance is not None:
             self._instance = None
 
 
 class AsyncSingleton(AbstractProvider[T_co]):
-    """Provider that creates an instance asynchronously and caches it."""
+    """A provider that creates an instance asynchronously and caches it for subsequent injections.
+
+    This provider is safe to use concurrently in asyncio contexts. On the first call
+    to ``async_resolve()``, the instance is created by awaiting the provided factory.
+    All subsequent calls return the cached instance.
+
+    Example:
+        ```python
+        async def my_async_factory() -> float:
+            return 0.5
+
+        async_singleton = AsyncSingleton(my_async_factory)
+        value1 = await async_singleton.async_resolve()
+        value2 = await async_singleton.async_resolve()
+        assert value1 == value2
+        ```
+
+    """
 
     __slots__ = "_args", "_asyncio_lock", "_factory", "_instance", "_kwargs", "_override"
 
-    def __init__(self, factory: typing.Callable[P, typing.Awaitable[T_co]], *args: P.args, **kwargs: P.kwargs) -> None:
-        """Initialize the provider.
+    def __init__(
+        self,
+        factory: typing.Callable[P, typing.Awaitable[T_co]],
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> None:
+        """Initialize the AsyncSingleton provider.
 
         Args:
-            factory: method that creates an instance to be provided.
-            *args: arguments to pass to the created instance.
-            **kwargs: keyword arguments to pass to the created instance.
+            factory: The asynchronous callable used to create the instance.
+            *args: Positional arguments to pass to the factory.
+            **kwargs: Keyword arguments to pass to the factory.
 
         """
         super().__init__()
@@ -130,6 +179,9 @@ class AsyncSingleton(AbstractProvider[T_co]):
         raise RuntimeError(msg)
 
     async def tear_down(self) -> None:
-        """Tear down the instance."""
+        """Reset the cached instance.
+
+        After calling this method, the next call to ``async_resolve()`` will recreate the instance.
+        """
         if self._instance is not None:
             self._instance = None

@@ -10,15 +10,27 @@ P = typing.ParamSpec("P")
 
 
 class Object(AbstractProvider[T_co]):
-    """Provides an object as is."""
+    """Provides an object "as is" without any modification.
+
+    This provider always returns the same object that was given during
+    initialization.
+
+    Example:
+        ```python
+        provider = Object(1)
+        result = provider.sync_resolve()
+        print(result)  # 1
+        ```
+
+    """
 
     __slots__ = ("_obj",)
 
     def __init__(self, obj: T_co) -> None:
-        """Create a new Object instance.
+        """Initialize the provider with the given object.
 
         Args:
-            obj: object to provide.
+            obj (T_co): The object to be provided.
 
         """
         super().__init__()
