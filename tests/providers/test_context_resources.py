@@ -1,6 +1,8 @@
 import asyncio
 import datetime
 import logging
+import threading
+import time
 import typing
 import uuid
 from contextlib import AsyncExitStack, ExitStack
@@ -610,7 +612,7 @@ async def test_preserve_globals_and_initial_context() -> None:
             assert fetch_context_item(key) is None
 
 
-async def test_async_context_switching() -> None:
+async def test_async_context_switching_with_asyncio() -> None:
     async def slow_async_creator() -> typing.AsyncIterator[str]:
         await asyncio.sleep(0.1)
         yield str(uuid.uuid4())
@@ -623,3 +625,24 @@ async def test_async_context_switching() -> None:
             return await MyContainer.slow_provider.async_resolve()
 
     await asyncio.gather(*[_injected() for _ in range(10)])
+
+
+def test_sync_context_switching_with_threads() -> None:
+    def slow_sync_creator() -> typing.Iterator[str]:
+        time.sleep(0.1)
+        yield str(uuid.uuid4())
+
+    class MyContainer(BaseContainer):
+        slow_provider = providers.ContextResource(slow_sync_creator)
+
+    def _injected() -> str:
+        with MyContainer.slow_provider.sync_context():
+            return MyContainer.slow_provider.sync_resolve()
+
+    threads = [threading.Thread(target=_injected) for _ in range(10)]
+
+    for thread in threads:
+        thread.start()
+
+    for thread in threads:
+        thread.join()
