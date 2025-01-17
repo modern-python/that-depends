@@ -3,6 +3,7 @@ default: install lint test
 install:
     uv lock --upgrade
     uv sync --only-dev --frozen
+    uv run pre-commit install --overwrite
 
 lint:
     uv run ruff format

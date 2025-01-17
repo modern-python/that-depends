@@ -1,15 +1,18 @@
 import abc
+import asyncio
 import contextlib
 import inspect
 import logging
+import threading
 import typing
 from abc import abstractmethod
 from contextlib import AbstractAsyncContextManager, AbstractContextManager
 from contextvars import ContextVar, Token
 from functools import wraps
 from types import TracebackType
+from typing import Final
 
-from typing_extensions import TypeIs
+from typing_extensions import TypeIs, override
 
 from that_depends.entities.resource_context import ResourceContext
 from that_depends.meta import BaseContainerMeta
@@ -44,6 +47,22 @@ def _get_container_context() -> dict[str, typing.Any]:
 
 
 def fetch_context_item(key: str, default: typing.Any = None) -> typing.Any:  # noqa: ANN401
+    """Retrieve a value from the global context.
+
+    Args:
+        key (str): The key to retrieve from the global context.
+        default (Any): The default value to return if the key is not found.
+
+    Returns:
+        Any: The value associated with the key in the global context or the default value.
+
+    Example:
+        ```python
+        async with container_context(global_context={"username": "john_doe"}):
+            user = fetch_context_item("username")
+        ```
+
+    """
     return _get_container_context().get(key, default)
 
 
@@ -52,33 +71,84 @@ CT = typing.TypeVar("CT")
 
 
 class SupportsContext(typing.Generic[CT], abc.ABC):
+    """Interface for resources that support context initialization.
+
+    This interface defines methods to create synchronous and asynchronous
+    context managers, as well as a function decorator for context initialization.
+    """
+
     @abstractmethod
     def context(self, func: typing.Callable[P, T]) -> typing.Callable[P, T]:
-        """Initialize context for the given function.
+        """Wrap a function with a new context.
 
-        :param func: function to wrap.
-        :return: wrapped function with context.
+        The returned function will automatically initialize and tear down
+        the context whenever it is called.
+
+        Args:
+            func (Callable[P, T]): The function to wrap.
+
+        Returns:
+            Callable[P, T]: The wrapped function.
+
+        Example:
+            ```python
+            @my_resource.context
+            def my_function():
+                return do_something()
+            ```
+
         """
 
     @abstractmethod
     def async_context(self) -> typing.AsyncContextManager[CT]:
-        """Initialize async context."""
+        """Create an async context manager for this resource.
+
+        Returns:
+            AsyncContextManager[CT]: An async context manager.
+
+        Example:
+            ```python
+            async with my_resource.async_context():
+                result = await my_resource.async_resolve()
+            ```
+
+        """
 
     @abstractmethod
     def sync_context(self) -> typing.ContextManager[CT]:
-        """Initialize sync context."""
+        """Create a sync context manager for this resource.
+
+        Returns:
+            ContextManager[CT]: A sync context manager.
+
+        Example:
+            ```python
+            with my_resource.sync_context():
+                result = my_resource.sync_resolve()
+            ```
+
+        """
 
     @abstractmethod
     def supports_sync_context(self) -> bool:
-        """Check if the resource supports sync context."""
+        """Check whether the resource supports sync context.
+
+        Returns:
+            bool: True if sync context is supported, False otherwise.
+
+        """
 
 
 class ContextResource(
     AbstractResource[T_co],
-    AbstractAsyncContextManager[ResourceContext[T_co]],
-    AbstractContextManager[ResourceContext[T_co]],
     SupportsContext[ResourceContext[T_co]],
 ):
+    """A context-dependent provider that resolves resources only if their context is initialized.
+
+    `ContextResource` handles both synchronous and asynchronous resource creators
+    and ensures they are properly torn down when the context exits.
+    """
+
     __slots__ = (
         "_args",
         "_context",
@@ -96,45 +166,52 @@ class ContextResource(
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> None:
+        """Initialize a new context resource.
+
+        Args:
+            creator (Callable[P, Iterator[T_co] | AsyncIterator[T_co]]):
+                A sync or async iterator that yields the resource to be provided.
+            *args: Positional arguments to pass to the creator.
+            **kwargs: Keyword arguments to pass to the creator.
+
+        """
         super().__init__(creator, *args, **kwargs)
         self._context: ContextVar[ResourceContext[T_co]] = ContextVar(f"{self._creator.__name__}-context")
         self._token: Token[ResourceContext[T_co]] | None = None
+        self._async_lock: Final = asyncio.Lock()
+        self._lock: Final = threading.Lock()
 
+    @override
     def supports_sync_context(self) -> bool:
         return not self.is_async
 
-    def __enter__(self) -> ResourceContext[T_co]:
+    def _enter_sync_context(self) -> ResourceContext[T_co]:
         if self.is_async:
             msg = "You must enter async context for async creators."
             raise RuntimeError(msg)
         return self._enter()
 
-    async def __aenter__(self) -> ResourceContext[T_co]:
+    async def _enter_async_context(self) -> ResourceContext[T_co]:
         return self._enter()
 
     def _enter(self) -> ResourceContext[T_co]:
         self._token = self._context.set(ResourceContext(is_async=self.is_async))
         return self._context.get()
 
-    def __exit__(
-        self, exc_type: type[BaseException] | None, exc_value: BaseException | None, traceback: TracebackType | None
-    ) -> None:
+    def _exit_sync_context(self) -> None:
         if not self._token:
-            msg = "Context is not set, call ``__enter__`` first"
+            msg = "Context is not set, call ``_enter_sync_context`` first"
             raise RuntimeError(msg)
 
         try:
             context_item = self._context.get()
             context_item.sync_tear_down()
-
         finally:
             self._context.reset(self._token)
 
-    async def __aexit__(
-        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, traceback: TracebackType | None
-    ) -> None:
+    async def _exit_async_context(self) -> None:
         if self._token is None:
-            msg = "Context is not set, call ``__aenter__`` first"
+            msg = "Context is not set, call ``_enter_async_context`` first"
             raise RuntimeError(msg)
 
         try:
@@ -147,27 +224,43 @@ class ContextResource(
             self._context.reset(self._token)
 
     @contextlib.contextmanager
+    @override
     def sync_context(self) -> typing.Iterator[ResourceContext[T_co]]:
         if self.is_async:
             msg = "Please use async context instead."
             raise RuntimeError(msg)
         token = self._token
-        with self as val:
-            yield val
+        with self._lock:
+            val = self._enter_sync_context()
+            temp_token = self._token
+        yield val
+        with self._lock:
+            self._token = temp_token
+            self._exit_sync_context()
         self._token = token
 
     @contextlib.asynccontextmanager
+    @override
     async def async_context(self) -> typing.AsyncIterator[ResourceContext[T_co]]:
         token = self._token
-        async with self as val:
-            yield val
+
+        async with self._async_lock:
+            val = await self._enter_async_context()
+            temp_token = self._token
+        yield val
+        async with self._async_lock:
+            self._token = temp_token
+            await self._exit_async_context()
         self._token = token
 
+    @override
     def context(self, func: typing.Callable[P, T]) -> typing.Callable[P, T]:
         """Create a new context manager for the resource, the context manager will be async if the resource is async.
 
-        :return: A context manager for the resource.
-        :rtype: typing.ContextManager[ResourceContext[T_co]] | typing.AsyncContextManager[ResourceContext[T_co]]
+        Returns:
+            typing.ContextManager[ResourceContext[T_co]] | typing.AsyncContextManager[ResourceContext[T_co]]:
+            A context manager for the resource.
+
         """
         if inspect.iscoroutinefunction(func):
 
@@ -198,6 +291,12 @@ ContainerType = typing.TypeVar("ContainerType", bound="type[BaseContainer]")
 
 
 class container_context(AbstractContextManager[ContextType], AbstractAsyncContextManager[ContextType]):  # noqa: N801
+    """Initialize contexts for the provided containers or resources.
+
+    Use this class to manage global and resource-specific contexts in both
+    synchronous and asynchronous scenarios.
+    """
+
     ___slots__ = (
         "_providers",
         "_context_stack",
@@ -216,11 +315,18 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
     ) -> None:
         """Initialize a new container context.
 
-        :param context_items: context items to initialize new context for.
-        :param global_context: existing context to use
-        :param preserve_global_context: whether to preserve old global context.
-        Will merge old context with the new context if this option is set to True.
-        :param reset_all_containers: Create a new context for all containers.
+        Args:
+            *context_items (SupportsContext[Any]): Context items to initialize a new context for.
+            global_context (dict[str, Any] | None): A dictionary representing the global context.
+            preserve_global_context (bool): If True, merges the existing global context with the new one.
+            reset_all_containers (bool): If True, creates a new context for all containers in this scope.
+
+        Example:
+            ```python
+            async with container_context(MyContainer, global_context={"key": "value"}):
+                data = fetch_context_item("key")
+            ```
+
         """
         if preserve_global_context and global_context:
             self._initial_context = {**_get_container_context(), **global_context}
@@ -244,6 +350,7 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
                 if isinstance(container_provider, ContextResource):
                     self._context_items.add(container_provider)
 
+    @override
     def __enter__(self) -> ContextType:
         self._context_stack = contextlib.ExitStack()
         for item in self._context_items:
@@ -251,6 +358,7 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
                 self._context_stack.enter_context(item.sync_context())
         return self._enter_globals()
 
+    @override
     async def __aenter__(self) -> ContextType:
         self._context_stack = contextlib.AsyncExitStack()
         for item in self._context_items:
@@ -281,6 +389,7 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
     ) -> typing.TypeGuard[contextlib.ExitStack]:
         return isinstance(_, contextlib.ExitStack)
 
+    @override
     def __exit__(
         self, exc_type: type[BaseException] | None, exc_value: BaseException | None, traceback: TracebackType | None
     ) -> None:
@@ -293,6 +402,7 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
         finally:
             self._exit_globals()
 
+    @override
     async def __aexit__(
         self, exc_type: type[BaseException] | None, exc_val: BaseException | None, traceback: TracebackType | None
     ) -> None:
@@ -306,6 +416,26 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
             self._exit_globals()
 
     def __call__(self, func: typing.Callable[P, T_co]) -> typing.Callable[P, T_co]:
+        """Decorate a function to run within this container context.
+
+        The context is automatically initialized before the function is called and
+        torn down afterwards.
+
+        Args:
+            func (Callable[P, T_co]): A sync or async callable.
+
+        Returns:
+            Callable[P, T_co]: The wrapped function.
+
+        Example:
+            ```python
+            @container_context(MyContainer)
+            async def my_async_function():
+                result = await MyContainer.some_resource.async_resolve()
+                return result
+            ```
+
+        """
         if inspect.iscoroutinefunction(func):
 
             @wraps(func)
@@ -324,19 +454,55 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
 
 
 class DIContextMiddleware:
+    """ASGI middleware that manages context initialization for incoming requests.
+
+    This middleware automatically creates and tears down context for each request,
+    ensuring that resources defined in containers or as context items are properly
+    initialized and cleaned up.
+    """
+
     def __init__(
         self,
         app: ASGIApp,
         *context_items: SupportsContext[typing.Any],
         global_context: dict[str, typing.Any] | None = None,
-        reset_all_containers: bool = True,
+        reset_all_containers: bool = False,
     ) -> None:
+        """Initialize the DIContextMiddleware.
+
+        Args:
+            app (ASGIApp): The ASGI application to wrap.
+            *context_items (SupportsContext[Any]): A collection of containers and providers that
+                need context initialization prior to a request.
+            global_context (dict[str, Any] | None): A global context dictionary to set before requests.
+            reset_all_containers (bool): Whether to reset all containers in the current scope before the request.
+
+        Example:
+            ```python
+            my_app.add_middleware(DIContextMiddleware, MyContainer, global_context={"api_key": "secret"})
+            ```
+
+        """
         self.app: typing.Final = app
         self._context_items: set[SupportsContext[typing.Any]] = set(context_items)
         self._global_context: dict[str, typing.Any] | None = global_context
         self._reset_all_containers: bool = reset_all_containers
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """Handle the incoming ASGI request by initializing and tearing down context.
+
+        The context is initialized before the request is processed and
+        closed after the request is completed.
+
+        Args:
+            scope (Scope): The ASGI scope.
+            receive (Receive): The receive call.
+            send (Send): The send call.
+
+        Returns:
+            None
+
+        """
         if self._context_items:
             pass
         async with (
