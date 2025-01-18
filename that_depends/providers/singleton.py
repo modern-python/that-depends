@@ -126,9 +126,12 @@ class ThreadLocalSingleton(AbstractProvider[T_co]):
         instance1 = singleton.sync_resolve()
         instance2 = singleton.sync_resolve()
 
-        def thread_task(thread_id):
-            # Each thread gets a different instance
+        def thread_task():
             return singleton.sync_resolve()
+
+        threads = [threading.Thread(target=thread_task) for i in range(10)]
+        for thread in threads:
+            thread.start() # Each thread will get a different instance
         ```
 
     """
