@@ -41,6 +41,42 @@ await MyContainer.singleton.async_resolve()
 # calling sync_resolve concurrently in different threads will create only one instance
 MyContainer.singleton.sync_resolve()
 ```
+## ThreadLocalSingleton
+
+For cases when you need to have a separate instance for each thread, you can use `ThreadLocalSingleton` provider. It will create a new instance for each thread and cache it for future injections in the same thread.
+
+```python
+from that_depends.providers import ThreadLocalSingleton
+import threading
+import random
+
+# Define a factory function
+def factory() -> int:
+    return random.randint(1, 100)
+
+# Create a ThreadLocalSingleton instance
+singleton = ThreadLocalSingleton(factory)
+
+# Same thread, same instance
+instance1 = singleton.sync_resolve() # 56
+instance2 = singleton.sync_resolve() # 56
+
+# Example usage in multiple threads
+def thread_task():
+    instance = singleton.sync_resolve()
+    return instance
+
+# Create and start threads
+threads = [threading.Thread(target=thread_task) for i in range(2)]
+for thread in threads:
+    thread.start()
+for thread in threads:
+    results = thread.join()
+
+# Results will be different for each thread
+print(results) # [56, 78]
+```
+
 
 ## Example with `pydantic-settings`
 Let's say we are storing our application configuration using [pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/):

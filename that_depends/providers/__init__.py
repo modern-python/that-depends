@@ -11,7 +11,7 @@ from that_depends.providers.factories import AsyncFactory, Factory
 from that_depends.providers.object import Object
 from that_depends.providers.resources import Resource
 from that_depends.providers.selector import Selector
-from that_depends.providers.singleton import AsyncSingleton, Singleton
+from that_depends.providers.singleton import AsyncSingleton, Singleton, ThreadLocalSingleton
 
 
 __all__ = [
@@ -28,5 +28,6 @@ __all__ = [
     "Resource",
     "Selector",
     "Singleton",
+    "ThreadLocalSingleton",
     "container_context",
 ]
