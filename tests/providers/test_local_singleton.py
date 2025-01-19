@@ -2,8 +2,15 @@ import asyncio
 import random
 import threading
 import typing
+from concurrent.futures.thread import ThreadPoolExecutor
 
-from that_depends.providers import ThreadLocalSingleton
+import pytest
+
+from that_depends.providers import AsyncFactory, ThreadLocalSingleton
+
+
+async def _async_factory() -> int:
+    return threading.get_ident()
 
 
 def _factory() -> int:
@@ -119,3 +126,50 @@ async def test_async_thread_local_singleton_asyncio_concurrency() -> None:
     assert all(val is results[0] for val in results)
     for val in results:
         assert val == expected, "Instances should be identical across threads."
+
+
+async def test_thread_local_singleton_async_resolve_with_async_dependencies() -> None:
+    async_provider = AsyncFactory(_async_factory)
+
+    def _dependent_creator(v: int) -> int:
+        return v
+
+    provider = ThreadLocalSingleton(_dependent_creator, v=async_provider.cast)
+
+    expected = await provider.async_resolve()
+
+    assert expected == await provider.async_resolve()
+
+    results = await asyncio.gather(*[provider.async_resolve() for _ in range(10)])
+
+    for val in results:
+        assert val == expected, "Instances should be identical across threads."
+    with pytest.raises(RuntimeError):
+        # This should raise an error because the provider is async and resolution is attempted.
+        await asyncio.gather(asyncio.to_thread(provider.sync_resolve))
+
+    def _run_async_in_thread(coroutine: typing.Awaitable[typing.Any]) -> typing.Any:  # noqa: ANN401
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(coroutine)
+        loop.close()
+        return result
+
+    with ThreadPoolExecutor() as executor:
+        future = executor.submit(_run_async_in_thread, provider.async_resolve())
+
+        result = future.result()
+
+        assert result != expected, (
+            "Since singleton should have been newly resolved, it should not have the same thread id."
+        )
+
+
+async def test_thread_local_singleton_async_resolve_override() -> None:
+    provider = ThreadLocalSingleton(_factory)
+
+    override_value = 101
+
+    provider.override(override_value)
+
+    assert await provider.async_resolve() == override_value, "Override failed: Expected overridden value."

@@ -26,10 +26,21 @@ async def create_async_obj(value: str) -> SingletonFactory:
     return SingletonFactory(dep1=f"async {value}")
 
 
+async def _async_creator() -> int:
+    await asyncio.sleep(0.001)
+    return threading.get_ident()
+
+
+def _sync_creator_with_dependency(dep: int) -> str:
+    return f"Singleton {dep}"
+
+
 class DIContainer(BaseContainer):
+    factory: providers.AsyncFactory[int] = providers.AsyncFactory(_async_creator)
     settings: Settings = providers.Singleton(Settings).cast
     singleton = providers.Singleton(SingletonFactory, dep1=settings.some_setting)
     singleton_async = providers.AsyncSingleton(create_async_obj, value=settings.some_setting)
+    singleton_with_dependency = providers.Singleton(_sync_creator_with_dependency, dep=factory.cast)
 
 
 async def test_singleton_provider() -> None:
@@ -151,3 +162,21 @@ async def test_async_singleton_asyncio_concurrency() -> None:
 async def test_async_singleton_sync_resolve_failure() -> None:
     with pytest.raises(RuntimeError, match="AsyncSingleton cannot be resolved in an sync context."):
         DIContainer.singleton_async.sync_resolve()
+
+
+async def test_singleton_async_resolve_with_async_dependencies() -> None:
+    expected = await DIContainer.singleton_with_dependency.async_resolve()
+
+    assert expected == await DIContainer.singleton_with_dependency.async_resolve()
+
+    results = await asyncio.gather(*[DIContainer.singleton_with_dependency.async_resolve() for _ in range(10)])
+
+    for val in results:
+        assert val == expected
+
+    results = await asyncio.gather(
+        *[asyncio.to_thread(DIContainer.singleton_with_dependency.sync_resolve) for _ in range(10)],
+    )
+
+    for val in results:
+        assert val == expected

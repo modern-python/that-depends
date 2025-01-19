@@ -1,3 +1,4 @@
+import asyncio
 import threading
 import typing
 
@@ -52,6 +53,7 @@ class ThreadLocalSingleton(AbstractProvider[T_co]):
         self._args: typing.Final = args
         self._kwargs: typing.Final = kwargs
         self._thread_local = threading.local()
+        self._asyncio_lock = asyncio.Lock()
 
     @property
     def _instance(self) -> T_co | None:
@@ -63,7 +65,21 @@ class ThreadLocalSingleton(AbstractProvider[T_co]):
 
     @override
     async def async_resolve(self) -> T_co:
-        return self.sync_resolve()
+        if self._override is not None:
+            return typing.cast(T_co, self._override)
+
+        async with self._asyncio_lock:
+            if self._instance is not None:
+                return self._instance
+
+            self._instance = self._factory(
+                *[await x.async_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],  # type: ignore[arg-type]
+                **{  # type: ignore[arg-type]
+                    k: await v.async_resolve() if isinstance(v, AbstractProvider) else v
+                    for k, v in self._kwargs.items()
+                },
+            )
+            return self._instance
 
     @override
     def sync_resolve(self) -> T_co:
