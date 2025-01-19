@@ -63,8 +63,7 @@ class ThreadLocalSingleton(AbstractProvider[T_co]):
 
     @override
     async def async_resolve(self) -> T_co:
-        msg = "ThreadLocalSingleton cannot be resolved in an async context."
-        raise NotImplementedError(msg)
+        return self.sync_resolve()
 
     @override
     def sync_resolve(self) -> T_co:
