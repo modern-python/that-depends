@@ -3,7 +3,7 @@ default: install lint test
 install:
     uv lock --upgrade
     uv sync --only-dev --frozen
-    uv run pre-commit install --overwrite
+    just hook
 
 lint:
     uv run ruff format
@@ -24,7 +24,7 @@ publish:
     uv publish --token $PYPI_TOKEN
 
 hook:
-    uv run pre-commit install
+    uv run pre-commit install --install-hooks --overwrite
 
 unhook:
     uv run pre-commit uninstall
