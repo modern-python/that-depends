@@ -1,6 +1,7 @@
 import asyncio
 import random
 import threading
+import time
 import typing
 from concurrent.futures.thread import ThreadPoolExecutor
 
@@ -10,10 +11,12 @@ from that_depends.providers import AsyncFactory, ThreadLocalSingleton
 
 
 async def _async_factory() -> int:
+    await asyncio.sleep(0.01)
     return threading.get_ident()
 
 
 def _factory() -> int:
+    time.sleep(0.01)
     return random.randint(1, 100)  # noqa: S311
 
 
