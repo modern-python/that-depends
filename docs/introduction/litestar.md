@@ -1,7 +1,5 @@
 # Usage with `Litestar`
 
-*More advanced example of usage with LiteStar - [litestar-sqlalchemy-template](https://github.com/modern-python/litestar-sqlalchemy-template)*
-
 ```python
 import typing
 import fastapi

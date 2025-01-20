@@ -1,10 +1,6 @@
 # Usage with `Fastapi`
 
-*More advanced example of usage with FastAPI - [fastapi-sqlalchemy-template](https://github.com/modern-python/fastapi-sqlalchemy-template)*
-
-
 ```python
-import datetime
 import contextlib
 import typing
 
