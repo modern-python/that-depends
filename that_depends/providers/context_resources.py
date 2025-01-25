@@ -503,8 +503,6 @@ class DIContextMiddleware:
             None
 
         """
-        if self._context_items:
-            pass
         async with (
             container_context(*self._context_items, global_context=self._global_context)
             if self._context_items
