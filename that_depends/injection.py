@@ -46,12 +46,16 @@ def _inject_to_async(
         injected = False
         for i, (field_name, field_value) in enumerate(signature.parameters.items()):
             if i < len(args):
+                if isinstance(field_value.default, AbstractProvider):
+                    injected = True
                 continue
 
             if not isinstance(field_value.default, AbstractProvider):
                 continue
 
             if field_name in kwargs:
+                if isinstance(field_value.default, AbstractProvider):
+                    injected = True
                 continue
 
             kwargs[field_name] = await field_value.default.async_resolve()
@@ -79,6 +83,8 @@ def _inject_to_sync(
             if not isinstance(field_value.default, AbstractProvider):
                 continue
             if field_name in kwargs:
+                if isinstance(field_value.default, AbstractProvider):
+                    injected = True
                 continue
             kwargs[field_name] = field_value.default.sync_resolve()
             injected = True

@@ -73,8 +73,7 @@ def test_overriden_sync_injection() -> None:
         return _
 
     factory = container.SimpleFactory(dep1="1", dep2=2)
-    with pytest.warns(RuntimeWarning, match="Expected injection, but nothing found. Remove @inject decorator."):
-        assert inner(_=factory) == factory
+    assert inner(_=factory) == factory
 
 
 def test_sync_empty_injection() -> None:
