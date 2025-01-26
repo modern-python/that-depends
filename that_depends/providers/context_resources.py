@@ -438,7 +438,7 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
         """Decorate a function to run within this container context.
 
         The context is automatically initialized before the function is called and
-        torn down afterwards.
+        torn down afterward.
 
         Args:
             func (Callable[P, T_co]): A sync or async callable.

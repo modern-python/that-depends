@@ -5,13 +5,14 @@ import typing
 from typing_extensions import override
 
 from that_depends.providers import AbstractProvider
+from that_depends.providers.base import SupportsParameters
 
 
 T_co = typing.TypeVar("T_co", covariant=True)
 P = typing.ParamSpec("P")
 
 
-class ThreadLocalSingleton(AbstractProvider[T_co]):
+class ThreadLocalSingleton(SupportsParameters, AbstractProvider[T_co]):
     """Creates a new instance for each thread using a thread-local store.
 
     This provider ensures that each thread gets its own instance, which is
@@ -39,19 +40,15 @@ class ThreadLocalSingleton(AbstractProvider[T_co]):
 
     """
 
-    def __init__(self, factory: typing.Callable[P, T_co], *args: P.args, **kwargs: P.kwargs) -> None:
+    def __init__(self, factory: typing.Callable[P, T_co]) -> None:
         """Initialize the ThreadLocalSingleton provider.
 
         Args:
             factory: A callable that returns a new instance of the dependency.
-            *args: Positional arguments to pass to the factory.
-            **kwargs: Keyword arguments to pass to the factory.
 
         """
         super().__init__()
         self._factory: typing.Final = factory
-        self._args: typing.Final = args
-        self._kwargs: typing.Final = kwargs
         self._thread_local = threading.local()
         self._asyncio_lock = asyncio.Lock()
 
@@ -73,8 +70,8 @@ class ThreadLocalSingleton(AbstractProvider[T_co]):
                 return self._instance
 
             self._instance = self._factory(
-                *[await x.async_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],  # type: ignore[arg-type]
-                **{  # type: ignore[arg-type]
+                *[await x.async_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
+                **{
                     k: await v.async_resolve() if isinstance(v, AbstractProvider) else v
                     for k, v in self._kwargs.items()
                 },
@@ -90,8 +87,8 @@ class ThreadLocalSingleton(AbstractProvider[T_co]):
             return self._instance
 
         self._instance = self._factory(
-            *[x.sync_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],  # type: ignore[arg-type]
-            **{k: v.sync_resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},  # type: ignore[arg-type]
+            *[x.sync_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
+            **{k: v.sync_resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
         )
         return self._instance
 

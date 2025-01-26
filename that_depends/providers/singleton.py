@@ -6,14 +6,14 @@ import typing
 
 from typing_extensions import override
 
-from that_depends.providers.base import AbstractProvider
+from that_depends.providers.base import AbstractProvider, SupportsParameters
 
 
 T_co = typing.TypeVar("T_co", covariant=True)
 P = typing.ParamSpec("P")
 
 
-class Singleton(AbstractProvider[T_co]):
+class Singleton(SupportsParameters, AbstractProvider[T_co]):
     """A provider that creates an instance once and caches it for subsequent injections.
 
     This provider is safe to use concurrently in both threading and asyncio contexts.
@@ -35,19 +35,15 @@ class Singleton(AbstractProvider[T_co]):
 
     __slots__ = "_args", "_asyncio_lock", "_factory", "_instance", "_kwargs", "_override", "_threading_lock"
 
-    def __init__(self, factory: typing.Callable[P, T_co], *args: P.args, **kwargs: P.kwargs) -> None:
+    def __init__(self, factory: typing.Callable[P, T_co]) -> None:
         """Initialize the Singleton provider.
 
         Args:
             factory: A callable that produces the instance to be provided.
-            *args: Positional arguments to pass to the factory.
-            **kwargs: Keyword arguments to pass to the factory.
 
         """
         super().__init__()
         self._factory: typing.Final = factory
-        self._args: typing.Final = args
-        self._kwargs: typing.Final = kwargs
         self._instance: T_co | None = None
         self._asyncio_lock: typing.Final = asyncio.Lock()
         self._threading_lock: typing.Final = threading.Lock()
@@ -66,10 +62,8 @@ class Singleton(AbstractProvider[T_co]):
                 return self._instance
 
             self._instance = self._factory(
-                *[  # type: ignore[arg-type]
-                    await x.async_resolve() if isinstance(x, AbstractProvider) else x for x in self._args
-                ],
-                **{  # type: ignore[arg-type]
+                *[await x.async_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
+                **{
                     k: await v.async_resolve() if isinstance(v, AbstractProvider) else v
                     for k, v in self._kwargs.items()
                 },
@@ -90,12 +84,8 @@ class Singleton(AbstractProvider[T_co]):
                 return self._instance
 
             self._instance = self._factory(
-                *[  # type: ignore[arg-type]
-                    x.sync_resolve() if isinstance(x, AbstractProvider) else x for x in self._args
-                ],
-                **{  # type: ignore[arg-type]
-                    k: v.sync_resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()
-                },
+                *[x.sync_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
+                **{k: v.sync_resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
             )
             return self._instance
 
@@ -108,7 +98,7 @@ class Singleton(AbstractProvider[T_co]):
             self._instance = None
 
 
-class AsyncSingleton(AbstractProvider[T_co]):
+class AsyncSingleton(SupportsParameters, AbstractProvider[T_co]):
     """A provider that creates an instance asynchronously and caches it for subsequent injections.
 
     This provider is safe to use concurrently in asyncio contexts. On the first call
@@ -133,8 +123,6 @@ class AsyncSingleton(AbstractProvider[T_co]):
     def __init__(
         self,
         factory: typing.Callable[P, typing.Awaitable[T_co]],
-        *args: P.args,
-        **kwargs: P.kwargs,
     ) -> None:
         """Initialize the AsyncSingleton provider.
 
@@ -146,8 +134,6 @@ class AsyncSingleton(AbstractProvider[T_co]):
         """
         super().__init__()
         self._factory: typing.Final[typing.Callable[P, typing.Awaitable[T_co]]] = factory
-        self._args: typing.Final[P.args] = args
-        self._kwargs: typing.Final[P.kwargs] = kwargs
         self._instance: T_co | None = None
         self._asyncio_lock: typing.Final = asyncio.Lock()
 

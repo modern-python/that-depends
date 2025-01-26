@@ -3,7 +3,7 @@ import typing
 
 from typing_extensions import override
 
-from that_depends.providers.base import AbstractProvider
+from that_depends.providers.base import AbstractProvider, SupportsParameters
 
 
 T_co = typing.TypeVar("T_co", covariant=True)
@@ -117,7 +117,7 @@ class Factory(AbstractFactory[T_co]):
         )
 
 
-class AsyncFactory(AbstractFactory[T_co]):
+class AsyncFactory(SupportsParameters, AbstractFactory[T_co]):
     """Provides an instance by calling an async method.
 
     Similar to `Factory`, but requires an async function. Each call
@@ -137,19 +137,15 @@ class AsyncFactory(AbstractFactory[T_co]):
 
     __slots__ = "_args", "_factory", "_kwargs", "_override"
 
-    def __init__(self, factory: typing.Callable[P, typing.Awaitable[T_co]], *args: P.args, **kwargs: P.kwargs) -> None:
+    def __init__(self, factory: typing.Callable[P, typing.Awaitable[T_co]]) -> None:
         """Initialize an AsyncFactory instance.
 
         Args:
             factory (Callable[P, Awaitable[T_co]]): Async function that returns the resource.
-            *args: Arguments to pass to the async factory function.
-            **kwargs: Keyword arguments to pass to the async factory function.
 
         """
         super().__init__()
         self._factory: typing.Final = factory
-        self._args: typing.Final = args
-        self._kwargs: typing.Final = kwargs
 
     @override
     async def async_resolve(self) -> T_co:
@@ -157,12 +153,8 @@ class AsyncFactory(AbstractFactory[T_co]):
             return typing.cast(T_co, self._override)
 
         return await self._factory(
-            *[  # type: ignore[arg-type]
-                await x.async_resolve() if isinstance(x, AbstractProvider) else x for x in self._args
-            ],
-            **{  # type: ignore[arg-type]
-                k: await v.async_resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()
-            },
+            *[await x.async_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
+            **{k: await v.async_resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
         )
 
     @override

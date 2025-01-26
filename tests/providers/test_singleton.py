@@ -38,9 +38,9 @@ def _sync_creator_with_dependency(dep: int) -> str:
 class DIContainer(BaseContainer):
     factory: providers.AsyncFactory[int] = providers.AsyncFactory(_async_creator)
     settings: Settings = providers.Singleton(Settings).cast
-    singleton = providers.Singleton(SingletonFactory, dep1=settings.some_setting)
-    singleton_async = providers.AsyncSingleton(create_async_obj, value=settings.some_setting)
-    singleton_with_dependency = providers.Singleton(_sync_creator_with_dependency, dep=factory.cast)
+    singleton = providers.Singleton(SingletonFactory).with_spec(dep1=settings.some_setting)
+    singleton_async = providers.AsyncSingleton(create_async_obj).with_spec(value=settings.some_setting)
+    singleton_with_dependency = providers.Singleton(_sync_creator_with_dependency).with_spec(dep=factory.cast)
 
 
 async def test_singleton_provider() -> None:
@@ -87,7 +87,9 @@ async def test_singleton_asyncio_concurrency() -> None:
         dep1: str
 
     resource = providers.Resource(create_resource)
-    factory_with_resource = providers.Singleton(SimpleCreator, dep1=resource.cast)
+    factory_with_resource = providers.Singleton(
+        SimpleCreator,
+    ).with_spec(dep1=resource.cast)
 
     client1, client2 = await asyncio.gather(
         factory_with_resource.async_resolve(), factory_with_resource.async_resolve()
@@ -138,7 +140,9 @@ async def test_async_singleton() -> None:
 
 
 async def test_async_singleton_override() -> None:
-    singleton_async = providers.AsyncSingleton(create_async_obj, "foo")
+    singleton_async = providers.AsyncSingleton(
+        create_async_obj,
+    ).with_spec("foo")
     singleton_async.override(SingletonFactory(dep1="bar"))
 
     result = await singleton_async.async_resolve()
@@ -146,7 +150,7 @@ async def test_async_singleton_override() -> None:
 
 
 async def test_async_singleton_asyncio_concurrency() -> None:
-    singleton_async = providers.AsyncSingleton(create_async_obj, "foo")
+    singleton_async = providers.AsyncSingleton(create_async_obj).with_spec("foo")
 
     results = await asyncio.gather(
         singleton_async(),
