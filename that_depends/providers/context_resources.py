@@ -8,6 +8,7 @@ import typing
 from abc import abstractmethod
 from contextlib import AbstractAsyncContextManager, AbstractContextManager
 from contextvars import ContextVar, Token
+from enum import Enum
 from functools import wraps
 from types import TracebackType
 from typing import Final
@@ -36,6 +37,12 @@ ASGIApp = typing.Callable[[Scope, Receive, Send], typing.Awaitable[None]]
 _ASYNC_CONTEXT_KEY: typing.Final[str] = "__ASYNC_CONTEXT__"
 
 ContextType = dict[str, typing.Any]
+
+
+class ContextScope(int, Enum):
+    """Enumeration of context scopes."""
+
+    FUNCTION = 1
 
 
 def _get_container_context() -> dict[str, typing.Any]:
@@ -76,6 +83,10 @@ class SupportsContext(typing.Generic[CT], abc.ABC):
     This interface defines methods to create synchronous and asynchronous
     context managers, as well as a function decorator for context initialization.
     """
+
+    @abstractmethod
+    def get_scope(self) -> ContextScope | None:
+        """Return the scope of the resource."""
 
     @abstractmethod
     def context(self, func: typing.Callable[P, T]) -> typing.Callable[P, T]:
@@ -149,6 +160,10 @@ class ContextResource(
     and ensures they are properly torn down when the context exits.
     """
 
+    @override
+    def get_scope(self) -> ContextScope | None:
+        return self._scope
+
     __slots__ = (
         "_args",
         "_context",
@@ -156,6 +171,7 @@ class ContextResource(
         "_internal_name",
         "_kwargs",
         "_override",
+        "_scope",
         "_token",
         "is_async",
     )
@@ -163,23 +179,22 @@ class ContextResource(
     def __init__(
         self,
         creator: typing.Callable[P, typing.Iterator[T_co] | typing.AsyncIterator[T_co]],
-        *args: P.args,
-        **kwargs: P.kwargs,
+        scope: ContextScope | None = None,  # temporary solution
     ) -> None:
         """Initialize a new context resource.
 
         Args:
             creator (Callable[P, Iterator[T_co] | AsyncIterator[T_co]]):
                 A sync or async iterator that yields the resource to be provided.
-            *args: Positional arguments to pass to the creator.
-            **kwargs: Keyword arguments to pass to the creator.
+            scope: Scope in which this resource can be resolved.
 
         """
-        super().__init__(creator, *args, **kwargs)
+        super().__init__(creator)
         self._context: ContextVar[ResourceContext[T_co]] = ContextVar(f"{self._creator.__name__}-context")
         self._token: Token[ResourceContext[T_co]] | None = None
         self._async_lock: Final = asyncio.Lock()
         self._lock: Final = threading.Lock()
+        self._scope = scope
 
     @override
     def supports_sync_context(self) -> bool:
@@ -304,6 +319,7 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
         "_initial_context",
         "_context_token",
         "_reset_resource_context",
+        "_scope",
     )
 
     def __init__(
@@ -312,6 +328,7 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
         global_context: ContextType | None = None,
         preserve_global_context: bool = False,
         reset_all_containers: bool = False,
+        scope: ContextScope | None = None,
     ) -> None:
         """Initialize a new container context.
 
@@ -320,6 +337,7 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
             global_context (dict[str, Any] | None): A dictionary representing the global context.
             preserve_global_context (bool): If True, merges the existing global context with the new one.
             reset_all_containers (bool): If True, creates a new context for all containers in this scope.
+            scope (ContextScope | None): The named scope that should be initialized.
 
         Example:
             ```python
@@ -343,6 +361,7 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
             self._add_providers_from_containers(BaseContainerMeta.get_instances())
 
         self._context_stack: contextlib.AsyncExitStack | contextlib.ExitStack | None = None
+        self._scope = scope
 
     def _add_providers_from_containers(self, containers: list[ContainerType]) -> None:
         for container in containers:
@@ -467,6 +486,7 @@ class DIContextMiddleware:
         *context_items: SupportsContext[typing.Any],
         global_context: dict[str, typing.Any] | None = None,
         reset_all_containers: bool = False,
+        scope: ContextScope | None = None,
     ) -> None:
         """Initialize the DIContextMiddleware.
 
@@ -476,6 +496,7 @@ class DIContextMiddleware:
                 need context initialization prior to a request.
             global_context (dict[str, Any] | None): A global context dictionary to set before requests.
             reset_all_containers (bool): Whether to reset all containers in the current scope before the request.
+            scope (ContextScope | None): The scope in which the context should be initialized.
 
         Example:
             ```python
@@ -487,6 +508,7 @@ class DIContextMiddleware:
         self._context_items: set[SupportsContext[typing.Any]] = set(context_items)
         self._global_context: dict[str, typing.Any] | None = global_context
         self._reset_all_containers: bool = reset_all_containers
+        self._scope = scope
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         """Handle the incoming ASGI request by initializing and tearing down context.
@@ -495,7 +517,7 @@ class DIContextMiddleware:
         closed after the request is completed.
 
         Args:
-            scope (Scope): The ASGI scope.
+            scope (ContextScope): The ASGI scope.
             receive (Receive): The receive call.
             send (Send): The send call.
 
