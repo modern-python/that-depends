@@ -31,9 +31,7 @@ class MyContainer(BaseContainer):
     app_provider = providers.Resource(async_resource)
     request_provider = providers.ContextResource(async_resource)
     function_provider = providers.ContextResource(async_resource)
-    provider_with_args: ContextResource[int] = providers.ContextResource(sync_resource_with_args, scope=None).with_spec(
-        42
-    )
+    provider_with_args: ContextResource[int] = providers.ContextResource(sync_resource_with_args, 42)
 
 
 @contextlib.asynccontextmanager

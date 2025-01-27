@@ -5,14 +5,13 @@ import typing
 from typing_extensions import override
 
 from that_depends.providers import AbstractProvider
-from that_depends.providers.base import SupportsParameters
 
 
 T_co = typing.TypeVar("T_co", covariant=True)
 P = typing.ParamSpec("P")
 
 
-class ThreadLocalSingleton(SupportsParameters, AbstractProvider[T_co]):
+class ThreadLocalSingleton(AbstractProvider[T_co]):
     """Creates a new instance for each thread using a thread-local store.
 
     This provider ensures that each thread gets its own instance, which is
@@ -40,17 +39,21 @@ class ThreadLocalSingleton(SupportsParameters, AbstractProvider[T_co]):
 
     """
 
-    def __init__(self, factory: typing.Callable[P, T_co]) -> None:
+    def __init__(self, factory: typing.Callable[P, T_co], *args: P.args, **kwargs: P.kwargs) -> None:
         """Initialize the ThreadLocalSingleton provider.
 
         Args:
             factory: A callable that returns a new instance of the dependency.
+            *args: Positional arguments to pass to the factory.
+            **kwargs: Keyword arguments to pass to the factory
 
         """
         super().__init__()
         self._factory: typing.Final = factory
         self._thread_local = threading.local()
         self._asyncio_lock = asyncio.Lock()
+        self._args: typing.Final[P.args] = args
+        self._kwargs: typing.Final[P.kwargs] = kwargs
 
     @property
     def _instance(self) -> T_co | None:

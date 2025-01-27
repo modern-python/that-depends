@@ -50,6 +50,8 @@ class Resource(AbstractResource[T_co]):
     def __init__(
         self,
         creator: ResourceCreatorType[P, T_co],
+        *args: P.args,
+        **kwargs: P.kwargs,
     ) -> None:
         """Initialize the Resource provider with a callable for resource creation.
 
@@ -76,7 +78,7 @@ class Resource(AbstractResource[T_co]):
             ```
 
         """
-        super().__init__(creator)
+        super().__init__(creator, *args, **kwargs)
         self._context: typing.Final[ResourceContext[T_co]] = ResourceContext(is_async=self.is_async)
 
     def _fetch_context(self) -> ResourceContext[T_co]:

@@ -3,7 +3,7 @@ import typing
 
 from typing_extensions import override
 
-from that_depends.providers.base import AbstractProvider, SupportsParameters
+from that_depends.providers.base import AbstractProvider
 
 
 T_co = typing.TypeVar("T_co", covariant=True)
@@ -117,7 +117,7 @@ class Factory(AbstractFactory[T_co]):
         )
 
 
-class AsyncFactory(SupportsParameters, AbstractFactory[T_co]):
+class AsyncFactory(AbstractFactory[T_co]):
     """Provides an instance by calling an async method.
 
     Similar to `Factory`, but requires an async function. Each call
@@ -137,15 +137,20 @@ class AsyncFactory(SupportsParameters, AbstractFactory[T_co]):
 
     __slots__ = "_args", "_factory", "_kwargs", "_override"
 
-    def __init__(self, factory: typing.Callable[P, typing.Awaitable[T_co]]) -> None:
+    def __init__(self, factory: typing.Callable[P, typing.Awaitable[T_co]], *args: P.args, **kwargs: P.kwargs) -> None:
         """Initialize an AsyncFactory instance.
 
         Args:
             factory (Callable[P, Awaitable[T_co]]): Async function that returns the resource.
+            *args: Arguments to pass to the factory function.
+            **kwargs: Keyword arguments to pass to the factory
+
 
         """
         super().__init__()
         self._factory: typing.Final = factory
+        self._args: typing.Final[P.args] = args
+        self._kwargs: typing.Final[P.kwargs] = kwargs
 
     @override
     async def async_resolve(self) -> T_co:

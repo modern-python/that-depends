@@ -13,7 +13,7 @@ from functools import wraps
 from types import TracebackType
 from typing import Final
 
-from typing_extensions import TypeIs, override
+from typing_extensions import Self, TypeIs, override
 
 from that_depends.entities.resource_context import ResourceContext
 from that_depends.meta import BaseContainerMeta
@@ -179,22 +179,37 @@ class ContextResource(
     def __init__(
         self,
         creator: typing.Callable[P, typing.Iterator[T_co] | typing.AsyncIterator[T_co]],
-        scope: ContextScope | None = None,  # temporary solution
+        *args: P.args,
+        **kwargs: P.kwargs,
     ) -> None:
         """Initialize a new context resource.
 
         Args:
             creator (Callable[P, Iterator[T_co] | AsyncIterator[T_co]]):
                 A sync or async iterator that yields the resource to be provided.
-            scope: Scope in which this resource can be resolved.
+            *args (P.args): Positional arguments to pass to the creator.
+            **kwargs (P.kwargs): Keyword arguments to pass to the creator.
 
         """
-        super().__init__(creator)
+        super().__init__(creator, *args, **kwargs)
         self._context: ContextVar[ResourceContext[T_co]] = ContextVar(f"{self._creator.__name__}-context")
         self._token: Token[ResourceContext[T_co]] | None = None
         self._async_lock: Final = asyncio.Lock()
         self._lock: Final = threading.Lock()
+        self._scope: ContextScope | None = None
+
+    def with_config(self, scope: ContextScope) -> "Self":
+        """Set the scope for this resource.
+
+        Args:
+            scope (ContextScope): The scope in which this resource can be resolved.
+
+        Returns:
+            ContextResource[T_co]: The resource with the updated scope.
+
+        """
         self._scope = scope
+        return self
 
     @override
     def supports_sync_context(self) -> bool:

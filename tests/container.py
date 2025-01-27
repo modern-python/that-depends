@@ -58,15 +58,13 @@ class DIContainer(BaseContainer):
     async_resource = providers.Resource(create_async_resource)
 
     simple_factory = providers.Factory(SimpleFactory, dep1="text", dep2=123)
-    async_factory = providers.AsyncFactory(
-        async_factory,
-    ).with_spec(async_resource)
+    async_factory = providers.AsyncFactory(async_factory, async_resource.cast)
     dependent_factory = providers.Factory(
         DependentFactory,
         simple_factory=simple_factory.cast,
         sync_resource=sync_resource.cast,
         async_resource=async_resource.cast,
     )
-    singleton = providers.Singleton(SingletonFactory).with_spec(dep1=True)
+    singleton = providers.Singleton(SingletonFactory, dep1=True)
     object = providers.Object(object())
     context_resource = providers.ContextResource(create_async_resource)

@@ -137,7 +137,7 @@ async def test_thread_local_singleton_async_resolve_with_async_dependencies() ->
     def _dependent_creator(v: int) -> int:
         return v
 
-    provider = ThreadLocalSingleton(_dependent_creator).with_spec(v=async_provider)
+    provider = ThreadLocalSingleton(_dependent_creator, v=async_provider.cast)
 
     expected = await provider.async_resolve()
 

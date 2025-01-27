@@ -119,37 +119,27 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
         return typing.cast(T_co, self)
 
 
-class SupportsParameters:
-    """Class supports passing arguments to the creator."""
-
-    def __init__(self, *args: typing.Any, **kwargs: typing.Any) -> None:  # noqa: ANN401
-        """Create an instance that supports passing arguments to the creator."""
-        super().__init__(*args, **kwargs)  # forward arguments
-        self._args: P.args = []
-        self._kwargs: P.kwargs = {}
-
-    def with_spec(self, *args: P.args, **kwargs: P.kwargs) -> "typing_extensions.Self":
-        """Set the arguments and keyword arguments to pass to the creator."""
-        self._args = args
-        self._kwargs = kwargs
-        return self
-
-
-class AbstractResource(SupportsParameters, AbstractProvider[T_co], abc.ABC):
+class AbstractResource(AbstractProvider[T_co], abc.ABC):
     """Base class for Resource providers."""
 
     def __init__(
         self,
         creator: ResourceCreatorType[P, T_co],
+        *args: P.args,
+        **kwargs: P.kwargs,
     ) -> None:
         """Create a new resource.
 
         Args:
             creator: sync or async iterator or context manager that yields resource.
+            *args: positional arguments to pass to the creator.
+            **kwargs: keyword arguments to pass to the creator.
+
 
         """
         super().__init__()
         self._creator: typing.Any
+
         if inspect.isasyncgenfunction(creator):
             self.is_async = True
             self._creator = contextlib.asynccontextmanager(creator)
@@ -165,6 +155,8 @@ class AbstractResource(SupportsParameters, AbstractProvider[T_co], abc.ABC):
         else:
             msg = "Unsupported resource type"
             raise TypeError(msg)
+        self._args: P.args = args
+        self._kwargs: P.kwargs = kwargs
 
     @abc.abstractmethod
     def _fetch_context(self) -> ResourceContext[T_co]: ...
