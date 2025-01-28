@@ -6,7 +6,7 @@ import logging
 import threading
 import typing
 from abc import abstractmethod
-from contextlib import AbstractAsyncContextManager, AbstractContextManager
+from contextlib import AbstractAsyncContextManager, AbstractContextManager, contextmanager
 from contextvars import ContextVar, Token
 from enum import Enum
 from functools import wraps
@@ -27,7 +27,8 @@ if typing.TYPE_CHECKING:
 logger: typing.Final = logging.getLogger(__name__)
 T_co = typing.TypeVar("T_co", covariant=True)
 P = typing.ParamSpec("P")
-_CONTAINER_CONTEXT: typing.Final[ContextVar[dict[str, typing.Any]]] = ContextVar("CONTAINER_CONTEXT")
+_CONTAINER_CONTEXT: typing.Final[ContextVar[dict[str, typing.Any]]] = ContextVar("__CONTAINER_CONTEXT__")
+
 AppType = typing.TypeVar("AppType")
 Scope = typing.MutableMapping[str, typing.Any]
 Message = typing.MutableMapping[str, typing.Any]
@@ -45,12 +46,36 @@ class ContextScope(int, Enum):
     FUNCTION = 1
 
 
+_CONTAINER_SCOPE: typing.Final[ContextVar[ContextScope | None]] = ContextVar("__CONTAINER_SCOPE__", default=None)
+
+
 def _get_container_context() -> dict[str, typing.Any]:
     try:
         return _CONTAINER_CONTEXT.get()
     except LookupError as exc:
         msg = "Context is not set. Use container_context"
         raise RuntimeError(msg) from exc
+
+
+def get_current_scope() -> ContextScope | None:
+    """Get the current context scope.
+
+    Returns:
+        ContextScope | None: The current context scope.
+
+    """
+    return _CONTAINER_SCOPE.get()
+
+
+def _set_current_scope(scope: ContextScope | None) -> Token[ContextScope | None]:
+    return _CONTAINER_SCOPE.set(scope)
+
+
+@contextmanager
+def _enter_named_scope(scope: ContextScope) -> typing.Iterator[ContextScope]:
+    token = _set_current_scope(scope)
+    yield scope
+    _CONTAINER_SCOPE.reset(token)
 
 
 def fetch_context_item(key: str, default: typing.Any = None) -> typing.Any:  # noqa: ANN401
@@ -159,6 +184,22 @@ class ContextResource(
     `ContextResource` handles both synchronous and asynchronous resource creators
     and ensures they are properly torn down when the context exits.
     """
+
+    @override
+    async def async_resolve(self) -> T_co:
+        current_scope = get_current_scope()
+        if not self._scope or self._scope == current_scope:
+            return await super().async_resolve()
+        msg = f"Cannot resolve resource with scope `{self._scope}` in scope `{current_scope}`"
+        raise RuntimeError(msg)
+
+    @override
+    def sync_resolve(self) -> T_co:
+        current_scope = get_current_scope()
+        if not self._scope or self._scope == current_scope:
+            return super().sync_resolve()
+        msg = f"Cannot resolve resource with scope `{self._scope}` in scope `{current_scope}`"
+        raise RuntimeError(msg)
 
     @override
     def get_scope(self) -> ContextScope | None:
@@ -369,20 +410,32 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
             )
         self._context_token: Token[ContextType] | None = None
         self._context_items: set[SupportsContext[typing.Any]] = set(context_items)
+        if scope:
+            self._add_providers_from_containers(BaseContainerMeta.get_instances(), scope)
         self._reset_resource_context: typing.Final[bool] = (
-            not context_items and not global_context
+            not context_items and not global_context and not scope
         ) or reset_all_containers
         if self._reset_resource_context:
             self._add_providers_from_containers(BaseContainerMeta.get_instances())
 
         self._context_stack: contextlib.AsyncExitStack | contextlib.ExitStack | None = None
         self._scope = scope
+        self._scope_token: Token[ContextScope | None] | None = None
 
-    def _add_providers_from_containers(self, containers: list[ContainerType]) -> None:
+    def _add_providers_from_containers(
+        self, containers: list[ContainerType], scope: ContextScope | None = None
+    ) -> None:
         for container in containers:
             for container_provider in container.get_providers().values():
                 if isinstance(container_provider, ContextResource):
-                    self._context_items.add(container_provider)
+                    if scope:
+                        provider_scope = (
+                            container_provider.get_scope() if container_provider.get_scope() else container.get_scope()
+                        )
+                        if provider_scope == scope:
+                            self._context_items.add(container_provider)
+                    else:
+                        self._context_items.add(container_provider)
 
     @override
     def __enter__(self) -> ContextType:
@@ -400,17 +453,24 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
         return self._enter_globals()
 
     def _enter_globals(self) -> ContextType:
+        self._scope_token = _set_current_scope(self._scope)
         self._context_token = _CONTAINER_CONTEXT.set(self._initial_context)
         return _CONTAINER_CONTEXT.get()
 
     def _is_context_token(self, _: Token[ContextType] | None) -> TypeIs[Token[ContextType]]:
-        return isinstance(_, Token)
+        return _ is not None
+
+    def _is_scope_token(self, _: Token[ContextScope | None] | None) -> TypeIs[Token[ContextScope | None]]:
+        return _ is not None
 
     def _exit_globals(self) -> None:
         if self._is_context_token(self._context_token):
-            return _CONTAINER_CONTEXT.reset(self._context_token)
-        msg = "No context token set for global vars, use __enter__ or __aenter__ first."
-        raise RuntimeError(msg)
+            _CONTAINER_CONTEXT.reset(self._context_token)
+        else:
+            msg = "No context token set for global vars, use __enter__ or __aenter__ first."
+            raise RuntimeError(msg)
+        if self._is_scope_token(self._scope_token):
+            _CONTAINER_SCOPE.reset(self._scope_token)
 
     def _has_async_exit_stack(
         self,

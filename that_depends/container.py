@@ -22,11 +22,13 @@ class BaseContainer(SupportsContext[None], metaclass=BaseContainerMeta):
 
     providers: dict[str, AbstractProvider[typing.Any]]
     containers: list[type["BaseContainer"]]
+    default_scope: ContextScope | None = None
 
     @classmethod
     @override
     def get_scope(cls) -> ContextScope | None:
-        return None
+        """Get default container scope."""
+        return cls.default_scope
 
     @override
     def __new__(cls, *_: typing.Any, **__: typing.Any) -> "typing_extensions.Self":
