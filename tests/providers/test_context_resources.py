@@ -11,6 +11,7 @@ import pytest
 
 from that_depends import BaseContainer, Provide, fetch_context_item, inject, providers
 from that_depends.entities.resource_context import ResourceContext
+from that_depends.meta import DefaultScopeNotDefinedError
 from that_depends.providers import container_context
 from that_depends.providers.context_resources import ContextScope, _enter_named_scope, get_current_scope
 
@@ -31,6 +32,7 @@ async def create_async_context_resource() -> typing.AsyncIterator[str]:
 
 
 class DIContainer(BaseContainer):
+    default_scope = None
     sync_context_resource = providers.ContextResource(create_sync_context_resource)
     async_context_resource = providers.ContextResource(create_async_context_resource)
     dynamic_context_resource = providers.Selector(
@@ -41,6 +43,7 @@ class DIContainer(BaseContainer):
 
 
 class DependentDiContainer(BaseContainer):
+    default_scope = None
     dependent_sync_context_resource = providers.ContextResource(create_sync_context_resource)
     dependent_async_context_resource = providers.ContextResource(create_async_context_resource)
 
@@ -619,6 +622,7 @@ async def test_async_context_switching_with_asyncio() -> None:
         yield str(uuid.uuid4())
 
     class MyContainer(BaseContainer):
+        default_scope = None
         slow_provider = providers.ContextResource(slow_async_creator)
 
     async def _injected() -> str:
@@ -634,6 +638,7 @@ def test_sync_context_switching_with_threads() -> None:
         yield str(uuid.uuid4())
 
     class MyContainer(BaseContainer):
+        default_scope = None
         slow_provider = providers.ContextResource(slow_sync_creator)
 
     def _injected() -> str:
@@ -756,3 +761,10 @@ async def test_sync_container_init_context_for_default_container_resources() -> 
         assert _Container.sync_resource.sync_resolve() is not None
     with pytest.raises(RuntimeError), container_context(scope=None):
         assert _Container.sync_resource.sync_resolve() is not None
+
+
+def test_container_with_context_resources_must_have_default_scope_set() -> None:
+    with pytest.raises(DefaultScopeNotDefinedError):
+
+        class _Container(BaseContainer):
+            sync_resource = providers.ContextResource(create_sync_context_resource)

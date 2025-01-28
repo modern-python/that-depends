@@ -1,13 +1,34 @@
 import abc
 import typing
+from collections.abc import MutableMapping
 from threading import Lock
 
 from typing_extensions import override
 
 
-
 if typing.TYPE_CHECKING:
     from that_depends.container import BaseContainer
+
+
+class DefaultScopeNotDefinedError(Exception):
+    """Exception raised when default_scope is not defined."""
+
+
+class _ContainerMetaDict(dict[str, typing.Any]):
+    """Implements custom logic for the container metaclass."""
+
+    @override
+    def __setitem__(self, key: str, value: typing.Any) -> None:
+        from that_depends.providers import ContextResource
+
+        if isinstance(value, ContextResource) and not value.get_scope():
+            try:
+                default_scope = self.__getitem__("default_scope")
+                super().__setitem__(key, value.with_config(default_scope))
+            except KeyError as e:
+                msg = "Explicitly define default_scope before defining ContextResource providers."
+                raise DefaultScopeNotDefinedError(msg) from e
+        super().__setitem__(key, value)
 
 
 class BaseContainerMeta(abc.ABCMeta):
@@ -16,6 +37,11 @@ class BaseContainerMeta(abc.ABCMeta):
     _instances: typing.ClassVar[list[type["BaseContainer"]]] = []
 
     _lock: Lock = Lock()
+
+    @classmethod
+    @override
+    def __prepare__(cls, name: str, bases: tuple[type, ...], /, **kwds: typing.Any) -> MutableMapping[str, object]:
+        return _ContainerMetaDict()
 
     @override
     def __new__(cls, name: str, bases: tuple[type, ...], namespace: dict[str, typing.Any]) -> type:
@@ -29,12 +55,3 @@ class BaseContainerMeta(abc.ABCMeta):
     def get_instances(cls) -> list[type["BaseContainer"]]:
         """Get all instances that inherit from BaseContainer."""
         return cls._instances
-
-    @override
-    def __setattr__(cls, key, value) -> None:
-        from that_depends.providers import ContextResource
-        if default_scope:= cls.__getattribute__("default_scope"):
-            if isinstance(value, ContextResource):
-                value = value.with_config(default_scope)
-        super().__setattr__(key, value)
-
