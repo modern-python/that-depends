@@ -792,7 +792,7 @@ def test_none_scoped_provider_should_not_be_resolvable_in_named_scope_sync() -> 
         provider.sync_resolve()
 
 
-def test_container_context_does_no_support_scope_any() -> None:
+def test_container_context_does_not_support_scope_any() -> None:
     with (
         pytest.raises(ValueError, match=f"{ContextScope.ANY} cannot be entered!"),
         container_context(scope=ContextScope.ANY),
