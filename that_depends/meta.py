@@ -19,9 +19,9 @@ class _ContainerMetaDict(dict[str, typing.Any]):
 
     @override
     def __setitem__(self, key: str, value: typing.Any) -> None:
-        from that_depends.providers.context_resources import ContextResource
+        from that_depends.providers.context_resources import ContextResource, ContextScope
 
-        if isinstance(value, ContextResource) and not value.get_scope():
+        if isinstance(value, ContextResource) and value.get_scope() == ContextScope.ANY:
             try:
                 default_scope = self.__getitem__("default_scope")
                 super().__setitem__(key, value.with_config(default_scope))
