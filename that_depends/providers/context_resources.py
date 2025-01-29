@@ -436,7 +436,7 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
                         provider_scope = (
                             container_provider.get_scope() if container_provider.get_scope() else container.get_scope()
                         )
-                        if provider_scope == scope:
+                        if provider_scope in (scope, ContextScope.ANY):
                             self._context_items.add(container_provider)
                     else:
                         self._context_items.add(container_provider)

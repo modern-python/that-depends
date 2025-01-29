@@ -41,66 +41,24 @@ def inject(  # noqa: C901
     def _inject_to_async(
         func: typing.Callable[P, typing.Coroutine[typing.Any, typing.Any, T]],
     ) -> typing.Callable[P, typing.Coroutine[typing.Any, typing.Any, T]]:
-        signature = inspect.signature(func)
-
         @functools.wraps(func)
         async def inner(*args: P.args, **kwargs: P.kwargs) -> T:
-            injected = False
-            for i, (field_name, field_value) in enumerate(signature.parameters.items()):
-                if i < len(args):
-                    if isinstance(field_value.default, AbstractProvider):
-                        injected = True
-                    continue
-
-                if not isinstance(field_value.default, AbstractProvider):
-                    continue
-
-                if field_name in kwargs:
-                    if isinstance(field_value.default, AbstractProvider):
-                        injected = True
-                    continue
-
-                kwargs[field_name] = await field_value.default.async_resolve()
-                injected = True
-            if not injected:
-                warnings.warn(
-                    "Expected injection, but nothing found. Remove @inject decorator.", RuntimeWarning, stacklevel=1
-                )
             if scope:
                 async with container_context(scope=scope):
-                    return await func(*args, **kwargs)
-            return await func(*args, **kwargs)
+                    return await _resolve_async(func, *args, **kwargs)
+            return await _resolve_async(func, *args, **kwargs)
 
         return inner
 
     def _inject_to_sync(
         func: typing.Callable[P, T],
     ) -> typing.Callable[P, T]:
-        signature: typing.Final = inspect.signature(func)
-
         @functools.wraps(func)
         def inner(*args: P.args, **kwargs: P.kwargs) -> T:
-            injected = False
-            for i, (field_name, field_value) in enumerate(signature.parameters.items()):
-                if i < len(args):
-                    continue
-                if not isinstance(field_value.default, AbstractProvider):
-                    continue
-                if field_name in kwargs:
-                    if isinstance(field_value.default, AbstractProvider):
-                        injected = True
-                    continue
-                kwargs[field_name] = field_value.default.sync_resolve()
-                injected = True
-
-            if not injected:
-                warnings.warn(
-                    "Expected injection, but nothing found. Remove @inject decorator.", RuntimeWarning, stacklevel=1
-                )
             if scope:
                 with container_context(scope=scope):
-                    return func(*args, **kwargs)
-            return func(*args, **kwargs)
+                    return _resolve_sync(func, *args, **kwargs)
+            return _resolve_sync(func, *args, **kwargs)
 
         return inner
 
@@ -108,6 +66,53 @@ def inject(  # noqa: C901
         return _inject(func)
 
     return _inject
+
+
+def _resolve_sync(func: typing.Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> T:
+    injected = False
+    signature: typing.Final = inspect.signature(func)
+    for i, (field_name, field_value) in enumerate(signature.parameters.items()):
+        if i < len(args):
+            continue
+        if not isinstance(field_value.default, AbstractProvider):
+            continue
+        if field_name in kwargs:
+            if isinstance(field_value.default, AbstractProvider):
+                injected = True
+            continue
+        kwargs[field_name] = field_value.default.sync_resolve()
+        injected = True
+
+    if not injected:
+        warnings.warn("Expected injection, but nothing found. Remove @inject decorator.", RuntimeWarning, stacklevel=1)
+
+    return func(*args, **kwargs)
+
+
+async def _resolve_async(
+    func: typing.Callable[P, typing.Coroutine[typing.Any, typing.Any, T]], *args: P.args, **kwargs: P.kwargs
+) -> T:
+    injected = False
+    signature = inspect.signature(func)
+    for i, (field_name, field_value) in enumerate(signature.parameters.items()):
+        if i < len(args):
+            if isinstance(field_value.default, AbstractProvider):
+                injected = True
+            continue
+
+        if not isinstance(field_value.default, AbstractProvider):
+            continue
+
+        if field_name in kwargs:
+            if isinstance(field_value.default, AbstractProvider):
+                injected = True
+            continue
+
+        kwargs[field_name] = await field_value.default.async_resolve()
+        injected = True
+    if not injected:
+        warnings.warn("Expected injection, but nothing found. Remove @inject decorator.", RuntimeWarning, stacklevel=1)
+    return await func(*args, **kwargs)
 
 
 class ClassGetItemMeta(type):

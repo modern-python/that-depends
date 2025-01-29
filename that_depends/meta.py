@@ -19,7 +19,7 @@ class _ContainerMetaDict(dict[str, typing.Any]):
 
     @override
     def __setitem__(self, key: str, value: typing.Any) -> None:
-        from that_depends.providers import ContextResource
+        from that_depends.providers.context_resources import ContextResource
 
         if isinstance(value, ContextResource) and not value.get_scope():
             try:
