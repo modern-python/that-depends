@@ -702,8 +702,6 @@ def test_scoped_container_get_scope() -> None:
 
 def test_sync_resolve_scoped_resource() -> None:
     provider = providers.ContextResource(create_sync_context_resource).with_config(scope=ContextScope.INJECT)
-    with pytest.raises(RuntimeError), provider.sync_context():
-        assert provider.sync_resolve() is not None
     with pytest.raises(RuntimeError):
         provider.sync_resolve()
 
@@ -713,9 +711,6 @@ def test_sync_resolve_scoped_resource() -> None:
 
 async def test_async_resolve_scoped_resource() -> None:
     provider = providers.ContextResource(create_async_context_resource).with_config(scope=ContextScope.INJECT)
-    with pytest.raises(RuntimeError):
-        async with provider.async_context():
-            assert await provider.async_resolve() is not None
     with pytest.raises(RuntimeError):
         await provider.async_resolve()
 
@@ -742,8 +737,7 @@ async def test_async_container_init_context_for_scoped_resources() -> None:
     async with container_context(scope=ContextScope.INJECT):
         assert await _Container.async_resource.async_resolve() is not None
     async with container_context(scope=None):
-        with pytest.raises(RuntimeError):
-            await _Container.async_resource.async_resolve()
+        assert await _Container.async_resource.async_resolve() is not None
 
 
 def test_sync_container_init_context_for_scoped_resources() -> None:
@@ -752,8 +746,8 @@ def test_sync_container_init_context_for_scoped_resources() -> None:
 
     with container_context(scope=ContextScope.INJECT):
         assert _Container.sync_resource.sync_resolve() is not None
-    with container_context(scope=None), pytest.raises(RuntimeError):
-        _Container.sync_resource.sync_resolve()
+    with container_context(scope=None):
+        assert _Container.sync_resource.sync_resolve() is not None
 
 
 async def test_sync_container_init_context_for_default_container_resources() -> None:
@@ -763,8 +757,6 @@ async def test_sync_container_init_context_for_default_container_resources() -> 
 
     assert _Container.sync_resource.get_scope() == ContextScope.INJECT
     with container_context(scope=ContextScope.INJECT):
-        assert _Container.sync_resource.sync_resolve() is not None
-    with pytest.raises(RuntimeError), container_context(scope=None):
         assert _Container.sync_resource.sync_resolve() is not None
 
 
@@ -808,3 +800,112 @@ def test_di_middleware_does_not_support_scope_any() -> None:
         pytest.raises(ValueError, match=f"{ContextScope.ANY} cannot be entered!"),
     ):
         DIContextMiddleware(Mock(), scope=ContextScope.ANY)
+
+
+async def test_resource_context_does_not_reset_in_wrong_scope_async() -> None:
+    class _Container(BaseContainer):
+        default_scope = ContextScope.REQUEST
+        p_app = providers.ContextResource(create_async_context_resource).with_config(scope=ContextScope.APP)
+        p_request = providers.ContextResource(create_async_context_resource)
+
+    async with container_context(scope=ContextScope.APP):
+        value_app_1 = await _Container.p_app.async_resolve()
+        with pytest.raises(RuntimeError):
+            await _Container.p_request.async_resolve()
+
+        async with container_context(scope=ContextScope.REQUEST):
+            value_app_2 = await _Container.p_app.async_resolve()
+            assert await _Container.p_request.async_resolve() is not None
+
+            assert value_app_1 == value_app_2
+
+        with pytest.raises(RuntimeError):
+            await _Container.p_request.async_resolve()
+
+
+def test_resource_context_does_not_set_in_wrong_scope_sync() -> None:
+    class _Container(BaseContainer):
+        default_scope = ContextScope.REQUEST
+        p_app = providers.ContextResource(create_sync_context_resource).with_config(scope=ContextScope.APP)
+        p_request = providers.ContextResource(create_sync_context_resource)
+
+    with container_context(scope=ContextScope.APP):
+        value_app_1 = _Container.p_app.sync_resolve()
+        with pytest.raises(RuntimeError):
+            _Container.p_request.sync_resolve()
+
+        with container_context(scope=ContextScope.REQUEST):
+            value_app_2 = _Container.p_app.sync_resolve()
+            assert _Container.p_request.sync_resolve() is not None
+
+            assert value_app_1 == value_app_2
+
+        with pytest.raises(RuntimeError):
+            _Container.p_request.sync_resolve()
+
+
+async def test_strict_scope_resource_only_resolvable_in_given_scope_async() -> None:
+    class _Container(BaseContainer):
+        p_app = providers.ContextResource(create_async_context_resource).with_config(
+            scope=ContextScope.APP, strict_scope=True
+        )
+        p_request = providers.ContextResource(create_async_context_resource).with_config(
+            scope=ContextScope.REQUEST, strict_scope=True
+        )
+
+    with pytest.raises(RuntimeError):
+        await _Container.p_app.async_resolve()
+
+    async with container_context(_Container.p_app, _Container.p_request):
+        assert _Container.p_app._fetch_context()  # context initialized
+        assert _Container.p_request._fetch_context()  # context initialized
+        with pytest.raises(RuntimeError):
+            await _Container.p_request.async_resolve()
+        with pytest.raises(RuntimeError):
+            await _Container.p_app.async_resolve()
+
+    async with container_context(scope=ContextScope.APP):
+        assert await _Container.p_app.async_resolve() is not None
+        with pytest.raises(RuntimeError):
+            await _Container.p_request.async_resolve()
+
+        async with container_context(scope=ContextScope.REQUEST):
+            assert await _Container.p_request.async_resolve() is not None
+            with pytest.raises(RuntimeError):
+                await _Container.p_app.async_resolve()
+
+
+def test_strict_scope_resource_only_resolvable_in_given_scope_sync() -> None:
+    class _Container(BaseContainer):
+        p_app = providers.ContextResource(create_sync_context_resource).with_config(
+            scope=ContextScope.APP, strict_scope=True
+        )
+        p_request = providers.ContextResource(create_sync_context_resource).with_config(
+            scope=ContextScope.REQUEST, strict_scope=True
+        )
+
+    with pytest.raises(RuntimeError):
+        _Container.p_app.sync_resolve()
+
+    with container_context(_Container.p_app, _Container.p_request):
+        assert _Container.p_app._fetch_context()  # context initialized
+        assert _Container.p_request._fetch_context()  # context initialized
+        with pytest.raises(RuntimeError):
+            _Container.p_request.sync_resolve()
+        with pytest.raises(RuntimeError):
+            _Container.p_app.sync_resolve()
+
+    with container_context(scope=ContextScope.APP):
+        assert _Container.p_app.sync_resolve() is not None
+        with pytest.raises(RuntimeError):
+            _Container.p_request.sync_resolve()
+
+        with container_context(scope=ContextScope.REQUEST):
+            assert _Container.p_request.sync_resolve() is not None
+            with pytest.raises(RuntimeError):
+                _Container.p_app.sync_resolve()
+
+
+def test_strict_scope_not_allowed_with_any_scope() -> None:
+    with pytest.raises(ValueError, match=f"Cannot set strict_scope with scope {ContextScope.ANY}."):
+        providers.ContextResource(create_sync_context_resource).with_config(scope=ContextScope.ANY, strict_scope=True)

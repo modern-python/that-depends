@@ -191,7 +191,7 @@ class ContextResource(
     @override
     async def async_resolve(self) -> T_co:
         current_scope = get_current_scope()
-        if self._scope in (ContextScope.ANY, current_scope):
+        if not self._strict_scope or self._scope in (ContextScope.ANY, current_scope):
             return await super().async_resolve()
         msg = f"Cannot resolve resource with scope `{self._scope}` in scope `{current_scope}`"
         raise RuntimeError(msg)
@@ -199,7 +199,7 @@ class ContextResource(
     @override
     def sync_resolve(self) -> T_co:
         current_scope = get_current_scope()
-        if self._scope in (ContextScope.ANY, current_scope):
+        if not self._strict_scope or self._scope in (ContextScope.ANY, current_scope):
             return super().sync_resolve()
         msg = f"Cannot resolve resource with scope `{self._scope}` in scope `{current_scope}`"
         raise RuntimeError(msg)
@@ -242,19 +242,25 @@ class ContextResource(
         self._async_lock: Final = asyncio.Lock()
         self._lock: Final = threading.Lock()
         self._scope: ContextScope | None = ContextScope.ANY
+        self._strict_scope: bool = False
 
-    def with_config(self, scope: ContextScope | None) -> "ContextResource[T_co]":
+    def with_config(self, scope: ContextScope | None, strict_scope: bool = False) -> "ContextResource[T_co]":
         """Create a new context-resource with the specified scope.
 
         Args:
             scope: named scope where resource is resolvable.
+            strict_scope: if True, the resource will only be resolvable in the specified scope.
 
         Returns:
             new context resource with the specified scope.
 
         """
+        if strict_scope and scope == ContextScope.ANY:
+            msg = f"Cannot set strict_scope with scope {scope}."
+            raise ValueError(msg)
         r = ContextResource(self._from_creator, *self._args, **self._kwargs)
         r._scope = scope  # noqa: SLF001
+        r._strict_scope = strict_scope  # noqa: SLF001
 
         return r
 
