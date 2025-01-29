@@ -6,6 +6,7 @@ import time
 import typing
 import uuid
 from contextlib import AsyncExitStack, ExitStack
+from unittest.mock import Mock
 
 import pytest
 
@@ -13,7 +14,12 @@ from that_depends import BaseContainer, Provide, fetch_context_item, inject, pro
 from that_depends.entities.resource_context import ResourceContext
 from that_depends.meta import DefaultScopeNotDefinedError
 from that_depends.providers import container_context
-from that_depends.providers.context_resources import ContextScope, _enter_named_scope, get_current_scope
+from that_depends.providers.context_resources import (
+    ContextScope,
+    DIContextMiddleware,
+    _enter_named_scope,
+    get_current_scope,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -797,3 +803,10 @@ def test_container_context_does_not_support_scope_any() -> None:
         pytest.raises(ValueError, match=f"{ContextScope.ANY} cannot be entered!"),
     ):
         container_context(scope=ContextScope.ANY)
+
+
+def test_di_middleware_does_not_support_scope_any() -> None:
+    with (
+        pytest.raises(ValueError, match=f"{ContextScope.ANY} cannot be entered!"),
+    ):
+        DIContextMiddleware(Mock(), scope=ContextScope.ANY)

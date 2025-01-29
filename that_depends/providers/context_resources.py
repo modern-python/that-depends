@@ -590,6 +590,9 @@ class DIContextMiddleware:
         self._context_items: set[SupportsContext[typing.Any]] = set(context_items)
         self._global_context: dict[str, typing.Any] | None = global_context
         self._reset_all_containers: bool = reset_all_containers
+        if scope == ContextScope.ANY:
+            msg = f"{scope} cannot be entered!"
+            raise ValueError(msg)
         self._scope = scope
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
@@ -608,8 +611,10 @@ class DIContextMiddleware:
 
         """
         async with (
-            container_context(*self._context_items, global_context=self._global_context)
+            container_context(*self._context_items, global_context=self._global_context, scope=self._scope)
             if self._context_items
-            else container_context(global_context=self._global_context, reset_all_containers=self._reset_all_containers)
+            else container_context(
+                global_context=self._global_context, reset_all_containers=self._reset_all_containers, scope=self._scope
+            )
         ):
             return await self.app(scope, receive, send)
