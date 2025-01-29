@@ -22,7 +22,7 @@ class BaseContainer(SupportsContext[None], metaclass=BaseContainerMeta):
 
     providers: dict[str, AbstractProvider[typing.Any]]
     containers: list[type["BaseContainer"]]
-    default_scope: ContextScope | None = None
+    default_scope: ContextScope | None = ContextScope.ANY
 
     @classmethod
     @override

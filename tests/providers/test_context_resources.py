@@ -678,7 +678,7 @@ async def test_entering_scope_with_container_context_async() -> None:
 
 def test_scoped_provider_get_scope() -> None:
     provider = providers.ContextResource(create_async_context_resource)
-    assert provider.get_scope() is None
+    assert provider.get_scope() == ContextScope.ANY
     provider = provider.with_config(scope=ContextScope.FUNCTION)
     assert provider.get_scope() == ContextScope.FUNCTION
 
@@ -686,7 +686,7 @@ def test_scoped_provider_get_scope() -> None:
 def test_scoped_container_get_scope() -> None:
     class _Container(BaseContainer): ...
 
-    assert _Container.get_scope() is None
+    assert _Container.get_scope() is ContextScope.ANY
 
     class _ScopedContainer(BaseContainer):
         default_scope = ContextScope.FUNCTION
@@ -757,6 +757,7 @@ async def test_sync_container_init_context_for_default_container_resources() -> 
         default_scope = ContextScope.FUNCTION
         sync_resource = providers.ContextResource(create_sync_context_resource)
 
+    assert _Container.sync_resource.get_scope() == ContextScope.FUNCTION
     with container_context(scope=ContextScope.FUNCTION):
         assert _Container.sync_resource.sync_resolve() is not None
     with pytest.raises(RuntimeError), container_context(scope=None):
@@ -768,3 +769,32 @@ def test_container_with_context_resources_must_have_default_scope_set() -> None:
 
         class _Container(BaseContainer):
             sync_resource = providers.ContextResource(create_sync_context_resource)
+
+
+def test_providers_with_explicit_scope_ignore_default_scope() -> None:
+    class _Container(BaseContainer):
+        default_scope = None
+        sync_resource = providers.ContextResource(create_sync_context_resource).with_config(scope=ContextScope.FUNCTION)
+
+    assert _Container.sync_resource.get_scope() == ContextScope.FUNCTION
+
+
+async def test_none_scoped_provider_should_not_be_resolvable_in_named_scope_async() -> None:
+    provider = providers.ContextResource(create_async_context_resource).with_config(scope=None)
+    async with container_context(scope=ContextScope.FUNCTION):
+        with pytest.raises(RuntimeError):
+            await provider.async_resolve()
+
+
+def test_none_scoped_provider_should_not_be_resolvable_in_named_scope_sync() -> None:
+    provider = providers.ContextResource(create_sync_context_resource).with_config(scope=None)
+    with container_context(scope=ContextScope.FUNCTION), pytest.raises(RuntimeError):
+        provider.sync_resolve()
+
+
+def test_container_context_does_no_support_scope_any() -> None:
+    with (
+        pytest.raises(ValueError, match=f"{ContextScope.ANY} cannot be entered!"),
+        container_context(scope=ContextScope.ANY),
+    ):
+        pass

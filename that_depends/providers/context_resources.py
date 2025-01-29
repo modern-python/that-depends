@@ -43,6 +43,7 @@ ContextType = dict[str, typing.Any]
 class ContextScope(int, Enum):
     """Enumeration of context scopes."""
 
+    ANY = 0  # special scope that can be used in any context
     FUNCTION = 1
 
 
@@ -188,7 +189,7 @@ class ContextResource(
     @override
     async def async_resolve(self) -> T_co:
         current_scope = get_current_scope()
-        if not self._scope or self._scope == current_scope:
+        if self._scope in (ContextScope.ANY, current_scope):
             return await super().async_resolve()
         msg = f"Cannot resolve resource with scope `{self._scope}` in scope `{current_scope}`"
         raise RuntimeError(msg)
@@ -196,7 +197,7 @@ class ContextResource(
     @override
     def sync_resolve(self) -> T_co:
         current_scope = get_current_scope()
-        if not self._scope or self._scope == current_scope:
+        if self._scope in (ContextScope.ANY, current_scope):
             return super().sync_resolve()
         msg = f"Cannot resolve resource with scope `{self._scope}` in scope `{current_scope}`"
         raise RuntimeError(msg)
@@ -237,9 +238,9 @@ class ContextResource(
         self._token: Token[ResourceContext[T_co]] | None = None
         self._async_lock: Final = asyncio.Lock()
         self._lock: Final = threading.Lock()
-        self._scope: ContextScope | None = None
+        self._scope: ContextScope | None = ContextScope.ANY
 
-    def with_config(self, scope: ContextScope) -> "Self":
+    def with_config(self, scope: ContextScope | None) -> "Self":
         """Set the scope for this resource.
 
         Args:
@@ -402,6 +403,9 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
             ```
 
         """
+        if scope == ContextScope.ANY:
+            msg = f"{scope} cannot be entered!"
+            raise ValueError(msg)
         if preserve_global_context and global_context:
             self._initial_context = {**_get_container_context(), **global_context}
         else:
