@@ -4,7 +4,7 @@ import typing
 import warnings
 
 from that_depends.providers import AbstractProvider
-from that_depends.providers.context_resources import ContextScope, container_context
+from that_depends.providers.context_resources import ContextScope, ContextScopes, container_context
 
 
 P = typing.ParamSpec("P")
@@ -18,15 +18,15 @@ def inject(func: typing.Callable[P, T]) -> typing.Callable[P, T]: ...
 @typing.overload
 def inject(
     *,
-    scope: ContextScope | None = ContextScope.INJECT,
+    scope: ContextScope | None = ContextScopes.INJECT,
 ) -> typing.Callable[[typing.Callable[P, T]], typing.Callable[P, T]]: ...
 
 
 def inject(  # noqa: C901
-    func: typing.Callable[P, T] | None = None, scope: ContextScope | None = ContextScope.INJECT
+    func: typing.Callable[P, T] | None = None, scope: ContextScope | None = ContextScopes.INJECT
 ) -> typing.Callable[P, T] | typing.Callable[[typing.Callable[P, T]], typing.Callable[P, T]]:
     """Inject dependencies into a function."""
-    if scope == ContextScope.ANY:
+    if scope == ContextScopes.ANY:
         msg = f"{scope} is not allowed in inject decorator."
         raise ValueError(msg)
 

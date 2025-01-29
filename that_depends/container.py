@@ -6,7 +6,7 @@ from typing_extensions import override
 
 from that_depends.meta import BaseContainerMeta
 from that_depends.providers import AbstractProvider, Resource, Singleton
-from that_depends.providers.context_resources import ContextResource, ContextScope, SupportsContext
+from that_depends.providers.context_resources import ContextResource, ContextScope, ContextScopes, SupportsContext
 
 
 if typing.TYPE_CHECKING:
@@ -22,7 +22,7 @@ class BaseContainer(SupportsContext[None], metaclass=BaseContainerMeta):
 
     providers: dict[str, AbstractProvider[typing.Any]]
     containers: list[type["BaseContainer"]]
-    default_scope: ContextScope | None = ContextScope.ANY
+    default_scope: ContextScope | None = ContextScopes.ANY
 
     @classmethod
     @override

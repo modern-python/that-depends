@@ -8,7 +8,6 @@ import typing
 from abc import abstractmethod
 from contextlib import AbstractAsyncContextManager, AbstractContextManager, contextmanager
 from contextvars import ContextVar, Token
-from enum import Enum
 from functools import wraps
 from types import TracebackType
 from typing import Final
@@ -40,13 +39,31 @@ _ASYNC_CONTEXT_KEY: typing.Final[str] = "__ASYNC_CONTEXT__"
 ContextType = dict[str, typing.Any]
 
 
-class ContextScope(int, Enum):
+class ContextScope:
+    """A named context scope."""
+
+    def __init__(self, name: str) -> None:
+        """Initialize a new context scope."""
+        self._name = name
+
+    @property
+    def name(self) -> str:
+        """Get the name of the context scope."""
+        return self._name
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, ContextScope):
+            return self.name == other.name
+        return False
+
+
+class ContextScopes:
     """Enumeration of context scopes."""
 
-    ANY = 0  # special scope that can be used in any context
-    APP = 1
-    REQUEST = 2
-    INJECT = 3
+    ANY = ContextScope("ANY")  # special scope that can be used in any context
+    APP = ContextScope("APP")  # application scope
+    REQUEST = ContextScope("REQUEST")  # request scope
+    INJECT = ContextScope("INJECT")  # inject scope
 
 
 _CONTAINER_SCOPE: typing.Final[ContextVar[ContextScope | None]] = ContextVar("__CONTAINER_SCOPE__", default=None)
@@ -191,7 +208,7 @@ class ContextResource(
     @override
     async def async_resolve(self) -> T_co:
         current_scope = get_current_scope()
-        if not self._strict_scope or self._scope in (ContextScope.ANY, current_scope):
+        if not self._strict_scope or self._scope in (ContextScopes.ANY, current_scope):
             return await super().async_resolve()
         msg = f"Cannot resolve resource with scope `{self._scope}` in scope `{current_scope}`"
         raise RuntimeError(msg)
@@ -199,7 +216,7 @@ class ContextResource(
     @override
     def sync_resolve(self) -> T_co:
         current_scope = get_current_scope()
-        if not self._strict_scope or self._scope in (ContextScope.ANY, current_scope):
+        if not self._strict_scope or self._scope in (ContextScopes.ANY, current_scope):
             return super().sync_resolve()
         msg = f"Cannot resolve resource with scope `{self._scope}` in scope `{current_scope}`"
         raise RuntimeError(msg)
@@ -241,7 +258,7 @@ class ContextResource(
         self._token: Token[ResourceContext[T_co]] | None = None
         self._async_lock: Final = asyncio.Lock()
         self._lock: Final = threading.Lock()
-        self._scope: ContextScope | None = ContextScope.ANY
+        self._scope: ContextScope | None = ContextScopes.ANY
         self._strict_scope: bool = False
 
     def with_config(self, scope: ContextScope | None, strict_scope: bool = False) -> "ContextResource[T_co]":
@@ -255,7 +272,7 @@ class ContextResource(
             new context resource with the specified scope.
 
         """
-        if strict_scope and scope == ContextScope.ANY:
+        if strict_scope and scope == ContextScopes.ANY:
             msg = f"Cannot set strict_scope with scope {scope}."
             raise ValueError(msg)
         r = ContextResource(self._from_creator, *self._args, **self._kwargs)
@@ -414,7 +431,7 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
             ```
 
         """
-        if scope == ContextScope.ANY:
+        if scope == ContextScopes.ANY:
             msg = f"{scope} cannot be entered!"
             raise ValueError(msg)
         if preserve_global_context and global_context:
@@ -447,7 +464,7 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
                         provider_scope = (
                             container_provider.get_scope() if container_provider.get_scope() else container.get_scope()
                         )
-                        if provider_scope in (scope, ContextScope.ANY):
+                        if provider_scope in (scope, ContextScopes.ANY):
                             self._context_items.add(container_provider)
                     else:
                         self._context_items.add(container_provider)
@@ -598,7 +615,7 @@ class DIContextMiddleware:
         self._context_items: set[SupportsContext[typing.Any]] = set(context_items)
         self._global_context: dict[str, typing.Any] | None = global_context
         self._reset_all_containers: bool = reset_all_containers
-        if scope == ContextScope.ANY:
+        if scope == ContextScopes.ANY:
             msg = f"{scope} cannot be entered!"
             raise ValueError(msg)
         self._scope = scope
