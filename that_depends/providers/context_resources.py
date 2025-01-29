@@ -44,7 +44,9 @@ class ContextScope(int, Enum):
     """Enumeration of context scopes."""
 
     ANY = 0  # special scope that can be used in any context
-    FUNCTION = 1
+    APP = 1
+    REQUEST = 2
+    INJECT = 3
 
 
 _CONTAINER_SCOPE: typing.Final[ContextVar[ContextScope | None]] = ContextVar("__CONTAINER_SCOPE__", default=None)

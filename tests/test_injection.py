@@ -108,31 +108,33 @@ def test_type_check() -> None:
 async def test_async_injection_with_scope() -> None:
     class _Container(BaseContainer):
         default_scope = ContextScope.ANY
-        async_resource = providers.ContextResource(_async_creator).with_config(scope=ContextScope.FUNCTION)
+        async_resource = providers.ContextResource(_async_creator).with_config(scope=ContextScope.INJECT)
 
     async def _injected(val: int = Provide[_Container.async_resource]) -> int:
         return val
 
-    assert await inject(scope=ContextScope.FUNCTION)(_injected)() == 1
+    assert await inject(scope=ContextScope.INJECT)(_injected)() == 1
+    assert await inject(_injected)() == 1
     with pytest.raises(RuntimeError):
         await inject(scope=None)(_injected)()
     with pytest.raises(RuntimeError):
-        await inject(_injected)()
+        await inject(scope=ContextScope.REQUEST)(_injected)()
 
 
 async def test_sync_injection_with_scope() -> None:
     class _Container(BaseContainer):
         default_scope = ContextScope.ANY
-        sync_resource = providers.ContextResource(_sync_creator).with_config(scope=ContextScope.FUNCTION)
+        p_inject = providers.ContextResource(_sync_creator).with_config(scope=ContextScope.INJECT)
 
-    def _injected(val: int = Provide[_Container.sync_resource]) -> int:
+    def _injected(val: int = Provide[_Container.p_inject]) -> int:
         return val
 
-    assert inject(scope=ContextScope.FUNCTION)(_injected)() == 1
+    assert inject(scope=ContextScope.INJECT)(_injected)() == 1
+    assert inject(_injected)() == 1
     with pytest.raises(RuntimeError):
         inject(scope=None)(_injected)()
     with pytest.raises(RuntimeError):
-        inject(_injected)()
+        inject(scope=ContextScope.REQUEST)(_injected)()
 
 
 def test_inject_decorator_should_not_allow_any_scope() -> None:

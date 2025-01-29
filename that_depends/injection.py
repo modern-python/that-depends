@@ -18,12 +18,12 @@ def inject(func: typing.Callable[P, T]) -> typing.Callable[P, T]: ...
 @typing.overload
 def inject(
     *,
-    scope: ContextScope | None = None,
+    scope: ContextScope | None = ContextScope.INJECT,
 ) -> typing.Callable[[typing.Callable[P, T]], typing.Callable[P, T]]: ...
 
 
 def inject(  # noqa: C901
-    func: typing.Callable[P, T] | None = None, scope: ContextScope | None = None
+    func: typing.Callable[P, T] | None = None, scope: ContextScope | None = ContextScope.INJECT
 ) -> typing.Callable[P, T] | typing.Callable[[typing.Callable[P, T]], typing.Callable[P, T]]:
     """Inject dependencies into a function."""
     if scope == ContextScope.ANY:
