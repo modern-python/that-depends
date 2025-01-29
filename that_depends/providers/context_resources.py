@@ -13,7 +13,7 @@ from functools import wraps
 from types import TracebackType
 from typing import Final
 
-from typing_extensions import Self, TypeIs, override
+from typing_extensions import TypeIs, override
 
 from that_depends.entities.resource_context import ResourceContext
 from that_depends.meta import BaseContainerMeta
@@ -234,24 +234,27 @@ class ContextResource(
 
         """
         super().__init__(creator, *args, **kwargs)
+        self._from_creator = creator
         self._context: ContextVar[ResourceContext[T_co]] = ContextVar(f"{self._creator.__name__}-context")
         self._token: Token[ResourceContext[T_co]] | None = None
         self._async_lock: Final = asyncio.Lock()
         self._lock: Final = threading.Lock()
         self._scope: ContextScope | None = ContextScope.ANY
 
-    def with_config(self, scope: ContextScope | None) -> "Self":
-        """Set the scope for this resource.
+    def with_config(self, scope: ContextScope | None) -> "ContextResource[T_co]":
+        """Create a new context-resource with the specified scope.
 
         Args:
-            scope (ContextScope): The scope in which this resource can be resolved.
+            scope: named scope where resource is resolvable.
 
         Returns:
-            ContextResource[T_co]: The resource with the updated scope.
+            new context resource with the specified scope.
 
         """
-        self._scope = scope
-        return self
+        r = ContextResource(self._from_creator, *self._args, **self._kwargs)
+        r._scope = scope  # noqa: SLF001
+
+        return r
 
     @override
     def supports_sync_context(self) -> bool:

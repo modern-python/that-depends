@@ -28,7 +28,8 @@ class _ContainerMetaDict(dict[str, typing.Any]):
             except KeyError as e:
                 msg = "Explicitly define default_scope before defining ContextResource providers."
                 raise DefaultScopeNotDefinedError(msg) from e
-        super().__setitem__(key, value)
+        else:
+            super().__setitem__(key, value)
 
 
 class BaseContainerMeta(abc.ABCMeta):
