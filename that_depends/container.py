@@ -1,6 +1,7 @@
 import inspect
 import typing
 from contextlib import AsyncExitStack, ExitStack, asynccontextmanager, contextmanager
+from typing import overload
 
 from typing_extensions import override
 
@@ -25,6 +26,48 @@ class BaseContainer(SupportsContext[None], metaclass=BaseContainerMeta):
     default_scope: ContextScope | None = ContextScopes.ANY
 
     @classmethod
+    @overload
+    def context(cls, func: typing.Callable[P, T]) -> typing.Callable[P, T]: ...
+
+    @classmethod
+    @overload
+    def context(cls, *, force: bool = False) -> typing.Callable[[typing.Callable[P, T]], typing.Callable[P, T]]: ...
+
+    @classmethod
+    def context(
+        cls, func: typing.Callable[P, T] | None = None, force: bool = False
+    ) -> typing.Callable[P, T] | typing.Callable[[typing.Callable[P, T]], typing.Callable[P, T]]:
+        """Wrap a function with this resources' context.
+
+        Args:
+            func: function to be wrapped.
+            force: force context initialization, ignoring scope.
+
+        Returns:
+            wrapped function or wrapper if func is None.
+
+        """
+
+        def _wrapper(func: typing.Callable[P, T]) -> typing.Callable[P, T]:
+            if inspect.iscoroutinefunction(func):
+
+                async def _async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+                    async with cls.async_context(force=force):
+                        return await func(*args, **kwargs)  # type: ignore[no-any-return, misc]
+
+                return typing.cast(typing.Callable[P, T], _async_wrapper)
+
+            def _sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+                with cls.sync_context(force=force):
+                    return func(*args, **kwargs)
+
+            return _sync_wrapper
+
+        if func:
+            return _wrapper(func)
+        return _wrapper
+
+    @classmethod
     @override
     def get_scope(cls) -> ContextScope | None:
         """Get default container scope."""
@@ -43,43 +86,26 @@ class BaseContainer(SupportsContext[None], metaclass=BaseContainerMeta):
     @classmethod
     @contextmanager
     @override
-    def sync_context(cls) -> typing.Iterator[None]:
+    def sync_context(cls, force: bool = False) -> typing.Iterator[None]:
         with ExitStack() as stack:
             for container in cls.get_containers():
-                stack.enter_context(container.sync_context())
+                stack.enter_context(container.sync_context(force=force))
             for provider in cls.get_providers().values():
                 if isinstance(provider, ContextResource) and not provider.is_async:
-                    stack.enter_context(provider.sync_context())
+                    stack.enter_context(provider.sync_context(force=force))
             yield
 
     @classmethod
     @asynccontextmanager
     @override
-    async def async_context(cls) -> typing.AsyncIterator[None]:
+    async def async_context(cls, force: bool = False) -> typing.AsyncIterator[None]:
         async with AsyncExitStack() as stack:
             for container in cls.get_containers():
-                await stack.enter_async_context(container.async_context())
+                await stack.enter_async_context(container.async_context(force=force))
             for provider in cls.get_providers().values():
                 if isinstance(provider, ContextResource):
-                    await stack.enter_async_context(provider.async_context())
+                    await stack.enter_async_context(provider.async_context(force=force))
             yield
-
-    @classmethod
-    @override
-    def context(cls, func: typing.Callable[P, T]) -> typing.Callable[P, T]:
-        if inspect.iscoroutinefunction(func):
-
-            async def _async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-                async with cls.async_context():
-                    return await func(*args, **kwargs)  # type: ignore[no-any-return]
-
-            return typing.cast(typing.Callable[P, T], _async_wrapper)
-
-        def _sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-            with cls.sync_context():
-                return func(*args, **kwargs)
-
-        return _sync_wrapper
 
     @classmethod
     def connect_containers(cls, *containers: type["BaseContainer"]) -> None:

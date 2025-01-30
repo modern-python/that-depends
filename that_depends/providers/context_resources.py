@@ -10,7 +10,7 @@ from contextlib import AbstractAsyncContextManager, AbstractContextManager, cont
 from contextvars import ContextVar, Token
 from functools import wraps
 from types import TracebackType
-from typing import Final
+from typing import Final, overload
 
 from typing_extensions import TypeIs, override
 
@@ -143,30 +143,11 @@ class SupportsContext(typing.Generic[CT], abc.ABC):
         """Return the scope of the resource."""
 
     @abstractmethod
-    def context(self, func: typing.Callable[P, T]) -> typing.Callable[P, T]:
-        """Wrap a function with a new context.
-
-        The returned function will automatically initialize and tear down
-        the context whenever it is called.
+    def async_context(self, force: bool = False) -> typing.AsyncContextManager[CT]:
+        """Create an async context manager for this resource.
 
         Args:
-            func (Callable[P, T]): The function to wrap.
-
-        Returns:
-            Callable[P, T]: The wrapped function.
-
-        Example:
-            ```python
-            @my_resource.context
-            def my_function():
-                return do_something()
-            ```
-
-        """
-
-    @abstractmethod
-    def async_context(self) -> typing.AsyncContextManager[CT]:
-        """Create an async context manager for this resource.
+            force (bool): If True, the context will be entered regardless of the current scope.
 
         Returns:
             AsyncContextManager[CT]: An async context manager.
@@ -180,8 +161,11 @@ class SupportsContext(typing.Generic[CT], abc.ABC):
         """
 
     @abstractmethod
-    def sync_context(self) -> typing.ContextManager[CT]:
+    def sync_context(self, force: bool = False) -> typing.ContextManager[CT]:
         """Create a sync context manager for this resource.
+
+        Args:
+            force (bool): If True, the context will be entered regardless of the current scope.
 
         Returns:
             ContextManager[CT]: A sync context manager.
@@ -270,6 +254,45 @@ class ContextResource(
         self._scope: ContextScope | None = ContextScopes.ANY
         self._strict_scope: bool = False
 
+    @overload
+    def context(self, func: typing.Callable[P, T]) -> typing.Callable[P, T]: ...
+
+    @overload
+    def context(self, *, force: bool = False) -> typing.Callable[[typing.Callable[P, T]], typing.Callable[P, T]]: ...
+
+    def context(
+        self, func: typing.Callable[P, T] | None = None, force: bool = False
+    ) -> typing.Callable[P, T] | typing.Callable[[typing.Callable[P, T]], typing.Callable[P, T]]:
+        """Create a new context manager for the resource, the context manager will be async if the resource is async.
+
+        Returns:
+            typing.ContextManager[ResourceContext[T_co]] | typing.AsyncContextManager[ResourceContext[T_co]]:
+            A context manager for the resource.
+
+        """
+
+        def _wrapper(func: typing.Callable[P, T]) -> typing.Callable[P, T]:
+            if inspect.iscoroutinefunction(func):
+
+                @wraps(func)
+                async def _async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+                    async with self.async_context(force=force):
+                        return await func(*args, **kwargs)  # type: ignore[no-any-return, misc]
+
+                return typing.cast(typing.Callable[P, T], _async_wrapper)
+
+            # wrapped function is sync
+            @wraps(func)
+            def _sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+                with self.sync_context(force=force):
+                    return func(*args, **kwargs)
+
+            return typing.cast(typing.Callable[P, T], _sync_wrapper)
+
+        if func:
+            return _wrapper(func)
+        return _wrapper
+
     def with_config(self, scope: ContextScope | None, strict_scope: bool = False) -> "ContextResource[T_co]":
         """Create a new context-resource with the specified scope.
 
@@ -294,17 +317,17 @@ class ContextResource(
     def supports_sync_context(self) -> bool:
         return not self.is_async
 
-    def _enter_sync_context(self) -> ResourceContext[T_co]:
+    def _enter_sync_context(self, force: bool = False) -> ResourceContext[T_co]:
         if self.is_async:
             msg = "You must enter async context for async creators."
             raise RuntimeError(msg)
-        return self._enter()
+        return self._enter(force)
 
-    async def _enter_async_context(self) -> ResourceContext[T_co]:
-        return self._enter()
+    async def _enter_async_context(self, force: bool = False) -> ResourceContext[T_co]:
+        return self._enter(force)
 
-    def _enter(self) -> ResourceContext[T_co]:
-        if self._scope not in (ContextScopes.ANY, get_current_scope()):
+    def _enter(self, force: bool = False) -> ResourceContext[T_co]:
+        if not force and self._scope not in (ContextScopes.ANY, get_current_scope()):
             msg = f"Cannot enter context for resource with scope {self._scope} in scope {get_current_scope()!r}"
             raise InvalidContextError(msg)
         self._token = self._context.set(ResourceContext(is_async=self.is_async))
@@ -337,13 +360,13 @@ class ContextResource(
 
     @contextlib.contextmanager
     @override
-    def sync_context(self) -> typing.Iterator[ResourceContext[T_co]]:
+    def sync_context(self, force: bool = False) -> typing.Iterator[ResourceContext[T_co]]:
         if self.is_async:
             msg = "Please use async context instead."
             raise RuntimeError(msg)
         token = self._token
         with self._lock:
-            val = self._enter_sync_context()
+            val = self._enter_sync_context(force=force)
             temp_token = self._token
         yield val
         with self._lock:
@@ -353,43 +376,17 @@ class ContextResource(
 
     @contextlib.asynccontextmanager
     @override
-    async def async_context(self) -> typing.AsyncIterator[ResourceContext[T_co]]:
+    async def async_context(self, force: bool = False) -> typing.AsyncIterator[ResourceContext[T_co]]:
         token = self._token
 
         async with self._async_lock:
-            val = await self._enter_async_context()
+            val = await self._enter_async_context(force=force)
             temp_token = self._token
         yield val
         async with self._async_lock:
             self._token = temp_token
             await self._exit_async_context()
         self._token = token
-
-    @override
-    def context(self, func: typing.Callable[P, T]) -> typing.Callable[P, T]:
-        """Create a new context manager for the resource, the context manager will be async if the resource is async.
-
-        Returns:
-            typing.ContextManager[ResourceContext[T_co]] | typing.AsyncContextManager[ResourceContext[T_co]]:
-            A context manager for the resource.
-
-        """
-        if inspect.iscoroutinefunction(func):
-
-            @wraps(func)
-            async def _async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-                async with self.async_context():
-                    return await func(*args, **kwargs)  # type: ignore[no-any-return]
-
-            return typing.cast(typing.Callable[P, T], _async_wrapper)
-
-        # wrapped function is sync
-        @wraps(func)
-        def _sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-            with self.sync_context():
-                return func(*args, **kwargs)
-
-        return typing.cast(typing.Callable[P, T], _sync_wrapper)
 
     def _fetch_context(self) -> ResourceContext[T_co]:
         try:

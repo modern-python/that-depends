@@ -958,3 +958,61 @@ def test_sync_entering_container_context_for_all_containers_correctly_handles_na
         assert _Container.p_request.sync_resolve() is not None
         with pytest.raises(RuntimeError):
             _Container.p_app.sync_resolve()
+
+
+async def test_async_force_enter_context_for_scoped_resource() -> None:
+    class _Container(BaseContainer):
+        p_app = providers.ContextResource(create_async_context_resource).with_config(scope=ContextScopes.APP)
+
+    async with _Container.p_app.async_context(force=True):
+        assert await _Container.p_app.async_resolve() is not None
+
+    async with _Container.async_context(force=True):
+        assert await _Container.p_app.async_resolve() is not None
+
+
+def test_sync_force_enter_context_for_scoped_resource() -> None:
+    class _Container(BaseContainer):
+        p_app = providers.ContextResource(create_sync_context_resource).with_config(scope=ContextScopes.APP)
+
+    with _Container.p_app.sync_context(force=True):
+        assert _Container.p_app.sync_resolve() is not None
+
+    with _Container.sync_context(force=True):
+        assert _Container.p_app.sync_resolve() is not None
+
+
+async def test_async_force_enter_context_with_context_annotation() -> None:
+    class _Container(BaseContainer):
+        p_app = providers.ContextResource(create_async_context_resource).with_config(scope=ContextScopes.APP)
+
+    @_Container.context(force=True)
+    @inject(scope=None)
+    async def _injected(val: str = Provide[_Container.p_app]) -> str:
+        return val
+
+    @_Container.p_app.context(force=True)
+    @inject(scope=None)
+    async def _injected_p(val: str = Provide[_Container.p_app]) -> str:
+        return val
+
+    assert await _injected() is not None
+    assert await _injected_p() is not None
+
+
+def test_sync_force_enter_context_with_context_annotation() -> None:
+    class _Container(BaseContainer):
+        p_app = providers.ContextResource(create_sync_context_resource).with_config(scope=ContextScopes.APP)
+
+    @_Container.context(force=True)
+    @inject(scope=None)
+    def _injected(val: str = Provide[_Container.p_app]) -> str:
+        return val
+
+    @_Container.p_app.context(force=True)
+    @inject(scope=None)
+    def _injected_p(val: str = Provide[_Container.p_app]) -> str:
+        return val
+
+    assert _injected() is not None
+    assert _injected_p() is not None
