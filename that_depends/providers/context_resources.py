@@ -446,6 +446,7 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
         if scope == ContextScopes.ANY:
             msg = f"{scope} cannot be entered!"
             raise ValueError(msg)
+        self._scope = scope if scope else get_current_scope()
         if preserve_global_context and global_context:
             self._initial_context = {**_get_container_context(), **global_context}
         else:
@@ -454,31 +455,23 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
             )
         self._context_token: Token[ContextType] | None = None
         self._context_items: set[SupportsContext[typing.Any]] = set(context_items)
-        if scope:
-            self._add_providers_from_containers(BaseContainerMeta.get_instances(), scope)
         self._reset_resource_context: typing.Final[bool] = (
-            not context_items and not global_context and not scope
+            not context_items and not global_context
         ) or reset_all_containers
-        if self._reset_resource_context:
-            self._add_providers_from_containers(BaseContainerMeta.get_instances())
+        if self._reset_resource_context:  # equivalent to reset_all_containers
+            self._add_providers_from_containers(BaseContainerMeta.get_instances(), self._scope)
 
         self._context_stack: contextlib.AsyncExitStack | contextlib.ExitStack | None = None
-        self._scope = scope
         self._scope_token: Token[ContextScope | None] | None = None
 
     def _add_providers_from_containers(
-        self, containers: list[ContainerType], scope: ContextScope | None = None
+        self, containers: list[ContainerType], scope: ContextScope | None = ContextScopes.ANY
     ) -> None:
         for container in containers:
             for container_provider in container.get_providers().values():
                 if isinstance(container_provider, ContextResource):
-                    if scope:
-                        provider_scope = (
-                            container_provider.get_scope() if container_provider.get_scope() else container.get_scope()
-                        )
-                        if provider_scope in (scope, ContextScopes.ANY):
-                            self._context_items.add(container_provider)
-                    else:
+                    provider_scope = container_provider.get_scope()
+                    if provider_scope in (scope, ContextScopes.ANY):
                         self._context_items.add(container_provider)
 
     @override
