@@ -204,6 +204,7 @@ async def test_sync_container_context_with_different_stack() -> None:
 
 
 async def test_async_container_context_with_different_stack() -> None:
+    @container_context()
     @inject
     async def some_injected(depth: int, val: str = Provide[DIContainer.async_context_resource]) -> str:
         if depth > 1:
@@ -1016,3 +1017,41 @@ def test_sync_force_enter_context_with_context_annotation() -> None:
 
     assert _injected() is not None
     assert _injected_p() is not None
+
+
+async def test_async_container_context_selects_context_items_on_entry() -> None:
+    class _Container(BaseContainer):
+        p_app = providers.ContextResource(create_async_context_resource).with_config(
+            scope=ContextScopes.APP, strict_scope=True
+        )
+        p_request = providers.ContextResource(create_async_context_resource).with_config(
+            scope=ContextScopes.REQUEST, strict_scope=True
+        )
+
+    async with container_context(scope=ContextScopes.APP):
+        cc = container_context()
+
+        async with container_context(scope=ContextScopes.REQUEST):
+            assert get_current_scope() == ContextScopes.REQUEST
+            async with cc:
+                assert get_current_scope() == ContextScopes.REQUEST
+                assert await _Container.p_request.async_resolve() is not None
+
+
+def test_sync_container_context_selects_context_items_on_entry() -> None:
+    class _Container(BaseContainer):
+        p_app = providers.ContextResource(create_sync_context_resource).with_config(
+            scope=ContextScopes.APP, strict_scope=True
+        )
+        p_request = providers.ContextResource(create_sync_context_resource).with_config(
+            scope=ContextScopes.REQUEST, strict_scope=True
+        )
+
+    with container_context(scope=ContextScopes.APP):
+        cc = container_context()
+
+        with container_context(scope=ContextScopes.REQUEST):
+            assert get_current_scope() == ContextScopes.REQUEST
+            with cc:
+                assert get_current_scope() == ContextScopes.REQUEST
+                assert _Container.p_request.sync_resolve() is not None

@@ -443,23 +443,27 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
         if scope == ContextScopes.ANY:
             msg = f"{scope} cannot be entered!"
             raise ValueError(msg)
-        self._scope = scope if scope else get_current_scope()
-        if preserve_global_context and global_context:
-            self._initial_context = {**_get_container_context(), **global_context}
-        else:
-            self._initial_context: ContextType = (  # type: ignore[no-redef]
-                _get_container_context() if preserve_global_context else global_context or {}
-            )
+        self._scope = scope
+        self._preserve_global_context = preserve_global_context
+        self._global_context = global_context
         self._context_token: Token[ContextType] | None = None
         self._context_items: set[SupportsContext[typing.Any]] = set(context_items)
         self._reset_resource_context: typing.Final[bool] = (
             not context_items and not global_context
         ) or reset_all_containers
-        if self._reset_resource_context:  # equivalent to reset_all_containers
-            self._add_providers_from_containers(BaseContainerMeta.get_instances(), self._scope)
-
         self._context_stack: contextlib.AsyncExitStack | contextlib.ExitStack | None = None
         self._scope_token: Token[ContextScope | None] | None = None
+
+    def _resolve_initial_conditions(self) -> None:
+        self._scope = self._scope if self._scope else get_current_scope()
+        if self._preserve_global_context and self._global_context:
+            self._initial_context = {**_get_container_context(), **self._global_context}
+        else:
+            self._initial_context: ContextType = (  # type: ignore[no-redef]
+                _get_container_context() if self._preserve_global_context else self._global_context or {}
+            )
+        if self._reset_resource_context:  # equivalent to reset_all_containers
+            self._add_providers_from_containers(BaseContainerMeta.get_instances(), self._scope)
 
     def _add_providers_from_containers(
         self, containers: list[ContainerType], scope: ContextScope | None = ContextScopes.ANY
@@ -473,6 +477,7 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
 
     @override
     def __enter__(self) -> ContextType:
+        self._resolve_initial_conditions()
         self._context_stack = contextlib.ExitStack()
         self._scope_token = _set_current_scope(self._scope)
         for item in self._context_items:
@@ -482,6 +487,7 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
 
     @override
     async def __aenter__(self) -> ContextType:
+        self._resolve_initial_conditions()
         self._context_stack = contextlib.AsyncExitStack()
         self._scope_token = _set_current_scope(self._scope)
         for item in self._context_items:
