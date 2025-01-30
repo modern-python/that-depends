@@ -18,6 +18,7 @@ from that_depends.providers.context_resources import (
     ContextScope,
     ContextScopes,
     DIContextMiddleware,
+    InvalidContextError,
     _enter_named_scope,
     get_current_scope,
 )
@@ -739,8 +740,9 @@ async def test_async_container_init_context_for_scoped_resources() -> None:
 
     async with container_context(scope=ContextScopes.INJECT):
         assert await _Container.async_resource.async_resolve() is not None
-    async with container_context(scope=None):
-        assert await _Container.async_resource.async_resolve() is not None
+    with pytest.raises(InvalidContextError):
+        async with container_context(scope=None):
+            assert await _Container.async_resource.async_resolve() is not None
 
 
 def test_sync_container_init_context_for_scoped_resources() -> None:
@@ -749,7 +751,7 @@ def test_sync_container_init_context_for_scoped_resources() -> None:
 
     with container_context(scope=ContextScopes.INJECT):
         assert _Container.sync_resource.sync_resolve() is not None
-    with container_context(scope=None):
+    with pytest.raises(InvalidContextError), container_context(scope=None):
         assert _Container.sync_resource.sync_resolve() is not None
 
 
@@ -859,13 +861,9 @@ async def test_strict_scope_resource_only_resolvable_in_given_scope_async() -> N
     with pytest.raises(RuntimeError):
         await _Container.p_app.async_resolve()
 
-    async with container_context(_Container.p_app, _Container.p_request):
-        assert _Container.p_app._fetch_context()  # context initialized
-        assert _Container.p_request._fetch_context()  # context initialized
-        with pytest.raises(RuntimeError):
-            await _Container.p_request.async_resolve()
-        with pytest.raises(RuntimeError):
-            await _Container.p_app.async_resolve()
+    with pytest.raises(InvalidContextError):
+        async with container_context(_Container.p_app, _Container.p_request):
+            ...
 
     async with container_context(scope=ContextScopes.APP):
         assert await _Container.p_app.async_resolve() is not None
@@ -890,13 +888,8 @@ def test_strict_scope_resource_only_resolvable_in_given_scope_sync() -> None:
     with pytest.raises(RuntimeError):
         _Container.p_app.sync_resolve()
 
-    with container_context(_Container.p_app, _Container.p_request):
-        assert _Container.p_app._fetch_context()  # context initialized
-        assert _Container.p_request._fetch_context()  # context initialized
-        with pytest.raises(RuntimeError):
-            _Container.p_request.sync_resolve()
-        with pytest.raises(RuntimeError):
-            _Container.p_app.sync_resolve()
+    with pytest.raises(InvalidContextError), container_context(_Container.p_app, _Container.p_request):
+        ...
 
     with container_context(scope=ContextScopes.APP):
         assert _Container.p_app.sync_resolve() is not None

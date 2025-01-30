@@ -39,6 +39,10 @@ _ASYNC_CONTEXT_KEY: typing.Final[str] = "__ASYNC_CONTEXT__"
 ContextType = dict[str, typing.Any]
 
 
+class InvalidContextError(RuntimeError):
+    """Raised when an invalid context is being used."""
+
+
 class ContextScope:
     """A named context scope."""
 
@@ -51,10 +55,15 @@ class ContextScope:
         """Get the name of the context scope."""
         return self._name
 
+    @override
     def __eq__(self, other: object) -> bool:
         if isinstance(other, ContextScope):
             return self.name == other.name
         return False
+
+    @override
+    def __repr__(self) -> str:
+        return f"{self.name!r}"
 
 
 class ContextScopes:
@@ -295,6 +304,9 @@ class ContextResource(
         return self._enter()
 
     def _enter(self) -> ResourceContext[T_co]:
+        if self._scope not in (ContextScopes.ANY, get_current_scope()):
+            msg = f"Cannot enter context for resource with scope {self._scope} in scope {get_current_scope()!r}"
+            raise InvalidContextError(msg)
         self._token = self._context.set(ResourceContext(is_async=self.is_async))
         return self._context.get()
 
@@ -472,6 +484,7 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
     @override
     def __enter__(self) -> ContextType:
         self._context_stack = contextlib.ExitStack()
+        self._scope_token = _set_current_scope(self._scope)
         for item in self._context_items:
             if item.supports_sync_context():
                 self._context_stack.enter_context(item.sync_context())
@@ -480,12 +493,12 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
     @override
     async def __aenter__(self) -> ContextType:
         self._context_stack = contextlib.AsyncExitStack()
+        self._scope_token = _set_current_scope(self._scope)
         for item in self._context_items:
             await self._context_stack.enter_async_context(item.async_context())
         return self._enter_globals()
 
     def _enter_globals(self) -> ContextType:
-        self._scope_token = _set_current_scope(self._scope)
         self._context_token = _CONTAINER_CONTEXT.set(self._initial_context)
         return _CONTAINER_CONTEXT.get()
 
