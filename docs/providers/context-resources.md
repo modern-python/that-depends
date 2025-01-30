@@ -187,7 +187,7 @@ async with container_context():
 
 ### Resolving resources whenever a function is called
 
-`container_context` can be used as a decorator:
+`ContextResource.context()` can also be used as a decorator:
 ```python
 @MyContainer.session.context  # wrap with a session-specific context
 @inject
