@@ -3,11 +3,11 @@
 Named scopes allow you to define the lifecycle of a `ContextResource`. 
 In essence, they provide a tool to manage when `ContextResources` can be resolved and when they should be finalized.
 
-Before continuing, make sure you're familiar with `ContextResources` providers by reading their [documentation](../providers/context-resources.md).
+Before continuing, make sure you're familiar with `ContextResource` providers by reading their [documentation](../providers/context-resources.md).
 
 ## Quick Start
 
-By default, `ContextResources` have the named scope `ANY`, meaning they can be resolved in any context.
+By default, `ContextResources` have the named scope `ANY`, meaning they will be re-initialized each time you enter a named scope.
 You can change the scope of a `ContextResource` in two ways:
 
 ### Setting the scope for providers
@@ -53,30 +53,69 @@ async with container_context(scope=ContextScopes.APP):
 ## Understanding resolution & strict scope providers
 
 In order for a `ContextResource` to be resolved, you must first initialize the context for that resource.  
-Named scopes group `ContextResources` in containers such that calling `with container_context(scope=ContextScopes.APP)`  
-initializes a new context for all resources defined with the `APP` scope.
+When you call `container_context(scope=ContextScopes.APP)` this both enters the `APP` scope and (re-)initializes context for
+all providers that have `APP` scope. Scoped resources will prevent their context initialization if the current scope does
+not match their scope:
+```python
+p = providers.ContextResource(my_resource).with_config(scope=ContextScopes.APP)
+
+async with p.async_context(): 
+    # will raise an InvalidContextError since current scope is `None`
+    ...
+```
+
+Similarly, this will also not work:
+```python
+async with container_context(p, scope=ContextScopes.REQUEST): 
+    # will raise and InvalidContextError since you are entering `REQUEST` scope
+    ...
+```
 
 Once the context has been initialized, a resource can be resolved regardless of the current scope. For example:
 
 ```python
-p = providers.ContextResource(my_resource).with_config(scope=ContextScopes.APP)
-
 await p.async_resolve()  # will raise an exception
 
-async with container_context(p, scope=None):
-    assert get_current_scope() is None
-    await p.async_resolve()  # will resolve
+async with container_context(p, scope=ContextScopes.APP):
+    val_1 = await p.async_resolve()  # will resolve
+    async with container_context(p, scope=ContextScopes.REQUEST):
+        val_2 = await p.async_resolve()  # will resolve
+        assert val_1 == val_2 # but value stays the same since context is the same
 ```
 
 If you want resources to be resolved **only** in the specified scope, enable strict resolution:
 
 ```python
 p = providers.ContextResource(my_resource).with_config(scope=ContextScopes.APP, strict_scope=True)
-async with container_context(p, scope=None):
-    await p.async_resolve()  # will raise an exception
+async with container_context(p, scope=ContextScopes.APP):
+    await p.async_resolve() # will resolve
     
-    async with container_context(scope=ContextScopes.APP):
-        await p.async_resolve()  # will resolve
+    async with container_context(scope=ContextScopes.REQUEST):
+        await p.async_resolve()  # will raise an exception
+```
+
+## Entering a context by force
+
+If you for some reason need to (re-)initialize a context for a `ContextResource` outside of its defined scope,
+you can force enter its context:
+```python
+p = providers.ContextResource(my_resource).with_config(scope=ContextScopes.APP)
+
+async with p.async_context(force=True):
+    assert get_current_scope() == None
+    await p.async_resolve() # will resolve
+```
+Or similarly using the `context` wrapper (both `ContextResource` providers and containers provide this API):
+```python
+class Container(BaseContainer):
+    p = providers.ContextResource(my_resource).with_config(scope=ContextScopes.APP)
+    
+@Container.context(force=True)
+@inject
+async def injected(val = Provide[Container.p]):
+   return p 
+
+await injected() # will resolve
 ```
 
 ## Predefined scopes
@@ -122,4 +161,11 @@ from that_depends.providers.context_resources import ContextScopes, ContextScope
 
 class MyContextScopes(ContextScopes):
     CUSTOM = ContextScope("CUSTOM")
+```
+
+## Named scopes with middleware
+You can pass a named scope to the `DIContextMiddleware` to set the scope and pre-initialize scoped `ContextResources` for the entire request:
+
+```python
+middleware = DIContextMiddleware(app, scope=ContextScopes.REQUEST)
 ```
