@@ -187,7 +187,7 @@ async with container_context():
 
 ### Resolving resources whenever a function is called
 
-`container_context` can be used as a decorator:
+`ContextResource.context()` can also be used as a decorator:
 ```python
 @MyContainer.session.context  # wrap with a session-specific context
 @inject
@@ -207,6 +207,8 @@ Each time you call `await insert_into_database()`, a new instance of `session` w
 | Reset all resources in a container                   | `async with container_context(my_container):` | `async with my_container.async_context():` | `@my_container.context`           |
 | Reset all sync resources in a container              | `with container_context(my_container):`       | `with my_container.sync_context():`        | `@my_container.context`           |
 
+> **Note:** the `context()` wrapper is technically not part of the `SupportsContext` API, however all classes which 
+> implement this `SupportsContext` also implement this method. 
 ---
 
 ## Middleware

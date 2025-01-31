@@ -10,6 +10,9 @@ import pytest
 from that_depends.providers import AsyncFactory, ThreadLocalSingleton
 
 
+random.seed(23)
+
+
 async def _async_factory() -> int:
     await asyncio.sleep(0.01)
     return threading.get_ident()

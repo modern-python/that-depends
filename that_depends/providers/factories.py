@@ -142,14 +142,15 @@ class AsyncFactory(AbstractFactory[T_co]):
 
         Args:
             factory (Callable[P, Awaitable[T_co]]): Async function that returns the resource.
-            *args: Arguments to pass to the async factory function.
-            **kwargs: Keyword arguments to pass to the async factory function.
+            *args: Arguments to pass to the factory function.
+            **kwargs: Keyword arguments to pass to the factory
+
 
         """
         super().__init__()
         self._factory: typing.Final = factory
-        self._args: typing.Final = args
-        self._kwargs: typing.Final = kwargs
+        self._args: typing.Final[P.args] = args
+        self._kwargs: typing.Final[P.kwargs] = kwargs
 
     @override
     async def async_resolve(self) -> T_co:
@@ -157,12 +158,8 @@ class AsyncFactory(AbstractFactory[T_co]):
             return typing.cast(T_co, self._override)
 
         return await self._factory(
-            *[  # type: ignore[arg-type]
-                await x.async_resolve() if isinstance(x, AbstractProvider) else x for x in self._args
-            ],
-            **{  # type: ignore[arg-type]
-                k: await v.async_resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()
-            },
+            *[await x.async_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
+            **{k: await v.async_resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
         )
 
     @override

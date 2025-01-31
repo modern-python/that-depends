@@ -23,9 +23,9 @@ ResourceCreatorType: typing.TypeAlias = typing.Callable[
 class AbstractProvider(typing.Generic[T_co], abc.ABC):
     """Base class for all providers."""
 
-    def __init__(self) -> None:
+    def __init__(self, **kwargs: typing.Any) -> None:  # noqa: ANN401
         """Create a new provider."""
-        super().__init__()
+        super().__init__(**kwargs)
         self._override: typing.Any = None
 
     def __deepcopy__(self, *_: object, **__: object) -> typing_extensions.Self:
@@ -132,12 +132,14 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
 
         Args:
             creator: sync or async iterator or context manager that yields resource.
-            *args: arguments to pass to the creator.
+            *args: positional arguments to pass to the creator.
             **kwargs: keyword arguments to pass to the creator.
+
 
         """
         super().__init__()
         self._creator: typing.Any
+
         if inspect.isasyncgenfunction(creator):
             self.is_async = True
             self._creator = contextlib.asynccontextmanager(creator)
@@ -153,9 +155,8 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
         else:
             msg = "Unsupported resource type"
             raise TypeError(msg)
-
-        self._args: typing.Final[P.args] = args
-        self._kwargs: typing.Final[P.kwargs] = kwargs
+        self._args: P.args = args
+        self._kwargs: P.kwargs = kwargs
 
     @abc.abstractmethod
     def _fetch_context(self) -> ResourceContext[T_co]: ...

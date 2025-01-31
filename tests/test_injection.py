@@ -1,16 +1,26 @@
 import asyncio
 import datetime
+import typing
 import warnings
 
 import pytest
 
 from tests import container
-from that_depends import Provide, inject
+from that_depends import BaseContainer, Provide, inject, providers
+from that_depends.providers.context_resources import ContextScopes
 
 
 @pytest.fixture(name="fixture_one")
 def create_fixture_one() -> int:
     return 1
+
+
+async def _async_creator() -> typing.AsyncIterator[int]:
+    yield 1
+
+
+def _sync_creator() -> typing.Iterator[int]:
+    yield 1
 
 
 @inject
@@ -73,8 +83,7 @@ def test_overriden_sync_injection() -> None:
         return _
 
     factory = container.SimpleFactory(dep1="1", dep2=2)
-    with pytest.warns(RuntimeWarning, match="Expected injection, but nothing found. Remove @inject decorator."):
-        assert inner(_=factory) == factory
+    assert inner(_=factory) == factory
 
 
 def test_sync_empty_injection() -> None:
@@ -94,3 +103,40 @@ def test_type_check() -> None:
         assert simple_factory
 
     asyncio.run(main())
+
+
+async def test_async_injection_with_scope() -> None:
+    class _Container(BaseContainer):
+        default_scope = ContextScopes.ANY
+        async_resource = providers.ContextResource(_async_creator).with_config(scope=ContextScopes.INJECT)
+
+    async def _injected(val: int = Provide[_Container.async_resource]) -> int:
+        return val
+
+    assert await inject(scope=ContextScopes.INJECT)(_injected)() == 1
+    assert await inject(_injected)() == 1
+    with pytest.raises(RuntimeError):
+        await inject(scope=None)(_injected)()
+    with pytest.raises(RuntimeError):
+        await inject(scope=ContextScopes.REQUEST)(_injected)()
+
+
+async def test_sync_injection_with_scope() -> None:
+    class _Container(BaseContainer):
+        default_scope = ContextScopes.ANY
+        p_inject = providers.ContextResource(_sync_creator).with_config(scope=ContextScopes.INJECT)
+
+    def _injected(val: int = Provide[_Container.p_inject]) -> int:
+        return val
+
+    assert inject(scope=ContextScopes.INJECT)(_injected)() == 1
+    assert inject(_injected)() == 1
+    with pytest.raises(RuntimeError):
+        inject(scope=None)(_injected)()
+    with pytest.raises(RuntimeError):
+        inject(scope=ContextScopes.REQUEST)(_injected)()
+
+
+def test_inject_decorator_should_not_allow_any_scope() -> None:
+    with pytest.raises(ValueError, match=f"{ContextScopes.ANY} is not allowed in inject decorator."):
+        inject(scope=ContextScopes.ANY)

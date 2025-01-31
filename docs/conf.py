@@ -2,7 +2,7 @@
 
 # -- Project information
 project = "that-depends"
-copyright = "2024, Modern Python"
+copyright = "2025, Modern Python"
 author = "Shiriev Artur"
 
 release = ""
