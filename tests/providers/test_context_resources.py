@@ -40,6 +40,7 @@ async def create_async_context_resource() -> typing.AsyncIterator[str]:
 
 
 class DIContainer(BaseContainer):
+    alias = "context_resource_container"
     default_scope = ContextScopes.ANY
     sync_context_resource = providers.ContextResource(create_sync_context_resource)
     async_context_resource = providers.ContextResource(create_async_context_resource)

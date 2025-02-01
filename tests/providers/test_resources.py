@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class DIContainer(BaseContainer):
+    alias = "resources_container"
     async_resource = providers.Resource(create_async_resource)
     sync_resource = providers.Resource(create_sync_resource)
     async_resource_from_class = providers.Resource(AsyncContextManagerResource)

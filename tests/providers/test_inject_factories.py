@@ -14,6 +14,7 @@ class InjectedFactories:
 
 
 class DIContainer(BaseContainer):
+    alias = "inject_factories_container"
     sync_resource = providers.Resource(container.create_sync_resource)
     async_resource = providers.Resource(container.create_async_resource)
 

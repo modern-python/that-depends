@@ -1,8 +1,11 @@
 import functools
 import inspect
+import re
 import typing
 import warnings
 
+from that_depends import BaseContainer
+from that_depends.meta import BaseContainerMeta
 from that_depends.providers import AbstractProvider
 from that_depends.providers.context_resources import ContextScope, ContextScopes, container_context
 
@@ -116,9 +119,37 @@ async def _resolve_async(
 
 
 def _get_provider_by_name(name: str) -> AbstractProvider[typing.Any]:
-    # CONTAINER_NAME.PROVIDER_NAME.ATTR.ATTR...ATRR
+    container_name, provider_name, attrs = _validate_and_extract_provider_definition(name)
+    container = _get_container_by_name(container_name)
+    try:
+        provider = container.get_providers()[provider_name]
+    except KeyError as e:
+        msg = f"Provider {provider_name} not found in container {container_name}"
+        raise ValueError(msg) from e
+    for attr in attrs:
+        provider = getattr(provider, attr)
+    return provider
 
-    return name
+
+def _get_container_by_name(name: str) -> type["BaseContainer"]:
+    containers_in_scope = BaseContainerMeta.get_instances()
+    try:
+        return containers_in_scope[name]
+    except KeyError as e:
+        msg = f"Container {name} not found in scope!"
+        raise ValueError(msg) from e
+
+
+def _validate_and_extract_provider_definition(definition: str) -> tuple[str, str, list[str]]:
+    pattern = r"^([^.]+)\.([^.]+)(?:\.(.+))?$"
+    match = re.match(pattern, definition)
+    if match:
+        container_name = match.group(1)
+        provider_name = match.group(2)
+        attrs = match.group(3).split(".") if match.group(3) else []
+        return container_name, provider_name, attrs
+    msg = f"Invalid provider definition: {definition}"
+    raise ValueError(msg)
 
 
 class ClassGetItemMeta(type):

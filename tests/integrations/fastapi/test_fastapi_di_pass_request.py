@@ -17,6 +17,7 @@ app = fastapi.FastAPI(dependencies=[fastapi.Depends(init_di_context)])
 
 
 class DIContainer(BaseContainer):
+    alias = "fastapi_container"
     context_request = providers.Factory(
         lambda: fetch_context_item("request"),
     )

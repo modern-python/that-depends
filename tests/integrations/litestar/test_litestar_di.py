@@ -33,6 +33,7 @@ class SomeService:
 
 
 class DIContainer(BaseContainer):
+    alias = "litestar_container"
     bool_fn = providers.Factory(bool_fn, value=False)
     str_fn = providers.Factory(str_fn)
     list_fn = providers.Factory(list_fn)

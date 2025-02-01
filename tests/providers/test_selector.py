@@ -24,6 +24,7 @@ selector_state = SelectorState()
 
 
 class DIContainer(BaseContainer):
+    alias = "selector_container"
     sync_resource = providers.Resource(create_sync_resource)
     async_resource = providers.Resource(create_async_resource)
     selector: providers.Selector[datetime.datetime] = providers.Selector(

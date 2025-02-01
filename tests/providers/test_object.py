@@ -5,6 +5,7 @@ instance = "some string"
 
 
 class DIContainer(BaseContainer):
+    alias = "object_container"
     instance = providers.Object(instance)
 
 

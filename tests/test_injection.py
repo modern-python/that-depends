@@ -7,6 +7,7 @@ import pytest
 
 from tests import container
 from that_depends import BaseContainer, Provide, inject, providers
+from that_depends.injection import _validate_and_extract_provider_definition
 from that_depends.providers.context_resources import ContextScopes
 
 
@@ -140,3 +141,35 @@ async def test_sync_injection_with_scope() -> None:
 def test_inject_decorator_should_not_allow_any_scope() -> None:
     with pytest.raises(ValueError, match=f"{ContextScopes.ANY} is not allowed in inject decorator."):
         inject(scope=ContextScopes.ANY)
+
+
+@pytest.mark.parametrize(
+    ("definition", "expected"),
+    [
+        ("container.provider", ("container", "provider", [])),
+        ("container.provider.attr", ("container", "provider", ["attr"])),
+        ("container.provider.attr1.attr2", ("container", "provider", ["attr1", "attr2"])),
+        ("some.long.container.provider", ("some", "long", ["container", "provider"])),
+    ],
+)
+def test_validate_and_extract_provider_definition_valid(definition: str, expected: tuple[str, str, list[str]]) -> None:
+    """Test valid definitions and ensure the function returns the correct tuple."""
+    result = _validate_and_extract_provider_definition(definition)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "definition",
+    [
+        "",
+        "container",
+        ".provider",
+        "container.",
+        "container..provider",
+        "container.provider.",
+    ],
+)
+def test_validate_and_extract_provider_definition_invalid(definition: str) -> None:
+    """Test invalid definitions and ensure the function raises ValueError."""
+    with pytest.raises(ValueError, match=f"Invalid provider definition: {definition}"):
+        _validate_and_extract_provider_definition(definition)
