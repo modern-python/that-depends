@@ -26,6 +26,11 @@ class BaseContainer(SupportsContext[None], metaclass=BaseContainerMeta):
     default_scope: ContextScope | None = ContextScopes.ANY
 
     @classmethod
+    def name(cls) -> str:
+        """Get container name."""
+        return cls.__name__
+
+    @classmethod
     @overload
     def context(cls, func: typing.Callable[P, T]) -> typing.Callable[P, T]: ...
 

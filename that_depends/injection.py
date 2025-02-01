@@ -115,10 +115,18 @@ async def _resolve_async(
     return await func(*args, **kwargs)
 
 
+def _get_provider_by_name(name: str) -> AbstractProvider[typing.Any]:
+    # CONTAINER_NAME.PROVIDER_NAME.ATTR.ATTR...ATRR
+
+    return name
+
+
 class ClassGetItemMeta(type):
     """Metaclass to support Provide[provider] syntax."""
 
-    def __getitem__(cls, provider: AbstractProvider[T]) -> T:
+    def __getitem__(cls, provider: AbstractProvider[T] | str) -> T | typing.Any:  # noqa: ANN401
+        if isinstance(provider, str):
+            return _get_provider_by_name(provider)
         return typing.cast(T, provider)
 
 
