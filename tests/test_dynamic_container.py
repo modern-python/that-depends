@@ -1,5 +1,7 @@
 import datetime
 
+import pytest
+
 from tests import container
 from that_depends import BaseContainer, providers
 
@@ -7,18 +9,12 @@ from that_depends import BaseContainer, providers
 class DIContainer(BaseContainer):
     alias = "dynamic_container"
     sync_resource: providers.Resource[datetime.datetime]
-    async_resource: providers.Resource[datetime.datetime]
 
 
-DIContainer.sync_resource = providers.Resource(container.create_sync_resource)
-DIContainer.async_resource = providers.Resource(container.create_async_resource)
+async def test_dynamic_container_not_supported() -> None:
+    new_provider = providers.Resource(container.create_sync_resource)
+    with pytest.raises(AttributeError):
+        DIContainer.sync_resource = new_provider
 
-
-async def test_dynamic_container() -> None:
-    sync_resource = await DIContainer.sync_resource()
-    async_resource = await DIContainer.async_resource()
-
-    assert isinstance(sync_resource, datetime.datetime)
-    assert isinstance(async_resource, datetime.datetime)
-
-    await DIContainer.tear_down()
+    with pytest.raises(AttributeError):
+        DIContainer.something_new = new_provider
