@@ -13,7 +13,6 @@
     introduction/inject-factories
     introduction/scopes
     introduction/multiple-containers
-    introduction/dynamic-container
     introduction/application-settings
 
 .. toctree::

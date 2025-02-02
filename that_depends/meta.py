@@ -37,6 +37,14 @@ class BaseContainerMeta(abc.ABCMeta):
 
     _instances: typing.ClassVar[list[type["BaseContainer"]]] = []
 
+    _MUTABLE_ATTRS = (
+        "__abstractmethods__",
+        "__parameters__",
+        "_abc_impl",
+        "providers",
+        "containers",
+    )
+
     _lock: Lock = Lock()
 
     @classmethod
@@ -56,3 +64,11 @@ class BaseContainerMeta(abc.ABCMeta):
     def get_instances(cls) -> list[type["BaseContainer"]]:
         """Get all instances that inherit from BaseContainer."""
         return cls._instances
+
+    @override
+    def __setattr__(cls, key: str, value: typing.Any) -> None:
+        if key in cls._MUTABLE_ATTRS:  # Allow modification of mutable attributes
+            super().__setattr__(key, value)
+        else:
+            msg = f"Cannot add new attribute '{key}' to class '{cls.__name__}'"
+            raise AttributeError(msg)
