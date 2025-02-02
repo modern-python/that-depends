@@ -8,7 +8,7 @@ import pytest
 
 from tests import container
 from that_depends import BaseContainer, Provide, inject, providers
-from that_depends.injection import _validate_and_extract_provider_definition
+from that_depends.injection import StringProviderDefinition
 from that_depends.providers.context_resources import ContextScopes
 
 
@@ -155,7 +155,8 @@ def test_inject_decorator_should_not_allow_any_scope() -> None:
 )
 def test_validate_and_extract_provider_definition_valid(definition: str, expected: tuple[str, str, list[str]]) -> None:
     """Test valid definitions and ensure the function returns the correct tuple."""
-    result = _validate_and_extract_provider_definition(definition)
+    parsed_definition = StringProviderDefinition(definition)
+    result = parsed_definition._container_name, parsed_definition._provider_name, parsed_definition._attrs
     assert result == expected
 
 
@@ -173,7 +174,7 @@ def test_validate_and_extract_provider_definition_valid(definition: str, expecte
 def test_validate_and_extract_provider_definition_invalid(definition: str) -> None:
     """Test invalid definitions and ensure the function raises ValueError."""
     with pytest.raises(ValueError, match=f"Invalid provider definition: {definition}"):
-        _validate_and_extract_provider_definition(definition)
+        StringProviderDefinition(definition)
 
 
 async def test_async_injection_with_string_provider_definition() -> None:
@@ -233,10 +234,12 @@ def test_provider_string_definition_with_attr_getter() -> None:
 
 def test_inject_with_non_existing_container() -> None:
     provider_name = "DOESNOTEXIST"
-    with pytest.raises(ValueError, match=f"Container {provider_name} not found in scope!"):
 
-        @inject
-        def _injected(val: int = Provide[f"{provider_name}.provider"]) -> None: ...
+    @inject
+    def _injected(val: int = Provide[f"{provider_name}.provider"]) -> None: ...
+
+    with pytest.raises(ValueError, match=f"Container {provider_name} not found in scope!"):
+        _injected()
 
 
 def test_inject_with_non_existing_provider() -> None:
@@ -246,7 +249,22 @@ def test_inject_with_non_existing_provider() -> None:
         alias = container_alias
 
     provider_name = "DOESNOTEXIST"
-    with pytest.raises(ValueError, match=f"Provider {provider_name} not found in container {container_alias}"):
 
-        @inject
-        def _injected(val: int = Provide[f"EXIST.{provider_name}"]) -> None: ...
+    @inject
+    def _injected(val: int = Provide[f"EXIST.{provider_name}"]) -> None: ...
+
+    with pytest.raises(ValueError, match=f"Provider {provider_name} not found in container {container_alias}"):
+        _injected()
+
+
+def test_provider_resolution_with_string_definition_happens_at_runtime() -> None:
+    return_value = 321
+
+    @inject
+    def _injected(val: int = Provide["_Container.sync_resource"]) -> int:
+        return val
+
+    class _Container(BaseContainer):
+        sync_resource = providers.Factory(lambda: return_value)
+
+    assert _injected() == return_value
