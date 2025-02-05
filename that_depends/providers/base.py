@@ -155,8 +155,8 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
         else:
             msg = "Unsupported resource type"
             raise TypeError(msg)
-        self._args: P.args = args
-        self._kwargs: P.kwargs = kwargs
+        self._args = args
+        self._kwargs = kwargs
 
     @abc.abstractmethod
     def _fetch_context(self) -> ResourceContext[T_co]: ...
