@@ -55,6 +55,7 @@ class SingletonFactory:
 
 class DIContainer(BaseContainer):
     default_scope = None
+    alias = "test_container"
     sync_resource = providers.Resource(create_sync_resource)
     async_resource = providers.Resource(create_async_resource)
 

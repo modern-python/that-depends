@@ -466,9 +466,9 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
             self._add_providers_from_containers(BaseContainerMeta.get_instances(), self._scope)
 
     def _add_providers_from_containers(
-        self, containers: list[ContainerType], scope: ContextScope | None = ContextScopes.ANY
+        self, containers: dict[str, ContainerType], scope: ContextScope | None = ContextScopes.ANY
     ) -> None:
-        for container in containers:
+        for container in containers.values():
             for container_provider in container.get_providers().values():
                 if isinstance(container_provider, ContextResource):
                     provider_scope = container_provider.get_scope()

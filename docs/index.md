@@ -12,6 +12,7 @@
     introduction/faststream
     introduction/inject-factories
     introduction/scopes
+    introduction/string-injection
     introduction/multiple-containers
     introduction/application-settings
 

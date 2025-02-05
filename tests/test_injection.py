@@ -2,11 +2,13 @@ import asyncio
 import datetime
 import typing
 import warnings
+from unittest.mock import Mock
 
 import pytest
 
 from tests import container
 from that_depends import BaseContainer, Provide, inject, providers
+from that_depends.injection import StringProviderDefinition
 from that_depends.providers.context_resources import ContextScopes
 
 
@@ -140,3 +142,129 @@ async def test_sync_injection_with_scope() -> None:
 def test_inject_decorator_should_not_allow_any_scope() -> None:
     with pytest.raises(ValueError, match=f"{ContextScopes.ANY} is not allowed in inject decorator."):
         inject(scope=ContextScopes.ANY)
+
+
+@pytest.mark.parametrize(
+    ("definition", "expected"),
+    [
+        ("container.provider", ("container", "provider", [])),
+        ("container.provider.attr", ("container", "provider", ["attr"])),
+        ("container.provider.attr1.attr2", ("container", "provider", ["attr1", "attr2"])),
+        ("some.long.container.provider", ("some", "long", ["container", "provider"])),
+    ],
+)
+def test_validate_and_extract_provider_definition_valid(definition: str, expected: tuple[str, str, list[str]]) -> None:
+    """Test valid definitions and ensure the function returns the correct tuple."""
+    parsed_definition = StringProviderDefinition(definition)
+    result = parsed_definition._container_name, parsed_definition._provider_name, parsed_definition._attrs
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "definition",
+    [
+        "",
+        "container",
+        ".provider",
+        "container.",
+        "container..provider",
+        "container.provider.",
+    ],
+)
+def test_validate_and_extract_provider_definition_invalid(definition: str) -> None:
+    """Test invalid definitions and ensure the function raises ValueError."""
+    with pytest.raises(ValueError, match=f"Invalid provider definition: {definition}"):
+        StringProviderDefinition(definition)
+
+
+async def test_async_injection_with_string_provider_definition() -> None:
+    return_value = 321321
+
+    class _Container(BaseContainer):
+        async_resource = providers.Factory(lambda: return_value)
+
+    @inject
+    async def _injected(val: int = Provide["_Container.async_resource"]) -> int:
+        return val
+
+    assert await _injected() == return_value
+
+
+def test_sync_injection_with_string_provider_definition() -> None:
+    return_value = 312312421
+
+    class _Container(BaseContainer):
+        sync_resource = providers.Factory(lambda: return_value)
+
+    @inject
+    def _injected(val: int = Provide["_Container.sync_resource"]) -> int:
+        return val
+
+    assert _injected() == return_value
+
+
+def test_provider_string_definition_with_alias() -> None:
+    return_value = 321
+
+    class _Container(BaseContainer):
+        alias = "ALIAS"
+        sync_resource = providers.Factory(lambda: return_value)
+
+    @inject
+    def _injected(val: int = Provide["ALIAS.sync_resource"]) -> int:
+        return val
+
+    assert _injected() == return_value
+
+
+def test_provider_string_definition_with_attr_getter() -> None:
+    expected_value = 123123
+    return_value = Mock()
+    return_value.a = expected_value
+
+    class _Container(BaseContainer):
+        sync_resource = providers.Factory(lambda: return_value)
+
+    @inject
+    def _injected(val: int = Provide["_Container.sync_resource.a"]) -> int:
+        return val
+
+    assert _injected() == expected_value
+
+
+def test_inject_with_non_existing_container() -> None:
+    provider_name = "DOESNOTEXIST"
+
+    @inject
+    def _injected(val: int = Provide[f"{provider_name}.provider"]) -> None: ...
+
+    with pytest.raises(ValueError, match=f"Container {provider_name} not found in scope!"):
+        _injected()
+
+
+def test_inject_with_non_existing_provider() -> None:
+    container_alias = "EXIST"
+
+    class _Container(BaseContainer):
+        alias = container_alias
+
+    provider_name = "DOESNOTEXIST"
+
+    @inject
+    def _injected(val: int = Provide[f"EXIST.{provider_name}"]) -> None: ...
+
+    with pytest.raises(ValueError, match=f"Provider {provider_name} not found in container {container_alias}"):
+        _injected()
+
+
+def test_provider_resolution_with_string_definition_happens_at_runtime() -> None:
+    return_value = 321
+
+    @inject
+    def _injected(val: int = Provide["_Container.sync_resource"]) -> int:
+        return val
+
+    class _Container(BaseContainer):
+        sync_resource = providers.Factory(lambda: return_value)
+
+    assert _injected() == return_value

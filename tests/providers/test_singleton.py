@@ -36,6 +36,7 @@ def _sync_creator_with_dependency(dep: int) -> str:
 
 
 class DIContainer(BaseContainer):
+    alias = "singleton_container"
     factory: providers.AsyncFactory[int] = providers.AsyncFactory(_async_creator)
     settings: Settings = providers.Singleton(Settings).cast
     singleton = providers.Singleton(SingletonFactory, dep1=settings.some_setting)

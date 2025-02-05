@@ -7,6 +7,7 @@ from that_depends import BaseContainer, providers
 
 
 class DIContainer(BaseContainer):
+    alias = "dynamic_container"
     sync_resource: providers.Resource[datetime.datetime]
 
 

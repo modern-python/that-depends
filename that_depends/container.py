@@ -21,6 +21,7 @@ P = typing.ParamSpec("P")
 class BaseContainer(SupportsContext[None], metaclass=BaseContainerMeta):
     """Base container class."""
 
+    alias: str | None = None
     providers: dict[str, AbstractProvider[typing.Any]]
     containers: list[type["BaseContainer"]]
     default_scope: ContextScope | None = ContextScopes.ANY

@@ -8,6 +8,7 @@ from that_depends.providers import AbstractProvider
 
 
 class DIContainer(BaseContainer):
+    alias = "collection_container"
     sync_resource = providers.Resource(create_sync_resource)
     async_resource = providers.Resource(create_async_resource)
     sequence = providers.List(sync_resource, async_resource)
