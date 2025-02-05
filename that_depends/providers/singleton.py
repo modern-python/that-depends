@@ -49,8 +49,8 @@ class Singleton(AbstractProvider[T_co]):
         self._instance: T_co | None = None
         self._asyncio_lock: typing.Final = asyncio.Lock()
         self._threading_lock: typing.Final = threading.Lock()
-        self._args: typing.Final[P.args] = args
-        self._kwargs: typing.Final[P.kwargs] = kwargs
+        self._args: typing.Final = args
+        self._kwargs: typing.Final = kwargs
 
     @override
     async def async_resolve(self) -> T_co:
@@ -66,8 +66,8 @@ class Singleton(AbstractProvider[T_co]):
                 return self._instance
 
             self._instance = self._factory(
-                *[await x.async_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
-                **{
+                *[await x.async_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],  # type: ignore[arg-type]
+                **{  # type: ignore[arg-type]
                     k: await v.async_resolve() if isinstance(v, AbstractProvider) else v
                     for k, v in self._kwargs.items()
                 },
@@ -88,8 +88,8 @@ class Singleton(AbstractProvider[T_co]):
                 return self._instance
 
             self._instance = self._factory(
-                *[x.sync_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
-                **{k: v.sync_resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
+                *[x.sync_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],  # type: ignore[arg-type]
+                **{k: v.sync_resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},  # type: ignore[arg-type]
             )
             return self._instance
 
@@ -142,8 +142,8 @@ class AsyncSingleton(AbstractProvider[T_co]):
         self._factory: typing.Final[typing.Callable[P, typing.Awaitable[T_co]]] = factory
         self._instance: T_co | None = None
         self._asyncio_lock: typing.Final = asyncio.Lock()
-        self._args: typing.Final[P.args] = args
-        self._kwargs: typing.Final[P.kwargs] = kwargs
+        self._args: typing.Final = args
+        self._kwargs: typing.Final = kwargs
 
     @override
     async def async_resolve(self) -> T_co:
@@ -159,8 +159,8 @@ class AsyncSingleton(AbstractProvider[T_co]):
                 return self._instance
 
             self._instance = await self._factory(
-                *[await x.async_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
-                **{
+                *[await x.async_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],  # type: ignore[arg-type]
+                **{  # type: ignore[arg-type]
                     k: await v.async_resolve() if isinstance(v, AbstractProvider) else v
                     for k, v in self._kwargs.items()
                 },
