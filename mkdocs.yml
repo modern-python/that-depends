@@ -1,0 +1,5 @@
+site_name: !ENV READTHEDOCS_CANONICAL_URL
+nav:
+  - Home: index.md
+
+theme: material
