@@ -1,4 +1,2 @@
-sphinx==7.*
-sphinx-rtd-theme==2.*
-myst-parser
-sphinx-copybutton
+mkdocs
+mkdocs-material

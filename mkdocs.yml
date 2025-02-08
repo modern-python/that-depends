@@ -1,0 +1,84 @@
+site_name: that-depends
+repo_url: https://github.com/modern-python/that-depends
+docs_dir: docs
+nav:
+  - Quick-Start: index.md
+  - Introduction:
+      - Containers: introduction/ioc-container.md
+      - Scopes: introduction/scopes.md
+      - String Injection: introduction/string-injection.md
+      - Multiple Containers: introduction/multiple-containers.md
+      - Application Settings: introduction/application-settings.md
+      - Injecting Factories: introduction/inject-factories.md
+  - Providers:
+      - Collections: providers/collections.md
+      - Context-Resources: providers/context-resources.md
+      - Factories: providers/factories.md
+      - Object: providers/object.md
+      - Resources: providers/resources.md
+      - Selector: providers/selector.md
+      - Singletons: providers/singleton.md
+  - Integrations:
+      - FastAPI: integrations/fastapi.md
+      - FastStream: integrations/faststream.md
+      - Litestar: integrations/litestar.md
+  - Testing:
+      - Fixtures: testing/fixture.md
+      - Overriding: testing/provider-overriding.md
+  - Migration:
+      - 1.* to 2.*: migration/v2.md
+  - Development:
+      - Contributing: dev/contributing.md
+      - Decisions: dev/main-decisions.md
+
+theme:
+  name: material
+  features:
+    - content.code.copy
+    - content.code.annotate
+    - content.action.edit
+    - content.action.view
+    - navigation.footer
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.instant
+  icon:
+    edit: material/pencil
+    view: material/eye
+    repo: fontawesome/brands/git-alt
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: black
+      accent: pink
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: pink
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
+
+markdown_extensions:
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+
+extra_css:
+  - css/code.css
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/modern-python/that-depends
+      name: GitHub

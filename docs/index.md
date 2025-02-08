@@ -1,54 +1,106 @@
-```{include} ../README.md
+# Quickstart
+## Install
+```bash
+pip install that-depends
 ```
 
-```{eval-rst}
-.. toctree::
-    :maxdepth: 1
-    :caption: Introduction
-
-    introduction/ioc-container
-    introduction/fastapi
-    introduction/litestar
-    introduction/faststream
-    introduction/inject-factories
-    introduction/scopes
-    introduction/string-injection
-    introduction/multiple-containers
-    introduction/application-settings
-
-.. toctree::
-    :maxdepth: 1
-    :caption: Providers
-
-    providers/resources
-    providers/context-resources
-    providers/singleton
-    providers/factories
-    providers/collections
-    providers/selector
-    providers/object
-   
-.. toctree::
-    :maxdepth: 1
-    :caption: Testing
-    
-    testing/fixture
-    testing/provider-overriding
-
-.. toctree::
-    :maxdepth: 1
-    :caption: Migration
-    
-    migration/v2
+## Describe resources and classes:
+```python
+import dataclasses
+import logging
+import typing
 
 
-.. toctree::
-    :maxdepth: 1
-    :caption: For developers
-
-    dev/main-decisions
-    dev/contributing
-    
+logger = logging.getLogger(__name__)
 
 
+# singleton provider with finalization
+def create_sync_resource() -> typing.Iterator[str]:
+    logger.debug("Resource initiated")
+    try:
+        yield "sync resource"
+    finally:
+        logger.debug("Resource destructed")
+
+
+# same, but async
+async def create_async_resource() -> typing.AsyncIterator[str]:
+    logger.debug("Async resource initiated")
+    try:
+        yield "async resource"
+    finally:
+        logger.debug("Async resource destructed")
+
+
+@dataclasses.dataclass(kw_only=True, slots=True)
+class DependentFactory:
+    sync_resource: str
+    async_resource: str
+```
+
+## Describe IoC-container
+```python
+from that_depends import BaseContainer, providers
+
+
+class DIContainer(BaseContainer):
+    sync_resource = providers.Resource(create_sync_resource)
+    async_resource = providers.Resource(create_async_resource)
+
+    simple_factory = providers.Factory(SimpleFactory, dep1="text", dep2=123)
+    dependent_factory = providers.Factory(
+        sync_resource=sync_resource,
+        async_resource=async_resource,
+    )
+```
+
+## Resolve dependencies in your code
+```python
+# async resolving by default:
+await DIContainer.simple_factory()
+
+# sync resolving is also allowed if there is no uninitialized async resources in dependencies
+DIContainer.simple_factory.sync_resolve()
+
+# otherwise you can initialize resources beforehand one by one or in one call:
+await DIContainer.init_resources()
+```
+
+## Resolve dependencies not described in container
+```python
+@dataclasses.dataclass(kw_only=True, slots=True)
+class FreeFactory:
+    dependent_factory: DependentFactory
+    sync_resource: str
+
+# this way container will try to find providers by names and resolve them to build FreeFactory instance
+free_factory_instance = await DIContainer.resolve(FreeFactory)
+```
+
+## Inject providers in function arguments
+```python
+import datetime
+
+from that_depends import inject, Provide
+
+from tests import container
+
+
+@inject
+async def some_coroutine(
+    simple_factory: container.SimpleFactory = Provide[container.DIContainer.simple_factory],
+    dependent_factory: container.DependentFactory = Provide[container.DIContainer.dependent_factory],
+    default_zero: int = 0,
+) -> None:
+    assert simple_factory.dep1
+    assert isinstance(dependent_factory.async_resource, datetime.datetime)
+    assert default_zero == 0
+
+@inject
+def some_function(
+    simple_factory: container.SimpleFactory = Provide[container.DIContainer.simple_factory],
+    default_zero: int = 0,
+) -> None:
+    assert simple_factory.dep1
+    assert default_zero == 0
 ```
