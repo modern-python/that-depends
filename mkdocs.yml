@@ -1,6 +1,7 @@
 site_name: that-depends
 repo_url: https://github.com/modern-python/that-depends
 docs_dir: docs
+edit_uri: edit/main/docs/
 nav:
   - Quick-Start: index.md
   - Introduction:
@@ -69,10 +70,13 @@ markdown_extensions:
   - pymdownx.highlight:
       anchor_linenums: true
       line_spans: __span
-      pygments_lang_class: true
+      pygments_lang_class: false
   - pymdownx.inlinehilite
   - pymdownx.snippets
   - pymdownx.superfences
+  - def_list
+  - codehilite:
+      use_pygments: true
 
 extra_css:
   - css/code.css
