@@ -1,15 +1,15 @@
 site_name: that-depends
+repo_url: https://github.com/modern-python/that-depends
 docs_dir: docs
 nav:
-  - Home: index.md
-  - Integrations:
-      - FastAPI: integrations/fastapi.md
-      - FastStream: integrations/faststream.md
-      - Litestar: integrations/litestar.md
-
-  - Testing:
-      - Fixtures: testing/fixture.md
-      - Overriding: testing/provider-overriding.md
+  - Quick-Start: index.md
+  - Introduction:
+      - Containers: introduction/ioc-container.md
+      - Scopes: introduction/scopes.md
+      - String Injection: introduction/string-injection.md
+      - Multiple Containers: introduction/multiple-containers.md
+      - Application Settings: introduction/application-settings.md
+      - Injecting Factories: introduction/inject-factories.md
   - Providers:
       - Collections: providers/collections.md
       - Context-Resources: providers/context-resources.md
@@ -18,18 +18,30 @@ nav:
       - Resources: providers/resources.md
       - Selector: providers/selector.md
       - Singletons: providers/singleton.md
+  - Integrations:
+      - FastAPI: integrations/fastapi.md
+      - FastStream: integrations/faststream.md
+      - Litestar: integrations/litestar.md
+  - Testing:
+      - Fixtures: testing/fixture.md
+      - Overriding: testing/provider-overriding.md
   - Migration:
       - 1.* to 2.*: migration/v2.md
   - Development:
       - Contributing: dev/contributing.md
       - Decisions: dev/main-decisions.md
 
-
 theme:
   name: material
   features:
     - content.code.copy
     - content.code.annotate
+    - content.action.edit
+    - content.action.view
+  icon:
+    edit: material/pencil
+    view: material/eye
+    repo: fontawesome/brands/git-alt
   palette:
     - scheme: default
       primary: black
@@ -52,3 +64,6 @@ markdown_extensions:
   - pymdownx.inlinehilite
   - pymdownx.snippets
   - pymdownx.superfences
+
+extra_css:
+  - css/code.css

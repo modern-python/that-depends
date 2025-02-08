@@ -1,0 +1,10 @@
+/* Round the corners of code blocks */
+.md-typeset .highlight code {
+  border-radius: 6px !important;
+}
+
+@media (max-width: 600px) {
+  .md-typeset code {
+    border-radius: 4px;
+  }
+}
