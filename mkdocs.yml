@@ -57,6 +57,8 @@ theme:
         name: Switch to light mode
 
 markdown_extensions:
+  - toc:
+      permalink: true
   - pymdownx.highlight:
       anchor_linenums: true
       line_spans: __span
