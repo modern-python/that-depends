@@ -1,5 +1,54 @@
-site_name: !ENV READTHEDOCS_CANONICAL_URL
+site_name: that-depends
+docs_dir: docs
 nav:
   - Home: index.md
+  - Integrations:
+      - FastAPI: integrations/fastapi.md
+      - FastStream: integrations/faststream.md
+      - Litestar: integrations/litestar.md
 
-theme: material
+  - Testing:
+      - Fixtures: testing/fixture.md
+      - Overriding: testing/provider-overriding.md
+  - Providers:
+      - Collections: providers/collections.md
+      - Context-Resources: providers/context-resources.md
+      - Factories: providers/factories.md
+      - Object: providers/object.md
+      - Resources: providers/resources.md
+      - Selector: providers/selector.md
+      - Singletons: providers/singleton.md
+  - Migration:
+      - 1.* to 2.*: migration/v2.md
+  - Development:
+      - Contributing: dev/contributing.md
+      - Decisions: dev/main-decisions.md
+
+
+theme:
+  name: material
+  features:
+    - content.code.copy
+    - content.code.annotate
+  palette:
+    - scheme: default
+      primary: black
+      accent: pink
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - scheme: slate
+      primary: black
+      accent: pink
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
