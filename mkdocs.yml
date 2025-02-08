@@ -38,23 +38,38 @@ theme:
     - content.code.annotate
     - content.action.edit
     - content.action.view
+    - navigation.footer
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.instant
   icon:
     edit: material/pencil
     view: material/eye
     repo: fontawesome/brands/git-alt
   palette:
-    - scheme: default
-      primary: black
-      accent: pink
+    - media: "(prefers-color-scheme)"
       toggle:
-        icon: material/weather-night
-        name: Switch to dark mode
-    - scheme: slate
-      primary: black
-      accent: pink
-      toggle:
-        icon: material/weather-sunny
+        icon: material/brightness-auto
         name: Switch to light mode
+
+
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: black
+      accent: pink
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: pink
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
 
 markdown_extensions:
   - toc:
@@ -69,3 +84,9 @@ markdown_extensions:
 
 extra_css:
   - css/code.css
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/modern-python/that-depends
+      name: GitHub
