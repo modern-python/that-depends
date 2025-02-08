@@ -48,12 +48,6 @@ theme:
     view: material/eye
     repo: fontawesome/brands/git-alt
   palette:
-    - media: "(prefers-color-scheme)"
-      toggle:
-        icon: material/brightness-auto
-        name: Switch to light mode
-
-
     - media: "(prefers-color-scheme: light)"
       scheme: default
       primary: black
@@ -61,8 +55,6 @@ theme:
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
-
-
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
       primary: black
