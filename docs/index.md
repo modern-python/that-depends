@@ -21,7 +21,7 @@ pip install that-depends
 
 ## Quickstart
 
-### Describe resources and classes:
+### Define a creator
 ```python
 async def create_async_resource():
     logger.debug("Async resource initiated")
@@ -31,13 +31,15 @@ async def create_async_resource():
         logger.debug("Async resource destructed")
 ```
 
-### Setup Dependency Injection Container
+### Setup Dependency Injection Container with Providers
 ```python
 from that_depends import BaseContainer, providers
 
 class Container(BaseContainer):
     provider = providers.Resource(create_async_resource)
 ```
+
+See the [containers documentation](introduction/ioc-container.md) for more information on defining the container.
 
 ### Resolve dependencies in your code
 ```python
@@ -53,3 +55,5 @@ async def some_foo(value: str = Provide[Container.provider]):
 
 await some_foo() # "async resource"
 ```
+
+See the [injection documentation](introduction/injection.md) for more information.

@@ -97,7 +97,9 @@ It is recommended to wrap your provider in `Provide[...]` when using it as a def
 
 ```python
 @inject
-def greet_user_direct(greeting: str = Provide[MyContainer.greeting_provider]) -> str: # (1)!
+def greet_user_direct(
+        greeting: str = Provide[MyContainer.greeting_provider] # (1)!
+    ) -> str: 
     return f"Greeting: {greeting}"
 ```
 

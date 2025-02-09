@@ -28,7 +28,7 @@ class Container(BaseContainer):
     
     user_repository = providers.Factory(
         UserRepository, 
-        session=session, 
+        session=session.cast, # (3)!
         config.users
     ) # (2)!
 
@@ -38,6 +38,7 @@ class Container(BaseContainer):
 1. The configuration will be resolved and then the `.db` attribute will be passed to the `create_db_session` creator
 as a keyword argument when resolving the `session` provider.
 2. Depends on both the session and configuration providers.
+3. Providers have the `cast` property that will change their type to the return type of their creator, use it to prevent type errors.
 
 ## Building the dependency graph.
 

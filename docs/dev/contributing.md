@@ -17,3 +17,6 @@ Run all checks by command `just lint`
 
 ## Running tests
 Run all tests by command `just tests`
+
+## Building and running the documentation
+Host the documentation locally by running `just docs`
