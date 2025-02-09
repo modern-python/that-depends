@@ -6,6 +6,7 @@ nav:
   - Quick-Start: index.md
   - Introduction:
       - Containers: introduction/ioc-container.md
+      - Dependency Injection: introduction/injection.md
       - Scopes: introduction/scopes.md
       - String Injection: introduction/string-injection.md
       - Multiple Containers: introduction/multiple-containers.md
