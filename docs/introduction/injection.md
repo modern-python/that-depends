@@ -111,7 +111,7 @@ The framework automatically recognizes the `Provide[...]` value, resolves the pr
 
 ## Injection Warnings
 
-If `@inject` finds **no** parameters whose default values are wrapped in `Provide[...]`, it will issue a warning:
+If `@inject` finds **no** parameters whose default values are providers, it will issue a warning:
 
 > `Expected injection, but nothing found. Remove @inject decorator.`
 
@@ -163,17 +163,17 @@ For more details on overring providers, see the [Overriding Providers](../provid
 1. **Do I need to call `@inject` every time I reference a provider?**  
    No—only when you want **automatic** injection of providers into function parameters. If you are resolving dependencies manually (e.g., `MyContainer.greeting_provider.sync_resolve()`), then `@inject` is not needed.
 
-2. **What if I provide a custom argument to a parameter that has a default provider?**  
-   If you explicitly pass a value, that value overrides the injected default:
+   2. **What if I provide a custom argument to a parameter that has a default provider?**  
+      If you explicitly pass a value, that value overrides the injected default:
 
-   ```python
-   @inject
-   def foo(x: int = Provide[MyContainer.number_factory]) -> int:
-       return x
+      ~~~~python
+      @inject
+      def foo(x: int = Provide[MyContainer.number_factory]) -> int:
+          return x
 
-   print(foo())     # uses number_factory -> 42
-   print(foo(99))   # explicitly uses 99
-   ```
+      print(foo())     # uses number_factory -> 42
+      print(foo(99))   # explicitly uses 99
+      ~~~~
 
 3. **Can I combine `@inject` with other decorators?**  
    Yes, you can. Generally, put `@inject` **below** others, depending on the order you need. If you run into issues, experiment with the order or handle context manually.

@@ -1,9 +1,10 @@
 # That Depends
 
-Welcome to the `that-depends documentation`!
+Welcome to the `that-depends` documentation!
 
 `that-depends` is a python dependency injection framework which, among other things,
 supports the following:
+
 - Async and sync dependency resolution
 - Scopes and granular context management
 - Dependency injection anywhere
@@ -41,6 +42,7 @@ class Container(BaseContainer):
 
 See the [containers documentation](introduction/ioc-container.md) for more information on defining the container.
 
+For a list of providers and their usage, see the [providers section](providers/collections.md).
 ### Resolve dependencies in your code
 ```python
 await Container.provider()
