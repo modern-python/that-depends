@@ -35,6 +35,7 @@ nav:
 
 theme:
   name: material
+  custom_dir: docs/overrides
   features:
     - content.code.copy
     - content.code.annotate
@@ -45,6 +46,8 @@ theme:
     - navigation.expand
     - navigation.top
     - navigation.instant
+    - header.autohide
+    - announce.dismiss
   icon:
     edit: material/pencil
     view: material/eye

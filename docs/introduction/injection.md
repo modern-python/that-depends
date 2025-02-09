@@ -32,7 +32,7 @@ class MyContainer(BaseContainer):
     greeting_provider = Singleton(lambda: "Hello from MyContainer")
     number_factory = Factory(lambda: 42)
 ```
-For more details on Containers, refer to the [Containers](containers.md) documentation.
+For more details on Containers, refer to the [Containers](ioc-container.md) documentation.
 
 ### 2. Inject the Provider into a Function
 
@@ -154,7 +154,7 @@ def test_greet_override():
 
 This is especially helpful for unit tests where you want to substitute real dependencies (e.g., database connections) with mocks or stubs.
 
-For more details on overring providers, see the [Overriding Providers](../providers/overriding-providers.md) documentation.
+For more details on overring providers, see the [Overriding Providers](../testing/provider-overriding.md) documentation.
 
 ---
 
