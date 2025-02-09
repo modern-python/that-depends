@@ -39,17 +39,3 @@ class Container(BaseContainer):
 as a keyword argument when resolving the `session` provider.
 2. Depends on both the session and configuration providers.
 3. Providers have the `cast` property that will change their type to the return type of their creator, use it to prevent type errors.
-
-## Building the dependency graph.
-
-When a provider is resolved, it will attempt to resolve all dependant providers. 
-This means that when connecting providers it is import to consider context switching between
-sync and async providers.
-
-For example, a resolution order like this will fail:
-```
-ASYNC --> SYNC -!-> ASYNC
-```
-
-Once you switch to sync, you can no longer switch back to async.
-To avoid such issues, it is recommended to use async as frequently as possible.

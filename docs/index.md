@@ -7,9 +7,10 @@ supports the following:
 
 - Async and sync dependency resolution
 - Scopes and granular context management
-- Dependency injection 
+- Dependency injection anywhere
 - Fully typed and tested
 - Compatibility with popular frameworks like `FastAPI` and `LiteStar`
+- Python 3.10+ support
 
 ---
 
