@@ -81,7 +81,7 @@ The values stored in the `global_context` can be resolved as long as:
 async with container_context(global_context={"key": "value"}):
     # run some code
     fetch_context_item("key")
-    async with container_context():  # this will reset all contexts, including the global context.
+    async with container_context(preserve_global_context=False):  # this will reset all contexts, including the global context.
         fetch_context_item("key")  # Error! key not found
 ```
 

@@ -1,15 +1,16 @@
 site_name: that-depends
 repo_url: https://github.com/modern-python/that-depends
 docs_dir: docs
+edit_uri: edit/main/docs/
 nav:
   - Quick-Start: index.md
   - Introduction:
       - Containers: introduction/ioc-container.md
+      - Dependency Injection: introduction/injection.md
       - Scopes: introduction/scopes.md
       - String Injection: introduction/string-injection.md
       - Multiple Containers: introduction/multiple-containers.md
       - Application Settings: introduction/application-settings.md
-      - Injecting Factories: introduction/inject-factories.md
   - Providers:
       - Collections: providers/collections.md
       - Context-Resources: providers/context-resources.md
@@ -33,6 +34,7 @@ nav:
 
 theme:
   name: material
+  custom_dir: docs/overrides
   features:
     - content.code.copy
     - content.code.annotate
@@ -43,6 +45,8 @@ theme:
     - navigation.expand
     - navigation.top
     - navigation.instant
+    - header.autohide
+    - announce.dismiss
   icon:
     edit: material/pencil
     view: material/eye
@@ -73,6 +77,11 @@ markdown_extensions:
   - pymdownx.inlinehilite
   - pymdownx.snippets
   - pymdownx.superfences
+  - def_list
+  - codehilite:
+      use_pygments: true
+  - attr_list
+  - md_in_html
 
 extra_css:
   - css/code.css

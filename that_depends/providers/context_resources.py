@@ -78,12 +78,11 @@ class ContextScopes:
 _CONTAINER_SCOPE: typing.Final[ContextVar[ContextScope | None]] = ContextVar("__CONTAINER_SCOPE__", default=None)
 
 
-def _get_container_context() -> dict[str, typing.Any]:
+def _get_container_context() -> dict[str, typing.Any] | None:
     try:
         return _CONTAINER_CONTEXT.get()
-    except LookupError as exc:
-        msg = "Context is not set. Use container_context"
-        raise RuntimeError(msg) from exc
+    except LookupError:
+        return None
 
 
 def get_current_scope() -> ContextScope | None:
@@ -124,7 +123,9 @@ def fetch_context_item(key: str, default: typing.Any = None) -> typing.Any:  # n
         ```
 
     """
-    return _get_container_context().get(key, default)
+    if context := _get_container_context():
+        return context.get(key, default)
+    return default
 
 
 T = typing.TypeVar("T")
@@ -420,7 +421,7 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
         self,
         *context_items: SupportsContext[typing.Any],
         global_context: ContextType | None = None,
-        preserve_global_context: bool = False,
+        preserve_global_context: bool = True,
         reset_all_containers: bool = False,
         scope: ContextScope | None = None,
     ) -> None:
@@ -457,11 +458,16 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
     def _resolve_initial_conditions(self) -> None:
         self._scope = self._scope if self._scope else get_current_scope()
         if self._preserve_global_context and self._global_context:
-            self._initial_context = {**_get_container_context(), **self._global_context}
-        else:
+            if context := _get_container_context():
+                self._initial_context = {**context, **self._global_context}
+            else:
+                self._initial_context = self._global_context
+        elif context := _get_container_context():
             self._initial_context: ContextType = (  # type: ignore[no-redef]
-                _get_container_context() if self._preserve_global_context else self._global_context or {}
+                context if self._preserve_global_context else self._global_context or {}
             )
+        else:
+            self._initial_context = self._global_context or {}
         if self._reset_resource_context:  # equivalent to reset_all_containers
             self._add_providers_from_containers(BaseContainerMeta.get_instances(), self._scope)
 

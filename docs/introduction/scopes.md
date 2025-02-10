@@ -13,18 +13,17 @@ You can change the scope of a `ContextResource` in two ways:
 ### Setting the scope for providers
 
 1. By setting the `default_scope` attribute in the container class:
-
-   ```python
-   class MyContainer(BaseContainer):
-       default_scope = ContextScope.APP
-       p = providers.ContextResource(my_resource)
-   ```
+   
+      ~~~~python hl_lines="2"
+      class MyContainer(BaseContainer):
+          default_scope = ContextScope.APP
+          p = providers.ContextResource(my_resource)
+      ~~~~
 
 2. By calling the `with_config()` method when creating a `ContextResource`. This also overrides the class default:
-
-   ```python
-   p = providers.ContextResource(my_resource).with_config(scope=ContextScope.APP)
-   ```
+      ~~~~python
+      p = providers.ContextResource(my_resource).with_config(scope=ContextScope.APP)
+      ~~~~
 
 ### Entering and exiting scopes
 
@@ -106,7 +105,7 @@ async with p.async_context(force=True):
     await p.async_resolve() # will resolve
 ```
 Or similarly using the `context` wrapper (both `ContextResource` providers and containers provide this API):
-```python
+```python hl_lines="4"
 class Container(BaseContainer):
     p = providers.ContextResource(my_resource).with_config(scope=ContextScopes.APP)
     

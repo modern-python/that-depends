@@ -84,6 +84,9 @@ per-file-ignores = { "tests/*"= ["D1", "SLF001"]}
 addopts = "--cov=. --cov-report term-missing"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+filterwarnings = [
+    "ignore::UserWarning",
+]
 
 [tool.coverage.report]
 exclude_also = ["if typing.TYPE_CHECKING:"]

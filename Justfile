@@ -28,3 +28,7 @@ hook:
 
 unhook:
     uv run pre-commit uninstall
+
+docs:
+    uv pip install -r docs/requirements.txt
+    uv run mkdocs serve

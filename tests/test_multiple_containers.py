@@ -1,5 +1,7 @@
 import datetime
 
+import pytest
+
 from tests import container
 from that_depends import BaseContainer, providers
 
@@ -32,3 +34,29 @@ async def test_included_container() -> None:
     assert async_resource_context
     assert async_resource_context.instance is not None
     await OuterContainer.tear_down()
+
+
+async def test_overwriting_container_warns(recwarn: None) -> None:  # noqa:ARG001
+    class _A(BaseContainer):
+        pass
+
+    with pytest.warns(UserWarning):
+
+        class _A(BaseContainer):  # type: ignore[no-redef]
+            pass
+
+    class _A(BaseContainer):  # type: ignore[no-redef]
+        pass
+
+
+async def test_overwriting_container_with_alias_warns(recwarn: None) -> None:  # noqa:ARG001
+    class _A(BaseContainer):
+        alias = "a"
+
+    with pytest.warns(UserWarning):
+
+        class _A(BaseContainer):  # type: ignore[no-redef]
+            alias = "a"
+
+    class _A(BaseContainer):  # type: ignore[no-redef]
+        alias = "a"

@@ -413,9 +413,6 @@ async def test_async_container_context_resolution(
 
 
 async def test_async_global_context_resolution() -> None:
-    with pytest.raises(RuntimeError):
-        async with AsyncExitStack() as stack:
-            await stack.enter_async_context(container_context(preserve_global_context=True))
     my_global_resources = {"test_1": "test_1", "test_2": "test_2"}
 
     async with container_context(global_context=my_global_resources):
@@ -435,13 +432,11 @@ async def test_async_global_context_resolution() -> None:
 
         for key, item in my_global_resources.items():
             assert fetch_context_item(key) == item
-    with pytest.raises(RuntimeError):
-        fetch_context_item("test_1")
+
+    assert fetch_context_item("test_1") is None
 
 
 def test_sync_global_context_resolution() -> None:
-    with pytest.raises(RuntimeError), ExitStack() as stack:
-        stack.enter_context(container_context(preserve_global_context=True))
     my_global_resources = {"test_1": "test_1", "test_2": "test_2"}
     with container_context(global_context=my_global_resources):
         for key, item in my_global_resources.items():
@@ -457,8 +452,7 @@ def test_sync_global_context_resolution() -> None:
         for key, item in my_global_resources.items():
             assert fetch_context_item(key) == item
 
-    with pytest.raises(RuntimeError):
-        fetch_context_item("test_1")
+    assert fetch_context_item("test_1") is None
 
 
 async def test_async_global_context_reset(async_context_resource: providers.ContextResource[str]) -> None:

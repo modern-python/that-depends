@@ -1,5 +1,6 @@
 import abc
 import typing
+import warnings
 from collections.abc import MutableMapping
 from threading import Lock
 
@@ -64,6 +65,8 @@ class BaseContainerMeta(abc.ABCMeta):
         cls_name = new_cls.name()
         with cls._lock:
             if name != "BaseContainer":
+                if cls_name in cls._instances:
+                    warnings.warn(f"Overwriting container '{cls_name}'", UserWarning, stacklevel=2)
                 cls._instances[cls_name] = typing.cast(type["BaseContainer"], new_cls)
         return new_cls
 
