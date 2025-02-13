@@ -1,7 +1,9 @@
-# Singleton
-- resolve the dependency only once and cache the resolved instance for future injections;
+# Singleton Provider
 
-## How it works
+A **Singleton** provider creates its instance once and caches it for all future injections or resolutions. When the instance is first requested (via `sync_resolve()` or `async_resolve()`), the underlying factory is called. On subsequent calls, the cached instance is returned without calling the factory again.
+
+## How it Works
+
 ```python
 import random
 
@@ -18,68 +20,109 @@ class MyContainer(BaseContainer):
     singleton = providers.Singleton(some_function)
 
 
-# provider will call `some_func` and cache the return value
-MyContainer.singleton.sync_resolve() # 0.3
-# provider with return the cached value
-MyContainer.singleton.sync_resolve() # 0.3
+# The provider will call `some_function` once and cache the return value
 
-# async_resolve can be used also
-await MyContainer.singleton.async_resolve() # 0.3
+# 1) Synchronous resolution
+MyContainer.singleton.sync_resolve()  # e.g. 0.3
+MyContainer.singleton.sync_resolve()  # 0.3 (cached)
 
-# and injection to function arguments can be used also
+# 2) Asynchronous resolution
+await MyContainer.singleton.async_resolve()  # 0.3 (same cached value)
+
+# 3) Injection example
 @inject
 async def with_singleton(number: float = Provide[MyContainer.singleton]):
-    ...  # number == 0.3
+    # number == 0.3
+    ...
 ```
 
-## Concurrency safety
-`Singleton` is safe to use in threading and asyncio concurrency:
-```python
-# calling async_resolve concurrently in different coroutines will create only one instance
-await MyContainer.singleton.async_resolve()
-
-# calling sync_resolve concurrently in different threads will create only one instance
-MyContainer.singleton.sync_resolve()
+### Teardown Support
+If you need to reset the singleton (for example, in tests or at application shutdown), you can call:
+```python 
+await MyContainer.singleton.tear_down()
 ```
-## ThreadLocalSingleton
+This clears the cached instance, causing a new one to be created the next time `sync_resolve()` or `async_resolve()` is called.  
+*(If you only ever use synchronous resolution, you can call `MyContainer.singleton.sync_tear_down()` instead.)*
 
-For cases when you need to have a separate instance for each thread, you can use `ThreadLocalSingleton` provider. It will create a new instance for each thread and cache it for future injections in the same thread.
+---
+
+## Concurrency Safety
+
+`Singleton` is **thread-safe** and **async-safe**:
+
+1. **Async Concurrency**  
+   If multiple coroutines call `async_resolve()` concurrently, the factory function is guaranteed to be called only once. All callers receive the same cached instance.
+
+2. **Thread Concurrency**  
+   If multiple threads call `sync_resolve()` at the same time, the factory is only called once. All threads receive the same cached instance.
 
 ```python
-from that_depends.providers import ThreadLocalSingleton
 import threading
-import random
+import asyncio
 
-# Define a factory function
+# In async code:
+async def main():
+    # calling async_resolve concurrently in different coroutines
+    results = await asyncio.gather(
+        MyContainer.singleton.async_resolve(),
+        MyContainer.singleton.async_resolve(),
+    )
+    # Both results point to the same instance
+
+# In threaded code:
+def thread_task():
+    instance = MyContainer.singleton.sync_resolve()
+    ...
+
+threads = [threading.Thread(target=thread_task) for _ in range(5)]
+for t in threads:
+    t.start()
+```
+
+---
+
+## ThreadLocalSingleton Provider
+
+If you want each *thread* to have its own, separately cached instance, use **ThreadLocalSingleton**. This provider creates a new instance per thread and reuses that instance on subsequent calls *within the same thread*.
+
+```python
+import random
+import threading
+from that_depends.providers import ThreadLocalSingleton
+
+
 def factory() -> int:
+    """Return a random int between 1 and 100."""
     return random.randint(1, 100)
 
-# Create a ThreadLocalSingleton instance
+
+# ThreadLocalSingleton caches an instance per thread
 singleton = ThreadLocalSingleton(factory)
 
-# Same thread, same instance
-instance1 = singleton.sync_resolve() # 56
-instance2 = singleton.sync_resolve() # 56
+# In a single thread:
+instance1 = singleton.sync_resolve()  # e.g. 56
+instance2 = singleton.sync_resolve()  # 56 (cached in the same thread)
 
-# Example usage in multiple threads
+# In multiple threads:
 def thread_task():
-    instance = singleton.sync_resolve()
-    return instance
+    return singleton.sync_resolve()
 
-# Create and start threads
-threads = [threading.Thread(target=thread_task) for i in range(2)]
-for thread in threads:
-    thread.start()
-for thread in threads:
-    results = thread.join()
+thread1 = threading.Thread(target=thread_task)
+thread2 = threading.Thread(target=thread_task)
+thread1.start()
+thread2.start()
 
-# Results will be different for each thread
-print(results) # [56, 78]
+# thread1 and thread2 each get a different cached value
 ```
 
+You can still use `.async_resolve()` with `ThreadLocalSingleton`, which will also maintain isolation per thread. However, note that this does *not* isolate instances per asynchronous Task – only per OS thread.
+
+---
 
 ## Example with `pydantic-settings`
-Let's say we are storing our application configuration using [pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/):
+
+Consider a scenario where your application configuration is defined via [**pydantic-settings**](https://docs.pydantic.dev/latest/concepts/pydantic_settings/). Often, you only want to parse this configuration (e.g., from environment variables) once, then reuse it throughout the application.
+
 ```python
 from pydantic_settings import BaseSettings
 from pydantic import BaseModel
@@ -96,41 +139,51 @@ class Settings(BaseSettings):
     db: DatabaseConfig = DatabaseConfig()
 ```
 
-Because we do not want to resolve the configuration each time it is used in our application, we provide it using the `Singleton` provider.
+### Defining the Container
+
+Below, we define a container with a **Singleton** provider for our settings. We also define a separate async factory that connects to the database using those settings.
 
 ```python
 from that_depends import BaseContainer, providers
 
-
-async def get_db_connection(address: str, port:int, db_name: str) -> Connection: 
+async def get_db_connection(address: str, port: int, db_name: str):
+    # e.g., create an async DB connection
     ...
 
 class MyContainer(BaseContainer):
+    # We'll parse settings only once
     config = providers.Singleton(Settings)
-    # provide connection arguments and create a connection provider
+
+    # We'll pass the config's DB fields into an async factory for a DB connection
     db_connection = providers.AsyncFactory(
-        get_db_connection, config.db.address, config.db.port, config.db_name
+        get_db_connection,
+        config.db.address,
+        config.db.port,
+        config.db.db_name,
     )
 ```
 
-Now we can inject our database connection where it's required using `@inject`:
+### Injecting or Resolving in Code
+
+You can now inject these values directly into your functions with the `@inject` decorator:
 
 ```python
 from that_depends import inject, Provide
 
 @inject
-async def with_db_connection(conn: Connection = Provide[MyContainer.db_connection]):
+async def with_db_connection(conn = Provide[MyContainer.db_connection]):
+    # conn is the created DB connection
     ...
 ```
 
-Of course, we can also resolve the whole configuration without accessing attributes by running:
+Or you can manually resolve them when needed:
 
 ```python
-# sync resolution
-config = MyContainer.config.sync_resolve()
-# async resolution
-config = await MyContainer.config.async_resolve()
-# inject the configuration into a function
-async def with_config(config: Settings = Provide[MyContainer.config]):
-    assert config.auth_key == "my_auth_key"
+# Synchronously resolve the config
+cfg = MyContainer.config.sync_resolve()
+
+# Asynchronously resolve the DB connection
+connection = await MyContainer.db_connection.async_resolve()
 ```
+
+By using `Singleton` for `Settings`, you avoid re-parsing the environment or re-initializing the configuration on each request.
