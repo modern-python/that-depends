@@ -185,3 +185,17 @@ def test_resource_threading_concurrency() -> None:
 
     assert results == ["", "", "", ""]
     assert calls == 1
+
+
+def test_sync_resource_sync_tear_down() -> None:
+    DIContainer.sync_resource.sync_resolve()
+    assert DIContainer.sync_resource._context.instance is not None
+    DIContainer.sync_resource.sync_tear_down()
+    assert DIContainer.sync_resource._context.instance is None
+
+
+async def test_async_resource_sync_tear_down_raises() -> None:
+    await DIContainer.async_resource.async_resolve()
+    assert DIContainer.async_resource._context.instance is not None
+    with pytest.raises(RuntimeError):
+        DIContainer.async_resource.sync_tear_down()
