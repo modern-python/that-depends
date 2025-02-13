@@ -139,7 +139,7 @@ class BaseContainer(SupportsContext[None], metaclass=BaseContainerMeta):
     async def init_resources(cls) -> None:
         """Initialize all resources."""
         for provider in cls.get_providers().values():
-            if isinstance(provider, Resource):
+            if isinstance(provider, Resource | Singleton):
                 await provider.async_resolve()
 
         for container in cls.get_containers():
@@ -147,13 +147,20 @@ class BaseContainer(SupportsContext[None], metaclass=BaseContainerMeta):
 
     @classmethod
     async def tear_down(cls) -> None:
-        """Tear down all resources."""
+        """Tear down all singleton and resource providers."""
         for provider in reversed(cls.get_providers().values()):
             if isinstance(provider, Resource | Singleton):
                 await provider.tear_down()
 
         for container in cls.get_containers():
             await container.tear_down()
+
+    @classmethod
+    def sync_teardown(cls) -> None:
+        """Tear down all sync singleton adn resource providers."""
+        for provider in reversed(cls.get_providers().values()):
+            if isinstance(provider, Resource | Singleton) and not provider:
+                provider.sync_teardown()
 
     @classmethod
     def reset_override(cls) -> None:
