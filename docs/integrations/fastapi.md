@@ -3,7 +3,7 @@
 ## Installation
 
 ```bash
-pip install that_depends fastapi uvicorn
+pip install that-depends fastapi uvicorn
 ```
 
 (You likely already have `fastapi` and `uvicorn` if you are building FastAPI services.)
@@ -72,7 +72,7 @@ def get_time(
     )
 ```
 
-- **`DIContextMiddleware`** automatically enters a that_depends “global context” for every request.  
+- **`DIContextMiddleware`** automatically enters a that-depends “global context” for every request.  
 - By specifying `container=MyContainer`, any context-based providers or resources will be automatically reinitialized (or “request scoped”) if your container is configured for that.  
 - The `Depends(MyContainer.current_time)` call is how you reference the container’s provider using the standard FastAPI injection system.
 
@@ -82,7 +82,7 @@ To run this app:
 uvicorn main:app --reload
 ```
 
-When you make a request to `/`, you will see the current time printed, and behind the scenes the that_depends container is in a context.
+When you make a request to `/`, you will see the current time printed, and behind the scenes the that-depends container is in a context.
 
 > **Note**: If your container uses advanced context-based resources (e.g. `ContextResource`), you may also set `default_scope` in your container, or configure an explicit scope. See the advanced section below.
 
@@ -137,7 +137,7 @@ async def db_session_creator() -> typing.AsyncIterator[str]:
     print("Closing DB connection")
 
 class MyScopedContainer(BaseContainer):
-    # Tells that_depends that each resource has a context scope (like "request").
+    # Tells that-depends that each resource has a context scope (like "request").
     default_scope = ContextScopes.REQUEST
 
     db_session = providers.ContextResource(db_session_creator)
@@ -196,11 +196,11 @@ def test_read_db(client: TestClient):
 ## Common Patterns and Tips
 
 1. **Global vs. Request Context**: Decide whether your container’s dependencies should be globally shared (e.g., singletons) or created anew per request (e.g., database or session).  
-2. **Combining with FastAPI’s `Depends`**: Generally, you can pass `Depends(MyContainer.some_provider)` to route handlers. Under the hood, that_depends will be invoked.  
+2. **Combining with FastAPI’s `Depends`**: Generally, you can pass `Depends(MyContainer.some_provider)` to route handlers. Under the hood, that-depends will be invoked.  
 3. **Overriding**: You can override a provider in tests by calling `MyContainer.some_provider.override(...)` or using the context manager `with MyContainer.some_provider.override_context(...):`.
 4. **Performance**: If you have expensive creation logic (like a DB engine that can be reused globally), prefer using a `Singleton` or `Object` provider. If you need ephemeral resources, use `ContextResource` with the `DIContextMiddleware`.
 5. **Custom Context**: If you do not want to rely on the middleware, you can manually create a context in any async function by calling `async with container_context():`. 
-6. **Multiple Containers**: You can define multiple containers and connect them (e.g., `ContainerA.connect_containers(ContainerB)`), or add them all to the `DIContextMiddleware`. For advanced usage, see the that_depends documentation on “container connection.”
+6. **Multiple Containers**: You can define multiple containers and connect them (e.g., `ContainerA.connect_containers(ContainerB)`), or add them all to the `DIContextMiddleware`. For advanced usage, see the that-depends documentation on “container connection.”
 
 
 ### Accessing the FastAPI Request or Other Context Items
@@ -239,7 +239,7 @@ async def get_request_info(
     # This provider fetches the request from context:
     request_in_container: Request = Depends(MyContainer.resolver(lambda: fetch_context_item("request"))),
 ):
-    # The provider can read from that_depends context. We used .resolver(...) here as an example,
+    # The provider can read from that-depends context. We used .resolver(...) here as an example,
     # but you can define a dedicated provider in MyContainer that returns fetch_context_item("request").
     return JSONResponse({"request_url": str(request_in_container.url)})
 ```
