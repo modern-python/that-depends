@@ -44,7 +44,6 @@ class Resource(AbstractResource[T_co]):
         "_is_async",
         "_kwargs",
         "_override",
-        "is_async",
     )
 
     def __init__(

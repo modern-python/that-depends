@@ -92,7 +92,7 @@ class BaseContainer(SupportsContext[None], metaclass=BaseContainerMeta):
             for container in cls.get_containers():
                 stack.enter_context(container.sync_context(force=force))
             for provider in cls.get_providers().values():
-                if isinstance(provider, ContextResource) and not provider.is_async:
+                if isinstance(provider, ContextResource) and not provider._is_async:  # noqa: SLF001
                     stack.enter_context(provider.sync_context(force=force))
             yield
 
@@ -156,11 +156,13 @@ class BaseContainer(SupportsContext[None], metaclass=BaseContainerMeta):
             await container.tear_down()
 
     @classmethod
-    def sync_teardown(cls) -> None:
+    def sync_tear_down(cls) -> None:
         """Tear down all sync singleton adn resource providers."""
         for provider in reversed(cls.get_providers().values()):
-            if isinstance(provider, Resource | Singleton) and not provider:
-                provider.sync_teardown()
+            if isinstance(provider, Singleton):
+                provider.sync_tear_down()
+            if isinstance(provider, Resource) and not provider._is_async:  # noqa: SLF001
+                provider.sync_tear_down()
 
     @classmethod
     def reset_override(cls) -> None:
