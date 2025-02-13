@@ -142,6 +142,25 @@ async def test_async_resource_asyncio_concurrency() -> None:
 
 
 @pytest.mark.repeat(10)
+async def test_async_resource_async_teardown() -> None:
+    calls: int = 0
+
+    async def _create_resource() -> typing.AsyncIterator[str]:
+        yield ""
+        nonlocal calls
+        await asyncio.sleep(0.01)
+        calls += 1
+
+    resource = providers.Resource(_create_resource)
+
+    await resource.async_resolve()
+
+    await asyncio.gather(*[resource.tear_down() for _ in range(10)])
+
+    assert calls == 1
+
+
+@pytest.mark.repeat(10)
 def test_resource_threading_concurrency() -> None:
     calls: int = 0
     lock = threading.Lock()
