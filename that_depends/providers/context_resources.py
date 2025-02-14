@@ -581,14 +581,26 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
 
             @wraps(func)
             async def _async_inner(*args: P.args, **kwargs: P.kwargs) -> T_co:
-                async with container_context(*self._context_items, reset_all_containers=self._reset_resource_context):
+                async with container_context(
+                    *self._context_items,
+                    reset_all_containers=self._reset_resource_context,
+                    scope=self._scope,
+                    global_context=self._global_context,
+                    preserve_global_context=self._preserve_global_context,
+                ):
                     return await func(*args, **kwargs)  # type: ignore[no-any-return]
 
             return typing.cast(typing.Callable[P, T_co], _async_inner)
 
         @wraps(func)
         def _sync_inner(*args: P.args, **kwargs: P.kwargs) -> T_co:
-            with container_context(*self._context_items, reset_all_containers=self._reset_resource_context):
+            with container_context(
+                *self._context_items,
+                reset_all_containers=self._reset_resource_context,
+                scope=self._scope,
+                global_context=self._global_context,
+                preserve_global_context=self._preserve_global_context,
+            ):
                 return func(*args, **kwargs)
 
         return _sync_inner
