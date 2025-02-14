@@ -1,12 +1,12 @@
-# Injecting Providers in **that_depends**
+# Injecting Providers in **that-depends**
 
-`that_depends` uses a decorator-based approach for both synchronous and asynchronous functions. By decorating a function with `@inject` and marking certain parameters as `Provide[...]`, **that_depends** will automatically resolve the specified providers at call time.
+`that-depends` uses a decorator-based approach for both synchronous and asynchronous functions. By decorating a function with `@inject` and marking certain parameters as `Provide[...]`, **that-depends** will automatically resolve the specified providers at call time.
 
 ---
 
 ## Overview
 
-In **that_depends**, you define your dependencies as `AbstractProvider` instances—e.g., `Singleton`, `Factory`, `Resource`, or others. These providers typically live inside a subclass of `BaseContainer`, making them globally accessible.
+In **that-depends**, you define your dependencies as `AbstractProvider` instances—e.g., `Singleton`, `Factory`, `Resource`, or others. These providers typically live inside a subclass of `BaseContainer`, making them globally accessible.
 
 When you want to use a provider in a function, you can mark a parameter’s **default value** as:
 
@@ -132,7 +132,7 @@ def greet_user(greeting: str = Provide[MyContainer.greeting_provider]):
     ...
 ```
 
-When `greet_user` is called, **that_depends**:
+When `greet_user` is called, **that-depends**:
 
 1. Enters a resource context with scope `REQUEST`.
 2. Resolves all providers that allow usage within `REQUEST` (or `ANY`).

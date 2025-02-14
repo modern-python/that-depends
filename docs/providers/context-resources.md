@@ -1,6 +1,6 @@
 # Context-Dependent Resources
 
-`that_depends` provides a way to manage two types of contexts:
+`that-depends` provides a way to manage two types of contexts:
 
 - A *global context* (a dictionary) where you can store objects for later retrieval.
 - *Resource-specific contexts*, which are managed by the `ContextResource` provider.
@@ -213,7 +213,7 @@ Each time you call `await insert_into_database()`, a new instance of `session` w
 
 ## Middleware
 
-For `ASGI` applications, `that_depends` provides the `DIContextMiddleware` to manage context resources.
+For `ASGI` applications, `that-depends` provides the `DIContextMiddleware` to manage context resources.
 
 The `DIContextMiddleware` accepts containers and resources as arguments and automatically initializes the context for the provided resources when an endpoint is called.
 
