@@ -44,7 +44,6 @@ class Resource(AbstractResource[T_co]):
         "_is_async",
         "_kwargs",
         "_override",
-        "is_async",
     )
 
     def __init__(
@@ -98,3 +97,20 @@ class Resource(AbstractResource[T_co]):
 
         """
         await self._fetch_context().tear_down()
+
+    def sync_tear_down(self) -> None:
+        """Sync tear down the resource if it has been created.
+
+        If the resource was never resolved, or was already torn down,
+        calling this method has no effect.
+
+        If you try to sync tear down an async resource, this will raise an exception.
+
+        Example:
+            ```python
+            # Assuming my_provider was previously resolved
+            my_provider.sync_tear_down()
+            ```
+
+        """
+        self._fetch_context().sync_tear_down()

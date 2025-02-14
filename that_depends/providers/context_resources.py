@@ -224,11 +224,11 @@ class ContextResource(
         "_context",
         "_creator",
         "_internal_name",
+        "_is_async",
         "_kwargs",
         "_override",
         "_scope",
         "_token",
-        "is_async",
     )
 
     def __init__(
@@ -316,10 +316,10 @@ class ContextResource(
 
     @override
     def supports_sync_context(self) -> bool:
-        return not self.is_async
+        return not self._is_async
 
     def _enter_sync_context(self, force: bool = False) -> ResourceContext[T_co]:
-        if self.is_async:
+        if self._is_async:
             msg = "You must enter async context for async creators."
             raise RuntimeError(msg)
         return self._enter(force)
@@ -331,7 +331,7 @@ class ContextResource(
         if not force and self._scope not in (ContextScopes.ANY, get_current_scope()):
             msg = f"Cannot enter context for resource with scope {self._scope} in scope {get_current_scope()!r}"
             raise InvalidContextError(msg)
-        self._token = self._context.set(ResourceContext(is_async=self.is_async))
+        self._token = self._context.set(ResourceContext(is_async=self._is_async))
         return self._context.get()
 
     def _exit_sync_context(self) -> None:
@@ -362,7 +362,7 @@ class ContextResource(
     @contextlib.contextmanager
     @override
     def sync_context(self, force: bool = False) -> typing.Iterator[ResourceContext[T_co]]:
-        if self.is_async:
+        if self._is_async:
             msg = "Please use async context instead."
             raise RuntimeError(msg)
         token = self._token

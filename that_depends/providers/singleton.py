@@ -96,6 +96,13 @@ class Singleton(AbstractProvider[T_co]):
     async def tear_down(self) -> None:
         """Reset the cached instance.
 
+        After calling this method, the next async_resolve call will recreate the instance.
+        """
+        self.sync_tear_down()
+
+    def sync_tear_down(self) -> None:
+        """Reset the cached instance.
+
         After calling this method, the next resolve call will recreate the instance.
         """
         if self._instance is not None:
@@ -176,6 +183,13 @@ class AsyncSingleton(AbstractProvider[T_co]):
         """Reset the cached instance.
 
         After calling this method, the next call to ``async_resolve()`` will recreate the instance.
+        """
+        self.sync_tear_down()
+
+    def sync_tear_down(self) -> None:
+        """Reset the cached instance.
+
+        After calling this method, the next call to ``sync_resolve()`` will recreate the instance.
         """
         if self._instance is not None:
             self._instance = None

@@ -142,6 +142,25 @@ async def test_async_resource_asyncio_concurrency() -> None:
 
 
 @pytest.mark.repeat(10)
+async def test_async_resource_async_teardown() -> None:
+    calls: int = 0
+
+    async def _create_resource() -> typing.AsyncIterator[str]:
+        yield ""
+        nonlocal calls
+        await asyncio.sleep(0.01)
+        calls += 1
+
+    resource = providers.Resource(_create_resource)
+
+    await resource.async_resolve()
+
+    await asyncio.gather(*[resource.tear_down() for _ in range(10)])
+
+    assert calls == 1
+
+
+@pytest.mark.repeat(10)
 def test_resource_threading_concurrency() -> None:
     calls: int = 0
     lock = threading.Lock()
@@ -166,3 +185,17 @@ def test_resource_threading_concurrency() -> None:
 
     assert results == ["", "", "", ""]
     assert calls == 1
+
+
+def test_sync_resource_sync_tear_down() -> None:
+    DIContainer.sync_resource.sync_resolve()
+    assert DIContainer.sync_resource._context.instance is not None
+    DIContainer.sync_resource.sync_tear_down()
+    assert DIContainer.sync_resource._context.instance is None
+
+
+async def test_async_resource_sync_tear_down_raises() -> None:
+    await DIContainer.async_resource.async_resolve()
+    assert DIContainer.async_resource._context.instance is not None
+    with pytest.raises(RuntimeError):
+        DIContainer.async_resource.sync_tear_down()
