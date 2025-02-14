@@ -1050,3 +1050,29 @@ def test_sync_container_context_selects_context_items_on_entry() -> None:
             with cc:
                 assert get_current_scope() == ContextScopes.REQUEST
                 assert _Container.p_request.sync_resolve() is not None
+
+
+async def test_async_container_context_wrapper_with_named_scope() -> None:
+    class _Container(BaseContainer):
+        p_app = providers.ContextResource(create_async_context_resource).with_config(scope=ContextScopes.APP)
+
+    @container_context(scope=ContextScopes.APP, global_context={"resource_type": "async"}, reset_all_containers=True)
+    @inject
+    async def _injected(val: str = Provide[_Container.p_app]) -> str:
+        assert fetch_context_item("resource_type") == "async"
+        return val
+
+    assert await _injected() is not None
+
+
+def test_sync_container_context_wrapper_with_named_scope() -> None:
+    class _Container(BaseContainer):
+        p_app = providers.ContextResource(create_sync_context_resource).with_config(scope=ContextScopes.APP)
+
+    @container_context(scope=ContextScopes.APP, global_context={"resource_type": "sync"}, reset_all_containers=True)
+    @inject
+    def _injected(val: str = Provide[_Container.p_app]) -> str:
+        assert fetch_context_item("resource_type") == "sync"
+        return val
+
+    assert _injected() is not None
