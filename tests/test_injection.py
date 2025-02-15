@@ -8,8 +8,8 @@ import pytest
 
 from tests import container
 from that_depends import BaseContainer, Provide, inject, providers
+from that_depends.entities.context import ContextScopes
 from that_depends.injection import StringProviderDefinition
-from that_depends.providers.context_resources import ContextScopes
 
 
 @pytest.fixture(name="fixture_one")

@@ -8,6 +8,7 @@ from threading import Lock
 from typing_extensions import override
 
 from that_depends.entities.context import ContextScope, ContextScopes, SupportsContext
+from that_depends.providers import AbstractProvider
 
 
 if typing.TYPE_CHECKING:
@@ -127,3 +128,16 @@ class BaseContainerMeta(SupportsContext[None], abc.ABCMeta):
         else:
             msg = f"Cannot add new attribute '{key}' to class '{cls.__name__}'"
             raise AttributeError(msg)
+
+    def get_providers(cls) -> dict[str, "AbstractProvider[typing.Any]"]:
+        """Get all connected providers."""
+        if not hasattr(cls, "providers"):
+            cls.providers = {k: v for k, v in cls.__dict__.items() if isinstance(v, AbstractProvider)}
+        return cls.providers
+
+    def get_containers(cls) -> list[type["BaseContainer"]]:
+        """Get all connected containers."""
+        if not hasattr(cls, "containers"):
+            cls.containers: list[type[BaseContainer]] = []
+
+        return cls.containers
