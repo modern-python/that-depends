@@ -7,13 +7,11 @@ from threading import Lock
 
 from typing_extensions import override
 
-from that_depends.providers.context_resources import SupportsContext
+from that_depends.entities.context import ContextScope, ContextScopes, SupportsContext
 
 
 if typing.TYPE_CHECKING:
     from that_depends.container import BaseContainer
-    from that_depends.providers import AbstractProvider
-    from that_depends.providers.context_resources import ContextResource, ContextScope, ContextScopes
 
 
 class DefaultScopeNotDefinedError(Exception):
@@ -25,7 +23,7 @@ class _ContainerMetaDict(dict[str, typing.Any]):
 
     @override
     def __setitem__(self, key: str, value: typing.Any) -> None:
-        from that_depends.providers.context_resources import ContextResource, ContextScopes
+        from that_depends.providers import ContextResource
 
         if isinstance(value, ContextResource) and value.get_scope() == ContextScopes.ANY:
             try:
@@ -43,11 +41,15 @@ class BaseContainerMeta(SupportsContext[None], abc.ABCMeta):
 
     @override
     def get_scope(cls) -> ContextScope | None:
-        return cls.default_scope
+        if scope := getattr(cls, "default_scope", None):
+            return typing.cast(ContextScope | None, scope)
+        return ContextScopes.ANY
 
     @asynccontextmanager
     @override
     async def async_context(cls, force: bool = False) -> typing.AsyncIterator[None]:
+        from that_depends.providers import ContextResource
+
         async with AsyncExitStack() as stack:
             for container in cls.get_containers():
                 await stack.enter_async_context(container.async_context(force=force))
@@ -59,6 +61,8 @@ class BaseContainerMeta(SupportsContext[None], abc.ABCMeta):
     @contextmanager
     @override
     def sync_context(cls, force: bool = False) -> typing.Iterator[None]:
+        from that_depends.providers import ContextResource
+
         with ExitStack() as stack:
             for container in cls.get_containers():
                 stack.enter_context(container.sync_context(force=force))
@@ -71,14 +75,6 @@ class BaseContainerMeta(SupportsContext[None], abc.ABCMeta):
     def supports_sync_context(cls) -> bool:
         return True
 
-    def get_providers(cls) -> dict[str, AbstractProvider[typing.Any]]:
-        """Get all connected providers."""
-        return cls.providers
-
-    def get_containers(cls) -> list[type["BaseContainer"]]:
-        """Get all connected containers."""
-        return cls.containers
-
     _instances: typing.ClassVar[dict[str, type["BaseContainer"]]] = {}
 
     _MUTABLE_ATTRS = (
@@ -87,22 +83,27 @@ class BaseContainerMeta(SupportsContext[None], abc.ABCMeta):
         "_abc_impl",
         "providers",
         "containers",
+        "alias",
+        "default_scope",
     )
 
     _lock: Lock = Lock()
+    alias: str | None
 
     def __init__(cls, name: str, bases: tuple[type, ...], namespace: dict[str, typing.Any]) -> None:
         """Initialize the container class."""
         super().__init__(name, bases, namespace)
-        cls.alias: str | None = None
-        cls.providers: dict[str, AbstractProvider[typing.Any]] = {}
-        cls.containers: list[type[BaseContainer]] = []
-        cls.default_scope: ContextScope | None = ContextScopes.ANY
+        cls_name = cls.name()
+        with cls._lock:
+            if name != "BaseContainer":
+                if cls_name in cls._instances:
+                    warnings.warn(f"Overwriting container '{cls_name}'", UserWarning, stacklevel=2)
+                cls._instances[cls_name] = typing.cast(type["BaseContainer"], cls)
 
     def name(cls) -> str:
         """Get the name of the container class."""
-        if cls.alias:
-            return cls.alias
+        if alias := getattr(cls, "alias", None):
+            return typing.cast(str, alias)
         return cls.__name__
 
     @classmethod
@@ -112,14 +113,7 @@ class BaseContainerMeta(SupportsContext[None], abc.ABCMeta):
 
     @override
     def __new__(cls, name: str, bases: tuple[type, ...], namespace: dict[str, typing.Any]) -> type:
-        new_cls = super().__new__(cls, name, bases, namespace)
-        cls_name = new_cls.name()
-        with cls._lock:
-            if name != "BaseContainer":
-                if cls_name in cls._instances:
-                    warnings.warn(f"Overwriting container '{cls_name}'", UserWarning, stacklevel=2)
-                cls._instances[cls_name] = typing.cast(type["BaseContainer"], new_cls)
-        return new_cls
+        return super().__new__(cls, name, bases, namespace)
 
     @classmethod
     def get_instances(cls) -> dict[str, type["BaseContainer"]]:

@@ -11,6 +11,7 @@ from unittest.mock import Mock
 import pytest
 
 from that_depends import BaseContainer, Provide, fetch_context_item, inject, providers
+from that_depends.entities.context import _enter_named_scope
 from that_depends.entities.resource_context import ResourceContext
 from that_depends.meta import DefaultScopeNotDefinedError
 from that_depends.providers import container_context
@@ -19,7 +20,6 @@ from that_depends.providers.context_resources import (
     ContextScopes,
     DIContextMiddleware,
     InvalidContextError,
-    _enter_named_scope,
     get_current_scope,
 )
 

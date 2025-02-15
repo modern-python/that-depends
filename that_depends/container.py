@@ -5,8 +5,9 @@ from typing import overload
 
 from typing_extensions import override
 
+from that_depends.entities.context import ContextScope, ContextScopes
 from that_depends.meta import BaseContainerMeta
-from that_depends.providers import Resource, Singleton
+from that_depends.providers import AbstractProvider, Resource, Singleton
 
 
 if typing.TYPE_CHECKING:
@@ -19,6 +20,11 @@ P = typing.ParamSpec("P")
 
 class BaseContainer(metaclass=BaseContainerMeta):
     """Base container class."""
+
+    alias: str | None = None
+    providers: dict[str, AbstractProvider[typing.Any]]
+    containers: list[type["BaseContainer"]]
+    default_scope: ContextScope | None = ContextScopes.ANY
 
     @classmethod
     @overload
@@ -113,6 +119,21 @@ class BaseContainer(metaclass=BaseContainerMeta):
         """Reset all provider overrides."""
         for v in cls.get_providers().values():
             v.reset_override()
+
+    @classmethod
+    def get_providers(cls) -> dict[str, AbstractProvider[typing.Any]]:
+        """Get all connected providers."""
+        if not hasattr(cls, "providers"):
+            cls.providers = {k: v for k, v in cls.__dict__.items() if isinstance(v, AbstractProvider)}
+        return cls.providers
+
+    @classmethod
+    def get_containers(cls) -> list[type["BaseContainer"]]:
+        """Get all connected containers."""
+        if not hasattr(cls, "containers"):
+            cls.containers = []
+
+        return cls.containers
 
     @classmethod
     def resolver(cls, item: typing.Callable[P, T]) -> typing.Callable[[], typing.Awaitable[T]]:
