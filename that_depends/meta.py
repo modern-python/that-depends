@@ -2,13 +2,18 @@ import abc
 import typing
 import warnings
 from collections.abc import MutableMapping
+from contextlib import AsyncExitStack, ExitStack, asynccontextmanager, contextmanager
 from threading import Lock
 
 from typing_extensions import override
 
+from that_depends.providers.context_resources import SupportsContext
+
 
 if typing.TYPE_CHECKING:
     from that_depends.container import BaseContainer
+    from that_depends.providers import AbstractProvider
+    from that_depends.providers.context_resources import ContextResource, ContextScope, ContextScopes
 
 
 class DefaultScopeNotDefinedError(Exception):
@@ -33,8 +38,46 @@ class _ContainerMetaDict(dict[str, typing.Any]):
             super().__setitem__(key, value)
 
 
-class BaseContainerMeta(abc.ABCMeta):
+class BaseContainerMeta(SupportsContext[None], abc.ABCMeta):
     """Metaclass for BaseContainer."""
+
+    @override
+    def get_scope(cls) -> ContextScope | None:
+        return cls.default_scope
+
+    @asynccontextmanager
+    @override
+    async def async_context(cls, force: bool = False) -> typing.AsyncIterator[None]:
+        async with AsyncExitStack() as stack:
+            for container in cls.get_containers():
+                await stack.enter_async_context(container.async_context(force=force))
+            for provider in cls.get_providers().values():
+                if isinstance(provider, ContextResource):
+                    await stack.enter_async_context(provider.async_context(force=force))
+            yield
+
+    @contextmanager
+    @override
+    def sync_context(cls, force: bool = False) -> typing.Iterator[None]:
+        with ExitStack() as stack:
+            for container in cls.get_containers():
+                stack.enter_context(container.sync_context(force=force))
+            for provider in cls.get_providers().values():
+                if isinstance(provider, ContextResource) and not provider._is_async:  # noqa: SLF001
+                    stack.enter_context(provider.sync_context(force=force))
+            yield
+
+    @override
+    def supports_sync_context(cls) -> bool:
+        return True
+
+    def get_providers(cls) -> dict[str, AbstractProvider[typing.Any]]:
+        """Get all connected providers."""
+        return cls.providers
+
+    def get_containers(cls) -> list[type["BaseContainer"]]:
+        """Get all connected containers."""
+        return cls.containers
 
     _instances: typing.ClassVar[dict[str, type["BaseContainer"]]] = {}
 
@@ -48,10 +91,18 @@ class BaseContainerMeta(abc.ABCMeta):
 
     _lock: Lock = Lock()
 
+    def __init__(cls, name: str, bases: tuple[type, ...], namespace: dict[str, typing.Any]) -> None:
+        """Initialize the container class."""
+        super().__init__(name, bases, namespace)
+        cls.alias: str | None = None
+        cls.providers: dict[str, AbstractProvider[typing.Any]] = {}
+        cls.containers: list[type[BaseContainer]] = []
+        cls.default_scope: ContextScope | None = ContextScopes.ANY
+
     def name(cls) -> str:
         """Get the name of the container class."""
-        if alias := getattr(cls, "alias", None):
-            return typing.cast(str, alias)
+        if cls.alias:
+            return cls.alias
         return cls.__name__
 
     @classmethod

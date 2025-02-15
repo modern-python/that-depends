@@ -7,8 +7,8 @@ install:
 
 lint:
     uv run ruff format
-    uv run ruff check --fix
-    uv run mypy .
+    uv run ruff check --fix that_depends tests
+    uv run mypy that_depends tests
 
 lint-ci:
     uv run ruff format --check

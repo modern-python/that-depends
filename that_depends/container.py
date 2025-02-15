@@ -1,13 +1,12 @@
 import inspect
 import typing
-from contextlib import AsyncExitStack, ExitStack, asynccontextmanager, contextmanager
+from contextlib import contextmanager
 from typing import overload
 
 from typing_extensions import override
 
 from that_depends.meta import BaseContainerMeta
-from that_depends.providers import AbstractProvider, Resource, Singleton
-from that_depends.providers.context_resources import ContextResource, ContextScope, ContextScopes, SupportsContext
+from that_depends.providers import Resource, Singleton
 
 
 if typing.TYPE_CHECKING:
@@ -18,13 +17,8 @@ T = typing.TypeVar("T")
 P = typing.ParamSpec("P")
 
 
-class BaseContainer(SupportsContext[None], metaclass=BaseContainerMeta):
+class BaseContainer(metaclass=BaseContainerMeta):
     """Base container class."""
-
-    alias: str | None = None
-    providers: dict[str, AbstractProvider[typing.Any]]
-    containers: list[type["BaseContainer"]]
-    default_scope: ContextScope | None = ContextScopes.ANY
 
     @classmethod
     @overload
@@ -54,7 +48,7 @@ class BaseContainer(SupportsContext[None], metaclass=BaseContainerMeta):
 
                 async def _async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
                     async with cls.async_context(force=force):
-                        return await func(*args, **kwargs)  # type: ignore[no-any-return, misc]
+                        return await func(*args, **kwargs)  # type: ignore[no-any-return]
 
                 return typing.cast(typing.Callable[P, T], _async_wrapper)
 
@@ -68,45 +62,10 @@ class BaseContainer(SupportsContext[None], metaclass=BaseContainerMeta):
             return _wrapper(func)
         return _wrapper
 
-    @classmethod
-    @override
-    def get_scope(cls) -> ContextScope | None:
-        """Get default container scope."""
-        return cls.default_scope
-
     @override
     def __new__(cls, *_: typing.Any, **__: typing.Any) -> "typing_extensions.Self":
         msg = f"{cls.__name__} should not be instantiated"
         raise RuntimeError(msg)
-
-    @classmethod
-    @override
-    def supports_sync_context(cls) -> bool:
-        return True
-
-    @classmethod
-    @contextmanager
-    @override
-    def sync_context(cls, force: bool = False) -> typing.Iterator[None]:
-        with ExitStack() as stack:
-            for container in cls.get_containers():
-                stack.enter_context(container.sync_context(force=force))
-            for provider in cls.get_providers().values():
-                if isinstance(provider, ContextResource) and not provider._is_async:  # noqa: SLF001
-                    stack.enter_context(provider.sync_context(force=force))
-            yield
-
-    @classmethod
-    @asynccontextmanager
-    @override
-    async def async_context(cls, force: bool = False) -> typing.AsyncIterator[None]:
-        async with AsyncExitStack() as stack:
-            for container in cls.get_containers():
-                await stack.enter_async_context(container.async_context(force=force))
-            for provider in cls.get_providers().values():
-                if isinstance(provider, ContextResource):
-                    await stack.enter_async_context(provider.async_context(force=force))
-            yield
 
     @classmethod
     def connect_containers(cls, *containers: type["BaseContainer"]) -> None:
@@ -119,21 +78,6 @@ class BaseContainer(SupportsContext[None], metaclass=BaseContainerMeta):
             cls.containers = []
 
         cls.containers.extend(containers)
-
-    @classmethod
-    def get_providers(cls) -> dict[str, AbstractProvider[typing.Any]]:
-        """Get all connected providers."""
-        if not hasattr(cls, "providers"):
-            cls.providers = {k: v for k, v in cls.__dict__.items() if isinstance(v, AbstractProvider)}
-        return cls.providers
-
-    @classmethod
-    def get_containers(cls) -> list[type["BaseContainer"]]:
-        """Get all connected containers."""
-        if not hasattr(cls, "containers"):
-            cls.containers = []
-
-        return cls.containers
 
     @classmethod
     async def init_resources(cls) -> None:
