@@ -6,7 +6,7 @@ import logging
 import threading
 import typing
 from abc import abstractmethod
-from contextlib import AbstractAsyncContextManager, AbstractContextManager, contextmanager
+from contextlib import AbstractAsyncContextManager, AbstractContextManager
 from contextvars import ContextVar, Token
 from functools import wraps
 from types import TracebackType
@@ -15,7 +15,6 @@ from typing import Final, overload
 from typing_extensions import TypeIs, override
 
 from that_depends.entities.resource_context import ResourceContext
-from that_depends.meta import BaseContainerMeta
 from that_depends.providers.base import AbstractResource
 
 
@@ -78,13 +77,6 @@ class ContextScopes:
 _CONTAINER_SCOPE: typing.Final[ContextVar[ContextScope | None]] = ContextVar("__CONTAINER_SCOPE__", default=None)
 
 
-def _get_container_context() -> dict[str, typing.Any] | None:
-    try:
-        return _CONTAINER_CONTEXT.get()
-    except LookupError:
-        return None
-
-
 def get_current_scope() -> ContextScope | None:
     """Get the current context scope.
 
@@ -99,33 +91,11 @@ def _set_current_scope(scope: ContextScope | None) -> Token[ContextScope | None]
     return _CONTAINER_SCOPE.set(scope)
 
 
-@contextmanager
+@contextlib.contextmanager
 def _enter_named_scope(scope: ContextScope) -> typing.Iterator[ContextScope]:
     token = _set_current_scope(scope)
     yield scope
     _CONTAINER_SCOPE.reset(token)
-
-
-def fetch_context_item(key: str, default: typing.Any = None) -> typing.Any:  # noqa: ANN401
-    """Retrieve a value from the global context.
-
-    Args:
-        key (str): The key to retrieve from the global context.
-        default (Any): The default value to return if the key is not found.
-
-    Returns:
-        Any: The value associated with the key in the global context or the default value.
-
-    Example:
-        ```python
-        async with container_context(global_context={"username": "john_doe"}):
-            user = fetch_context_item("username")
-        ```
-
-    """
-    if context := _get_container_context():
-        return context.get(key, default)
-    return default
 
 
 T = typing.TypeVar("T")
@@ -187,6 +157,35 @@ class SupportsContext(typing.Generic[CT], abc.ABC):
             bool: True if sync context is supported, False otherwise.
 
         """
+
+
+def _get_container_context() -> dict[str, typing.Any] | None:
+    try:
+        return _CONTAINER_CONTEXT.get()
+    except LookupError:
+        return None
+
+
+def fetch_context_item(key: str, default: typing.Any = None) -> typing.Any:  # noqa: ANN401
+    """Retrieve a value from the global context.
+
+    Args:
+        key (str): The key to retrieve from the global context.
+        default (Any): The default value to return if the key is not found.
+
+    Returns:
+        Any: The value associated with the key in the global context or the default value.
+
+    Example:
+        ```python
+        async with container_context(global_context={"username": "john_doe"}):
+            user = fetch_context_item("username")
+        ```
+
+    """
+    if context := _get_container_context():
+        return context.get(key, default)
+    return default
 
 
 class ContextResource(
@@ -469,6 +468,8 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
         else:
             self._initial_context = self._global_context or {}
         if self._reset_resource_context:  # equivalent to reset_all_containers
+            from that_depends.meta import BaseContainerMeta
+
             self._add_providers_from_containers(BaseContainerMeta.get_instances(), self._scope)
 
     def _add_providers_from_containers(

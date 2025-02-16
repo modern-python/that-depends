@@ -10,18 +10,20 @@ from unittest.mock import Mock
 
 import pytest
 
-from that_depends import BaseContainer, Provide, fetch_context_item, inject, providers
-from that_depends.entities.resource_context import ResourceContext
-from that_depends.meta import DefaultScopeNotDefinedError
-from that_depends.providers import container_context
-from that_depends.providers.context_resources import (
+from that_depends import (
+    BaseContainer,
     ContextScope,
     ContextScopes,
-    DIContextMiddleware,
-    InvalidContextError,
-    _enter_named_scope,
+    Provide,
+    fetch_context_item,
     get_current_scope,
+    inject,
+    providers,
 )
+from that_depends.entities.resource_context import ResourceContext
+from that_depends.meta import DefaultScopeNotDefinedError
+from that_depends.providers import DIContextMiddleware, container_context
+from that_depends.providers.context_resources import InvalidContextError, _enter_named_scope
 
 
 logger = logging.getLogger(__name__)

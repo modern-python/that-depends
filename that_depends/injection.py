@@ -4,7 +4,7 @@ import re
 import typing
 import warnings
 
-from that_depends import BaseContainer
+from that_depends.container import BaseContainer
 from that_depends.meta import BaseContainerMeta
 from that_depends.providers import AbstractProvider
 from that_depends.providers.context_resources import ContextScope, ContextScopes, container_context
