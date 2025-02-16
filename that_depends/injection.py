@@ -3,16 +3,11 @@ import inspect
 import re
 import typing
 import warnings
-from typing import TYPE_CHECKING
 
-from that_depends.entities.context import ContextScope, ContextScopes
+from that_depends.container import BaseContainer
 from that_depends.meta import BaseContainerMeta
 from that_depends.providers import AbstractProvider
-from that_depends.providers.context_resources import container_context
-
-
-if TYPE_CHECKING:
-    from that_depends.container import BaseContainer
+from that_depends.providers.context_resources import ContextScope, ContextScopes, container_context
 
 
 P = typing.ParamSpec("P")

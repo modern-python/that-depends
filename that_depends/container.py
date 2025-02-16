@@ -5,9 +5,9 @@ from typing import overload
 
 from typing_extensions import override
 
-from that_depends.entities.context import ContextScope, ContextScopes
 from that_depends.meta import BaseContainerMeta
 from that_depends.providers import AbstractProvider, Resource, Singleton
+from that_depends.providers.context_resources import ContextScope, ContextScopes
 
 
 if typing.TYPE_CHECKING:

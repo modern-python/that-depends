@@ -4,15 +4,16 @@ import warnings
 from collections.abc import MutableMapping
 from contextlib import AsyncExitStack, ExitStack, asynccontextmanager, contextmanager
 from threading import Lock
+from typing import TYPE_CHECKING
 
 from typing_extensions import override
 
-from that_depends.entities.context import ContextScope, ContextScopes, SupportsContext
 from that_depends.providers import AbstractProvider
+from that_depends.providers.context_resources import ContextResource, ContextScope, ContextScopes, SupportsContext
 
 
-if typing.TYPE_CHECKING:
-    from that_depends.container import BaseContainer
+if TYPE_CHECKING:
+    from that_depends import BaseContainer  # pragma: no cover
 
 
 class DefaultScopeNotDefinedError(Exception):
@@ -24,8 +25,6 @@ class _ContainerMetaDict(dict[str, typing.Any]):
 
     @override
     def __setitem__(self, key: str, value: typing.Any) -> None:
-        from that_depends.providers import ContextResource
-
         if isinstance(value, ContextResource) and value.get_scope() == ContextScopes.ANY:
             try:
                 default_scope = self.__getitem__("default_scope")
@@ -49,8 +48,6 @@ class BaseContainerMeta(SupportsContext[None], abc.ABCMeta):
     @asynccontextmanager
     @override
     async def async_context(cls, force: bool = False) -> typing.AsyncIterator[None]:
-        from that_depends.providers import ContextResource
-
         async with AsyncExitStack() as stack:
             for container in cls.get_containers():
                 await stack.enter_async_context(container.async_context(force=force))
@@ -62,8 +59,6 @@ class BaseContainerMeta(SupportsContext[None], abc.ABCMeta):
     @contextmanager
     @override
     def sync_context(cls, force: bool = False) -> typing.Iterator[None]:
-        from that_depends.providers import ContextResource
-
         with ExitStack() as stack:
             for container in cls.get_containers():
                 stack.enter_context(container.sync_context(force=force))

@@ -1,9 +1,11 @@
+import abc
 import asyncio
 import contextlib
 import inspect
 import logging
 import threading
 import typing
+from abc import abstractmethod
 from contextlib import AbstractAsyncContextManager, AbstractContextManager
 from contextvars import ContextVar, Token
 from functools import wraps
@@ -12,17 +14,7 @@ from typing import Final, overload
 
 from typing_extensions import TypeIs, override
 
-from that_depends.entities.context import (
-    _CONTAINER_SCOPE,
-    ContextScope,
-    ContextScopes,
-    InvalidContextError,
-    SupportsContext,
-    _set_current_scope,
-    get_current_scope,
-)
 from that_depends.entities.resource_context import ResourceContext
-from that_depends.meta import BaseContainerMeta
 from that_depends.providers.base import AbstractResource
 
 
@@ -44,6 +36,127 @@ ASGIApp = typing.Callable[[Scope, Receive, Send], typing.Awaitable[None]]
 _ASYNC_CONTEXT_KEY: typing.Final[str] = "__ASYNC_CONTEXT__"
 
 ContextType = dict[str, typing.Any]
+
+
+class InvalidContextError(RuntimeError):
+    """Raised when an invalid context is being used."""
+
+
+class ContextScope:
+    """A named context scope."""
+
+    def __init__(self, name: str) -> None:
+        """Initialize a new context scope."""
+        self._name = name
+
+    @property
+    def name(self) -> str:
+        """Get the name of the context scope."""
+        return self._name
+
+    @override
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, ContextScope):
+            return self.name == other.name
+        return False
+
+    @override
+    def __repr__(self) -> str:
+        return f"{self.name!r}"
+
+
+class ContextScopes:
+    """Enumeration of context scopes."""
+
+    ANY = ContextScope("ANY")  # special scope that can be used in any context
+    APP = ContextScope("APP")  # application scope
+    REQUEST = ContextScope("REQUEST")  # request scope
+    INJECT = ContextScope("INJECT")  # inject scope
+
+
+_CONTAINER_SCOPE: typing.Final[ContextVar[ContextScope | None]] = ContextVar("__CONTAINER_SCOPE__", default=None)
+
+
+def get_current_scope() -> ContextScope | None:
+    """Get the current context scope.
+
+    Returns:
+        ContextScope | None: The current context scope.
+
+    """
+    return _CONTAINER_SCOPE.get()
+
+
+def _set_current_scope(scope: ContextScope | None) -> Token[ContextScope | None]:
+    return _CONTAINER_SCOPE.set(scope)
+
+
+@contextlib.contextmanager
+def _enter_named_scope(scope: ContextScope) -> typing.Iterator[ContextScope]:
+    token = _set_current_scope(scope)
+    yield scope
+    _CONTAINER_SCOPE.reset(token)
+
+
+T = typing.TypeVar("T")
+CT = typing.TypeVar("CT")
+
+
+class SupportsContext(typing.Generic[CT], abc.ABC):
+    """Interface for resources that support context initialization.
+
+    This interface defines methods to create synchronous and asynchronous
+    context managers, as well as a function decorator for context initialization.
+    """
+
+    @abstractmethod
+    def get_scope(self) -> ContextScope | None:
+        """Return the scope of the resource."""
+
+    @abstractmethod
+    def async_context(self, force: bool = False) -> typing.AsyncContextManager[CT]:
+        """Create an async context manager for this resource.
+
+        Args:
+            force (bool): If True, the context will be entered regardless of the current scope.
+
+        Returns:
+            AsyncContextManager[CT]: An async context manager.
+
+        Example:
+            ```python
+            async with my_resource.async_context():
+                result = await my_resource.async_resolve()
+            ```
+
+        """
+
+    @abstractmethod
+    def sync_context(self, force: bool = False) -> typing.ContextManager[CT]:
+        """Create a sync context manager for this resource.
+
+        Args:
+            force (bool): If True, the context will be entered regardless of the current scope.
+
+        Returns:
+            ContextManager[CT]: A sync context manager.
+
+        Example:
+            ```python
+            with my_resource.sync_context():
+                result = my_resource.sync_resolve()
+            ```
+
+        """
+
+    @abstractmethod
+    def supports_sync_context(self) -> bool:
+        """Check whether the resource supports sync context.
+
+        Returns:
+            bool: True if sync context is supported, False otherwise.
+
+        """
 
 
 def _get_container_context() -> dict[str, typing.Any] | None:
@@ -73,9 +186,6 @@ def fetch_context_item(key: str, default: typing.Any = None) -> typing.Any:  # n
     if context := _get_container_context():
         return context.get(key, default)
     return default
-
-
-T = typing.TypeVar("T")
 
 
 class ContextResource(
@@ -358,6 +468,8 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
         else:
             self._initial_context = self._global_context or {}
         if self._reset_resource_context:  # equivalent to reset_all_containers
+            from that_depends.meta import BaseContainerMeta
+
             self._add_providers_from_containers(BaseContainerMeta.get_instances(), self._scope)
 
     def _add_providers_from_containers(

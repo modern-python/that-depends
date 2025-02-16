@@ -7,8 +7,7 @@ from unittest.mock import Mock
 import pytest
 
 from tests import container
-from that_depends import BaseContainer, Provide, inject, providers
-from that_depends.entities.context import ContextScopes
+from that_depends import BaseContainer, ContextScopes, Provide, inject, providers
 from that_depends.injection import StringProviderDefinition
 
 
