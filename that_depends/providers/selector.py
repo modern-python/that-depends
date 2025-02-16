@@ -36,7 +36,7 @@ class Selector(AbstractProvider[T_co]):
 
     __slots__ = "_override", "_providers", "_selector"
 
-    def __init__(self, selector: typing.Callable[[], str], **providers: AbstractProvider[T_co]) -> None:
+    def __init__(self, selector: str | typing.Callable[[], str], **providers: AbstractProvider[T_co]) -> None:
         """Initialize a new Selector instance.
 
         Args:
@@ -70,7 +70,20 @@ class Selector(AbstractProvider[T_co]):
         if self._override:
             return typing.cast(T_co, self._override)
 
-        selected_key: typing.Final = self._selector()
+        if isinstance(self._selector, AbstractProvider):
+            selected_key = await self._selector.async_resolve()
+        elif callable(self._selector):
+            selected_key = self._selector()
+        elif isinstance(self._selector, str):
+            selected_key = self._selector
+        else:
+            msg = f"Invalid selector type: {type(self._selector)}, expected str, or a provider/callable returning str"
+            raise TypeError(msg)
+
+        if not isinstance(selected_key, str):
+            msg = f"Invalid selector key type: {type(selected_key)}, expected str"
+            raise TypeError(msg)
+
         if selected_key not in self._providers:
             msg = f"No provider matches {selected_key}"
             raise RuntimeError(msg)
@@ -81,7 +94,20 @@ class Selector(AbstractProvider[T_co]):
         if self._override:
             return typing.cast(T_co, self._override)
 
-        selected_key: typing.Final = self._selector()
+        if isinstance(self._selector, AbstractProvider):
+            selected_key = self._selector.sync_resolve()
+        elif callable(self._selector):
+            selected_key = self._selector()
+        elif isinstance(self._selector, str):
+            selected_key = self._selector
+        else:
+            msg = f"Invalid selector type: {type(self._selector)}, expected str, or a provider/callable returning str"
+            raise TypeError(msg)
+
+        if not isinstance(selected_key, str):
+            msg = f"Invalid selector key type: {type(selected_key)}, expected str"
+            raise TypeError(msg)
+
         if selected_key not in self._providers:
             msg = f"No provider matches {selected_key}"
             raise RuntimeError(msg)
