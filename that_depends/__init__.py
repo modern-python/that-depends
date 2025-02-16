@@ -15,7 +15,6 @@ __all__ = [
     "container_context",
     "fetch_context_item",
     "get_current_scope",
-    "get_current_scope",
     "inject",
     "providers",
 ]
