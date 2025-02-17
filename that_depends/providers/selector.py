@@ -36,7 +36,9 @@ class Selector(AbstractProvider[T_co]):
 
     __slots__ = "_override", "_providers", "_selector"
 
-    def __init__(self, selector: str | typing.Callable[[], str], **providers: AbstractProvider[T_co]) -> None:
+    def __init__(
+        self, selector: typing.Callable[[], str] | AbstractProvider[str] | str, **providers: AbstractProvider[T_co]
+    ) -> None:
         """Initialize a new Selector instance.
 
         Args:
