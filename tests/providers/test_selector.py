@@ -155,3 +155,23 @@ async def test_selector_with_non_string_provider() -> None:
 
     with pytest.raises(TypeError, match="Invalid selector key type: <class 'dict'>, expected str"):
         await NonStringProviderSelectorContainer.selector.async_resolve()
+
+
+class InvalidSelectorContainer(BaseContainer):
+    selector = providers.Selector(
+        None,  # type: ignore[arg-type]
+        one=providers.Singleton(lambda: "Provider 1"),
+        two=providers.Singleton(lambda: "Provider 2"),
+    )
+
+
+async def test_selector_with_invalid_selector() -> None:
+    with pytest.raises(
+        TypeError, match="Invalid selector type: <class 'NoneType'>, expected str, or a provider/callable returning str"
+    ):
+        InvalidSelectorContainer.selector.sync_resolve()
+
+    with pytest.raises(
+        TypeError, match="Invalid selector type: <class 'NoneType'>, expected str, or a provider/callable returning str"
+    ):
+        await InvalidSelectorContainer.selector.async_resolve()
