@@ -64,7 +64,7 @@ class Selector(AbstractProvider[T_co]):
 
         """
         super().__init__()
-        self._selector: typing.Final = selector
+        self._selector: typing.Final[typing.Callable[[], str] | AbstractProvider[str] | str] = selector
         self._providers: typing.Final = providers
 
     @override
@@ -72,10 +72,12 @@ class Selector(AbstractProvider[T_co]):
         if self._override:
             return typing.cast(T_co, self._override)
 
-        selected_key: str | typing.Any | None = None
         if isinstance(self._selector, AbstractProvider):
             selected_key = await self._selector.async_resolve()
-        selected_key = self._get_selected_key(selected_key)
+        else:
+            selected_key = self._get_selected_key()
+
+        self._validate_key(selected_key)
 
         return await self._providers[selected_key].async_resolve()
 
@@ -84,31 +86,26 @@ class Selector(AbstractProvider[T_co]):
         if self._override:
             return typing.cast(T_co, self._override)
 
-        selected_key: str | typing.Any | None = None
         if isinstance(self._selector, AbstractProvider):
             selected_key = self._selector.sync_resolve()
-        selected_key = self._get_selected_key(selected_key)
+        else:
+            selected_key = self._get_selected_key()
+
+        self._validate_key(selected_key)
 
         return self._providers[selected_key].sync_resolve()
 
-    def _get_selected_key(self, selected_key: typing.Any | None = None) -> str:  # noqa: ANN401
-        if selected_key is None:
-            if callable(self._selector):
-                selected_key = self._selector()
-            elif isinstance(self._selector, str):
-                selected_key = self._selector
-            else:
-                msg = (
-                    f"Invalid selector type: {type(self._selector)}, expected str, or a provider/callable returning str"
-                )
-                raise TypeError(msg)
-
-        if not isinstance(selected_key, str):
-            msg = f"Invalid selector key type: {type(selected_key)}, expected str"
+    def _get_selected_key(self) -> str:
+        if callable(self._selector):
+            selected_key = self._selector()
+        elif isinstance(self._selector, str):
+            selected_key = self._selector
+        else:
+            msg = f"Invalid selector type: {type(self._selector)}, expected str, or a provider/callable returning str"
             raise TypeError(msg)
+        return typing.cast(str, selected_key)
 
-        if selected_key not in self._providers:
-            msg = f"No provider matches {selected_key}"
-            raise RuntimeError(msg)
-
-        return selected_key
+    def _validate_key(self, key: str) -> None:
+        if key not in self._providers:
+            msg = f"Key '{key}' not found in providers"
+            raise KeyError(msg)
