@@ -66,6 +66,7 @@ class Selector(AbstractProvider[T_co]):
         super().__init__()
         self._selector: typing.Final[typing.Callable[[], str] | AbstractProvider[str] | str] = selector
         self._providers: typing.Final = providers
+        self._register(self._providers.values())
 
     @override
     async def async_resolve(self) -> T_co:

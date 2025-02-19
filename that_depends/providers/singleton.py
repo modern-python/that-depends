@@ -52,6 +52,8 @@ class Singleton(SupportsTeardown, AbstractProvider[T_co]):
         self._threading_lock: typing.Final = threading.Lock()
         self._args: typing.Final = args
         self._kwargs: typing.Final = kwargs
+        self._register(self._args)
+        self._register(self._kwargs.values())
 
     @override
     async def async_resolve(self) -> T_co:
@@ -154,6 +156,8 @@ class AsyncSingleton(SupportsTeardown, AbstractProvider[T_co]):
         self._asyncio_lock: typing.Final = asyncio.Lock()
         self._args: typing.Final = args
         self._kwargs: typing.Final = kwargs
+        self._register(self._args)
+        self._register(self._kwargs.values())
 
     @override
     async def async_resolve(self) -> T_co:

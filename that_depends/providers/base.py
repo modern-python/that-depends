@@ -1,6 +1,7 @@
 import abc
 import contextlib
 import inspect
+import threading
 import typing
 from contextlib import contextmanager
 from operator import attrgetter
@@ -26,7 +27,36 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
     def __init__(self) -> None:
         """Create a new provider."""
         super().__init__()
+        self._children: set[AbstractProvider[typing.Any]] = set()
         self._override: typing.Any = None
+        self._lock = threading.Lock()
+
+    def _register(self, candidates: typing.Iterable[typing.Any]) -> None:
+        """Register current provider as child.
+
+        Args:
+            candidates: iterable of potential parent providers.
+
+        Returns:
+            None
+
+        """
+        for candidate in candidates:
+            if isinstance(candidate, AbstractProvider):
+                candidate.add_child_provider(self)
+
+    def add_child_provider(self, provider: "AbstractProvider[typing.Any]") -> None:
+        """Add a child provider to the current provider.
+
+        Args:
+            provider: provider to add as a child.
+
+        Returns:
+            None
+
+        """
+        with self._lock:
+            self._children.add(provider)
 
     def __deepcopy__(self, *_: object, **__: object) -> typing_extensions.Self:
         """Hack for Litestar to prevent cloning object.
@@ -157,6 +187,8 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
             raise TypeError(msg)
         self._args = args
         self._kwargs = kwargs
+        self._register(self._args)
+        self._register(self._kwargs.values())
 
     @abc.abstractmethod
     def _fetch_context(self) -> ResourceContext[T_co]: ...
