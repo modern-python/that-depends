@@ -32,7 +32,7 @@ def test_thread_local_singleton_same_thread() -> None:
 
     assert instance1 == instance2, "Singleton failed: Instances within the same thread should be identical."
 
-    provider.tear_down()
+    provider.sync_tear_down()
 
     assert provider._instance is None, "Tear down failed: Instance should be reset to None."
 

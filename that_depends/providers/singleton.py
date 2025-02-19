@@ -7,13 +7,14 @@ import typing
 from typing_extensions import override
 
 from that_depends.providers.base import AbstractProvider
+from that_depends.providers.mixin import SupportsTeardown
 
 
 T_co = typing.TypeVar("T_co", covariant=True)
 P = typing.ParamSpec("P")
 
 
-class Singleton(AbstractProvider[T_co]):
+class Singleton(SupportsTeardown, AbstractProvider[T_co]):
     """A provider that creates an instance once and caches it for subsequent injections.
 
     This provider is safe to use concurrently in both threading and asyncio contexts.
@@ -93,6 +94,7 @@ class Singleton(AbstractProvider[T_co]):
             )
             return self._instance
 
+    @override
     async def tear_down(self) -> None:
         """Reset the cached instance.
 
@@ -100,6 +102,7 @@ class Singleton(AbstractProvider[T_co]):
         """
         self.sync_tear_down()
 
+    @override
     def sync_tear_down(self) -> None:
         """Reset the cached instance.
 
@@ -109,7 +112,7 @@ class Singleton(AbstractProvider[T_co]):
             self._instance = None
 
 
-class AsyncSingleton(AbstractProvider[T_co]):
+class AsyncSingleton(SupportsTeardown, AbstractProvider[T_co]):
     """A provider that creates an instance asynchronously and caches it for subsequent injections.
 
     This provider is safe to use concurrently in asyncio contexts. On the first call
@@ -179,6 +182,7 @@ class AsyncSingleton(AbstractProvider[T_co]):
         msg = "AsyncSingleton cannot be resolved in an sync context."
         raise RuntimeError(msg)
 
+    @override
     async def tear_down(self) -> None:
         """Reset the cached instance.
 
@@ -186,6 +190,7 @@ class AsyncSingleton(AbstractProvider[T_co]):
         """
         self.sync_tear_down()
 
+    @override
     def sync_tear_down(self) -> None:
         """Reset the cached instance.
 

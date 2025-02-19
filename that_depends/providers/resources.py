@@ -1,14 +1,17 @@
 import typing
 
+from typing_extensions import override
+
 from that_depends.entities.resource_context import ResourceContext
 from that_depends.providers.base import AbstractResource, ResourceCreatorType
+from that_depends.providers.mixin import SupportsTeardown
 
 
 T_co = typing.TypeVar("T_co", covariant=True)
 P = typing.ParamSpec("P")
 
 
-class Resource(AbstractResource[T_co]):
+class Resource(SupportsTeardown, AbstractResource[T_co]):
     """Provides a resource that is resolved once and cached for future usage.
 
     Unlike a singleton, this provider includes finalization logic and can be
@@ -83,6 +86,7 @@ class Resource(AbstractResource[T_co]):
     def _fetch_context(self) -> ResourceContext[T_co]:
         return self._context
 
+    @override
     async def tear_down(self) -> None:
         """Tear down the resource if it has been created.
 
@@ -98,6 +102,7 @@ class Resource(AbstractResource[T_co]):
         """
         await self._fetch_context().tear_down()
 
+    @override
     def sync_tear_down(self) -> None:
         """Sync tear down the resource if it has been created.
 

@@ -5,13 +5,14 @@ import typing
 from typing_extensions import override
 
 from that_depends.providers import AbstractProvider
+from that_depends.providers.mixin import SupportsTeardown
 
 
 T_co = typing.TypeVar("T_co", covariant=True)
 P = typing.ParamSpec("P")
 
 
-class ThreadLocalSingleton(AbstractProvider[T_co]):
+class ThreadLocalSingleton(SupportsTeardown, AbstractProvider[T_co]):
     """Creates a new instance for each thread using a thread-local store.
 
     This provider ensures that each thread gets its own instance, which is
@@ -95,11 +96,16 @@ class ThreadLocalSingleton(AbstractProvider[T_co]):
         )
         return self._instance
 
-    def tear_down(self) -> None:
+    @override
+    def sync_tear_down(self) -> None:
+        if self._instance is not None:
+            self._instance = None
+
+    @override
+    async def tear_down(self) -> None:
         """Reset the thread-local instance.
 
         After calling this method, subsequent calls to `sync_resolve` on the
         same thread will produce a new instance.
         """
-        if self._instance is not None:
-            self._instance = None
+        self.sync_tear_down()
