@@ -23,9 +23,9 @@ ResourceCreatorType: typing.TypeAlias = typing.Callable[
 class AbstractProvider(typing.Generic[T_co], abc.ABC):
     """Base class for all providers."""
 
-    def __init__(self, **kwargs: typing.Any) -> None:  # noqa: ANN401
+    def __init__(self) -> None:
         """Create a new provider."""
-        super().__init__(**kwargs)
+        super().__init__()
         self._override: typing.Any = None
 
     def __deepcopy__(self, *_: object, **__: object) -> typing_extensions.Self:
