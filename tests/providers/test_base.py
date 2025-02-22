@@ -29,14 +29,16 @@ class DummyProvider(SupportsTeardown, AbstractProvider[int]):
         self._instance: int | None = None
 
     @override
-    async def tear_down(self) -> None:
+    async def tear_down(self, propagate: bool = True) -> None:
         self._instance = None
-        await self._tear_down_children()
+        if propagate:
+            await self._tear_down_children()
 
     @override
-    def sync_tear_down(self) -> None:
+    def sync_tear_down(self, propagate: bool = True, raise_on_async: bool = True) -> None:
         self._instance = None
-        self._sync_tear_down_children()
+        if propagate:
+            self._sync_tear_down_children(raise_on_async=raise_on_async)
 
     @override
     async def async_resolve(self) -> int:

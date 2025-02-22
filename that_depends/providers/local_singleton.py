@@ -99,13 +99,14 @@ class ThreadLocalSingleton(SupportsTeardown, AbstractProvider[T_co]):
         return self._instance
 
     @override
-    def sync_tear_down(self) -> None:
+    def sync_tear_down(self, propagate: bool = True, raise_on_async: bool = True) -> None:
         if self._instance is not None:
             self._instance = None
-        self._sync_tear_down_children()
+        if propagate:
+            self._sync_tear_down_children(raise_on_async=raise_on_async)
 
     @override
-    async def tear_down(self) -> None:
+    async def tear_down(self, propagate: bool = True) -> None:
         """Reset the thread-local instance.
 
         After calling this method, subsequent calls to `sync_resolve` on the
@@ -113,4 +114,5 @@ class ThreadLocalSingleton(SupportsTeardown, AbstractProvider[T_co]):
         """
         if self._instance is not None:
             self._instance = None
-        await self._tear_down_children()
+        if propagate:
+            await self._tear_down_children()

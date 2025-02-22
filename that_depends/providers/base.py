@@ -155,11 +155,11 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
             if isinstance(child, SupportsTeardown):
                 await child.tear_down()
 
-    def _sync_tear_down_children(self) -> None:
+    def _sync_tear_down_children(self, raise_on_async: bool = True) -> None:
         """Tear down all child providers."""
         for child in self._children:
             if isinstance(child, SupportsTeardown):
-                child.sync_tear_down()
+                child.sync_tear_down(raise_on_async=raise_on_async)
 
 
 class AbstractResource(AbstractProvider[T_co], abc.ABC):

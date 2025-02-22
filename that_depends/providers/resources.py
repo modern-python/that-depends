@@ -87,7 +87,7 @@ class Resource(SupportsTeardown, AbstractResource[T_co]):
         return self._context
 
     @override
-    async def tear_down(self) -> None:
+    async def tear_down(self, propagate: bool = True) -> None:
         """Tear down the resource if it has been created.
 
         If the resource was never resolved, or was already torn down,
@@ -101,10 +101,11 @@ class Resource(SupportsTeardown, AbstractResource[T_co]):
 
         """
         await self._fetch_context().tear_down()
-        await self._tear_down_children()
+        if propagate:
+            await self._tear_down_children()
 
     @override
-    def sync_tear_down(self) -> None:
+    def sync_tear_down(self, propagate: bool = True, raise_on_async: bool = True) -> None:
         """Sync tear down the resource if it has been created.
 
         If the resource was never resolved, or was already torn down,
@@ -119,5 +120,5 @@ class Resource(SupportsTeardown, AbstractResource[T_co]):
             ```
 
         """
-        self._fetch_context().sync_tear_down()
+        self._fetch_context().sync_tear_down(propagate=propagate, raise_on_async=raise_on_async)
         self._sync_tear_down_children()
