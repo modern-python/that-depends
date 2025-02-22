@@ -2,6 +2,7 @@ import typing
 from collections.abc import Callable
 
 import pytest
+from typing_extensions import override
 
 from that_depends.providers import (
     AsyncFactory,
@@ -17,19 +18,35 @@ from that_depends.providers import (
 )
 from that_depends.providers.base import AbstractProvider
 from that_depends.providers.context_resources import ContextResource
+from that_depends.providers.mixin import SupportsTeardown
 
 
-class DummyProvider(AbstractProvider[None]):
+class DummyProvider(SupportsTeardown, AbstractProvider[int]):
     """A dummy provider used for testing."""
 
     def __init__(self) -> None:
         super().__init__()
+        self._instance: int | None = None
 
-    async def async_resolve(self) -> None:
-        return None  # pragma: no cover
+    @override
+    async def tear_down(self) -> None:
+        self._instance = None
+        await self._tear_down_children()
 
-    def sync_resolve(self) -> None:
-        return None  # pragma: no cover
+    @override
+    def sync_tear_down(self) -> None:
+        self._instance = None
+        self._sync_tear_down_children()
+
+    @override
+    async def async_resolve(self) -> int:
+        self._instance = 1
+        return self._instance
+
+    @override
+    def sync_resolve(self) -> int:
+        self._instance = 1
+        return self._instance  # pragma: no cover
 
 
 def test_add_child_provider() -> None:
@@ -110,3 +127,41 @@ def test_provider_registration(
         assert actual, f"Expected {parent} to be in child._children but got child._children={child._children}"
     else:
         assert not actual, f"Did NOT expect registration, but found {parent} in child._children={child._children}"
+
+
+def test_sync_tear_down_propagation() -> None:
+    parent = DummyProvider()
+    child_1 = DummyProvider()
+    child_2 = DummyProvider()
+
+    parent.add_child_provider(child_1)
+    parent.add_child_provider(child_2)
+
+    assert parent.sync_resolve() == 1
+
+    assert parent._instance == 1
+
+    parent.sync_tear_down()
+
+    assert parent._instance is None
+    assert child_1._instance is None
+    assert child_2._instance is None
+
+
+async def test_async_tear_down_propagation() -> None:
+    parent = DummyProvider()
+    child_1 = DummyProvider()
+    child_2 = DummyProvider()
+
+    parent.add_child_provider(child_1)
+    parent.add_child_provider(child_2)
+
+    assert await parent.async_resolve() == 1
+
+    assert parent._instance == 1
+
+    await parent.tear_down()
+
+    assert parent._instance is None
+    assert child_1._instance is None
+    assert child_2._instance is None

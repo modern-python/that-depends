@@ -102,7 +102,9 @@ class Singleton(SupportsTeardown, AbstractProvider[T_co]):
 
         After calling this method, the next async_resolve call will recreate the instance.
         """
-        self.sync_tear_down()
+        if self._instance is not None:
+            self._instance = None
+        await self._tear_down_children()
 
     @override
     def sync_tear_down(self) -> None:
@@ -112,6 +114,7 @@ class Singleton(SupportsTeardown, AbstractProvider[T_co]):
         """
         if self._instance is not None:
             self._instance = None
+        self._sync_tear_down_children()
 
 
 class AsyncSingleton(SupportsTeardown, AbstractProvider[T_co]):
@@ -192,7 +195,9 @@ class AsyncSingleton(SupportsTeardown, AbstractProvider[T_co]):
 
         After calling this method, the next call to ``async_resolve()`` will recreate the instance.
         """
-        self.sync_tear_down()
+        if self._instance is not None:
+            self._instance = None
+        await self._tear_down_children()
 
     @override
     def sync_tear_down(self) -> None:
@@ -202,3 +207,4 @@ class AsyncSingleton(SupportsTeardown, AbstractProvider[T_co]):
         """
         if self._instance is not None:
             self._instance = None
+        self._sync_tear_down_children()

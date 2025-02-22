@@ -181,3 +181,17 @@ async def test_singleton_async_resolve_with_async_dependencies() -> None:
 
     for val in results:
         assert val == expected
+
+
+async def test_async_singleton_teardown() -> None:
+    singleton_async = providers.AsyncSingleton(create_async_obj, "foo")
+
+    await singleton_async.async_resolve()
+    singleton_async.sync_tear_down()
+
+    assert singleton_async._instance is None
+
+    await singleton_async.async_resolve()
+
+    await singleton_async.tear_down()
+    assert singleton_async._instance is None

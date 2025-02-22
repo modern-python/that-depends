@@ -8,8 +8,9 @@ from typing import TYPE_CHECKING
 
 from typing_extensions import override
 
-from that_depends.providers import AbstractProvider
+from that_depends.providers import AbstractProvider, Resource
 from that_depends.providers.context_resources import ContextResource, ContextScope, ContextScopes, SupportsContext
+from that_depends.providers.mixin import SupportsTeardown
 
 
 if TYPE_CHECKING:
@@ -136,3 +137,24 @@ class BaseContainerMeta(SupportsContext[None], abc.ABCMeta):
             cls.containers: list[type[BaseContainer]] = []
 
         return cls.containers
+
+    async def tear_down(cls) -> None:
+        """Tear down all singleton and resource providers."""
+        for provider in reversed(cls.get_providers().values()):
+            if isinstance(provider, SupportsTeardown):
+                await provider.tear_down()
+
+        for container in cls.get_containers():
+            await container.tear_down()
+
+    def sync_tear_down(cls) -> None:
+        """Tear down all sync singleton adn resource providers."""
+        for provider in reversed(cls.get_providers().values()):
+            if isinstance(provider, Resource):
+                if not provider._is_async:  # noqa: SLF001
+                    provider.sync_tear_down()
+                continue
+
+            if isinstance(provider, SupportsTeardown):
+                provider.sync_tear_down()
+                continue

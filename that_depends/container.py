@@ -96,25 +96,6 @@ class BaseContainer(metaclass=BaseContainerMeta):
             await container.init_resources()
 
     @classmethod
-    async def tear_down(cls) -> None:
-        """Tear down all singleton and resource providers."""
-        for provider in reversed(cls.get_providers().values()):
-            if isinstance(provider, Resource | Singleton):
-                await provider.tear_down()
-
-        for container in cls.get_containers():
-            await container.tear_down()
-
-    @classmethod
-    def sync_tear_down(cls) -> None:
-        """Tear down all sync singleton adn resource providers."""
-        for provider in reversed(cls.get_providers().values()):
-            if isinstance(provider, Singleton):
-                provider.sync_tear_down()
-            if isinstance(provider, Resource) and not provider._is_async:  # noqa: SLF001
-                provider.sync_tear_down()
-
-    @classmethod
     def reset_override(cls) -> None:
         """Reset all provider overrides."""
         for v in cls.get_providers().values():

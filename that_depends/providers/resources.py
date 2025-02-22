@@ -101,6 +101,7 @@ class Resource(SupportsTeardown, AbstractResource[T_co]):
 
         """
         await self._fetch_context().tear_down()
+        await self._tear_down_children()
 
     @override
     def sync_tear_down(self) -> None:
@@ -119,3 +120,4 @@ class Resource(SupportsTeardown, AbstractResource[T_co]):
 
         """
         self._fetch_context().sync_tear_down()
+        self._sync_tear_down_children()

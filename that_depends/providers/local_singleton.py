@@ -102,6 +102,7 @@ class ThreadLocalSingleton(SupportsTeardown, AbstractProvider[T_co]):
     def sync_tear_down(self) -> None:
         if self._instance is not None:
             self._instance = None
+        self._sync_tear_down_children()
 
     @override
     async def tear_down(self) -> None:
@@ -110,4 +111,6 @@ class ThreadLocalSingleton(SupportsTeardown, AbstractProvider[T_co]):
         After calling this method, subsequent calls to `sync_resolve` on the
         same thread will produce a new instance.
         """
-        self.sync_tear_down()
+        if self._instance is not None:
+            self._instance = None
+        await self._tear_down_children()

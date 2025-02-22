@@ -10,6 +10,7 @@ import typing_extensions
 from typing_extensions import override
 
 from that_depends.entities.resource_context import ResourceContext
+from that_depends.providers.mixin import SupportsTeardown
 
 
 T_co = typing.TypeVar("T_co", covariant=True)
@@ -147,6 +148,18 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
 
         """
         return typing.cast(T_co, self)
+
+    async def _tear_down_children(self) -> None:
+        """Tear down all child providers."""
+        for child in self._children:
+            if isinstance(child, SupportsTeardown):
+                await child.tear_down()
+
+    def _sync_tear_down_children(self) -> None:
+        """Tear down all child providers."""
+        for child in self._children:
+            if isinstance(child, SupportsTeardown):
+                child.sync_tear_down()
 
 
 class AbstractResource(AbstractProvider[T_co], abc.ABC):
