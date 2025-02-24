@@ -55,8 +55,14 @@ class ThreadLocalSingleton(SupportsTeardown, AbstractProvider[T_co]):
         self._asyncio_lock = asyncio.Lock()
         self._args: typing.Final = args
         self._kwargs: typing.Final = kwargs
+
+    def _register_arguments(self) -> None:
         self._register(self._args)
         self._register(self._kwargs.values())
+
+    def _deregister_arguments(self) -> None:
+        self._deregister(self._args)
+        self._deregister(self._kwargs.values())
 
     @property
     def _instance(self) -> T_co | None:
@@ -75,6 +81,8 @@ class ThreadLocalSingleton(SupportsTeardown, AbstractProvider[T_co]):
             if self._instance is not None:
                 return self._instance
 
+            self._register_arguments()
+
             self._instance = self._factory(
                 *[await x.async_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],  # type: ignore[arg-type]
                 **{  # type: ignore[arg-type]
@@ -92,6 +100,8 @@ class ThreadLocalSingleton(SupportsTeardown, AbstractProvider[T_co]):
         if self._instance is not None:
             return self._instance
 
+        self._register_arguments()
+
         self._instance = self._factory(
             *[x.sync_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],  # type: ignore[arg-type]
             **{k: v.sync_resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},  # type: ignore[arg-type]
@@ -102,6 +112,7 @@ class ThreadLocalSingleton(SupportsTeardown, AbstractProvider[T_co]):
     def sync_tear_down(self, propagate: bool = True, raise_on_async: bool = True) -> None:
         if self._instance is not None:
             self._instance = None
+        self._deregister_arguments()
         if propagate:
             self._sync_tear_down_children(raise_on_async=raise_on_async)
 
@@ -114,5 +125,6 @@ class ThreadLocalSingleton(SupportsTeardown, AbstractProvider[T_co]):
         """
         if self._instance is not None:
             self._instance = None
+        self._deregister_arguments()
         if propagate:
             await self._tear_down_children()
