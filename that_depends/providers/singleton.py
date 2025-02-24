@@ -118,7 +118,7 @@ class Singleton(SupportsTeardown, AbstractProvider[T_co]):
             self._instance = None
         self._deregister_arguments()
         if propagate:
-            self._sync_tear_down_children(raise_on_async=raise_on_async)
+            self._sync_tear_down_children(propagate=propagate, raise_on_async=raise_on_async)
 
 
 class AsyncSingleton(SupportsTeardown, AbstractProvider[T_co]):
@@ -220,4 +220,4 @@ class AsyncSingleton(SupportsTeardown, AbstractProvider[T_co]):
             self._instance = None
         self._deregister_arguments()
         if propagate:
-            self._sync_tear_down_children(raise_on_async=raise_on_async)
+            self._sync_tear_down_children(propagate=propagate, raise_on_async=raise_on_async)

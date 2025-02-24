@@ -57,7 +57,7 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
 
         """
         for candidate in candidates:
-            if isinstance(candidate, AbstractProvider) and candidate in self._children:
+            if isinstance(candidate, AbstractProvider) and self in candidate._children:  # noqa: SLF001
                 candidate.remove_child_provider(self)
 
     def add_child_provider(self, provider: "AbstractProvider[typing.Any]") -> None:
@@ -182,11 +182,11 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
             if isinstance(child, SupportsTeardown):
                 await child.tear_down()
 
-    def _sync_tear_down_children(self, raise_on_async: bool = True) -> None:
+    def _sync_tear_down_children(self, propagate: bool = True, raise_on_async: bool = True) -> None:
         """Tear down all child providers."""
-        for child in self._children:
-            if isinstance(child, SupportsTeardown):
-                child.sync_tear_down(raise_on_async=raise_on_async)
+        eligible_children = [child for child in self._children if isinstance(child, SupportsTeardown)]
+        for child in eligible_children:
+            child.sync_tear_down(raise_on_async=raise_on_async, propagate=propagate)
 
 
 class AbstractResource(AbstractProvider[T_co], abc.ABC):

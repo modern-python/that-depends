@@ -1,7 +1,14 @@
+import asyncio
+import typing
+
+import pytest
 from typing_extensions import override
 
 from that_depends.providers.base import AbstractProvider
+from that_depends.providers.local_singleton import ThreadLocalSingleton
 from that_depends.providers.mixin import SupportsTeardown
+from that_depends.providers.resources import Resource
+from that_depends.providers.singleton import AsyncSingleton, Singleton
 
 
 class DummyProvider(SupportsTeardown, AbstractProvider[int]):
@@ -21,7 +28,7 @@ class DummyProvider(SupportsTeardown, AbstractProvider[int]):
     def sync_tear_down(self, propagate: bool = True, raise_on_async: bool = True) -> None:
         self._instance = None
         if propagate:
-            self._sync_tear_down_children(raise_on_async=raise_on_async)
+            self._sync_tear_down_children(propagate=propagate, raise_on_async=raise_on_async)
 
     @override
     async def async_resolve(self) -> int:
@@ -102,3 +109,124 @@ async def test_async_tear_down_propagation() -> None:
     assert parent._instance is None
     assert child_1._instance is None
     assert child_2._instance is None
+
+
+_RETURN_VALUE = 42
+
+
+def _simple_factory_value() -> int:
+    return _RETURN_VALUE
+
+
+async def _simple_async_factory_value(v: int) -> int:
+    await asyncio.sleep(0.001)
+    return v
+
+
+def _resource_generator(v: int) -> typing.Iterator[int]:
+    """Sync generator resource with teardown logic."""
+    try:
+        yield v
+    finally:
+        # Normally you'd close files, DB connections, etc. here
+        pass
+
+
+@pytest.fixture
+def dummy_singleton() -> Singleton[int]:
+    """Get sync factory for test use."""
+    return Singleton(_simple_factory_value)
+
+
+def test_singleton_registration_and_deregistration(dummy_singleton: Singleton[int]) -> None:
+    singleton = Singleton(lambda x: x + 1, dummy_singleton.cast)
+    assert singleton not in dummy_singleton._children, "Singleton should not be registered as child yet."
+    singleton.sync_resolve()
+
+    assert singleton in dummy_singleton._children, "Singleton should be registered as a child."
+
+    dummy_singleton.sync_tear_down()
+
+    assert singleton not in dummy_singleton._children, (
+        "Singleton should be removed from parent's children after tear_down."
+    )
+
+
+def test_thread_local_singleton_registration_and_deregistration(dummy_singleton: Singleton[int]) -> None:
+    thread_local = ThreadLocalSingleton(lambda val: f"TL-{val}", dummy_singleton)
+
+    assert thread_local not in dummy_singleton._children, "ThreadLocalSingleton not registered as child."
+
+    thread_local.sync_resolve()
+    assert thread_local in dummy_singleton._children, "ThreadLocalSingleton not registered as child."
+
+    # Teardown
+    thread_local.sync_tear_down()
+
+    assert thread_local not in dummy_singleton._children, "ThreadLocalSingleton should be deregistered after teardown."
+
+
+def test_resource_registration_and_deregistration(dummy_singleton: Singleton[int]) -> None:
+    resource = Resource(_resource_generator, dummy_singleton.cast)
+
+    assert resource not in dummy_singleton._children, "Resource should not be registered as child yet."
+
+    resource.sync_resolve()
+
+    assert resource in dummy_singleton._children, "Resource should be registered as child."
+
+    resource.sync_tear_down()
+    assert resource not in dummy_singleton._children, "Resource should be deregistered after teardown."
+
+
+async def test_async_singleton_registration_and_deregistration(dummy_singleton: Singleton[int]) -> None:
+    async_singleton = AsyncSingleton(_simple_async_factory_value, dummy_singleton.cast)
+
+    await async_singleton.async_resolve()
+
+    assert async_singleton in dummy_singleton._children
+
+    value = await async_singleton.async_resolve()
+    assert value == _RETURN_VALUE
+
+    await async_singleton.tear_down()
+
+    assert async_singleton not in dummy_singleton._children
+
+
+def test_teardown_propagation_chain() -> None:
+    def _sync_resource_gen(v: str) -> typing.Iterator[str]:
+        try:
+            yield v
+        finally:
+            pass
+
+    def _grandchild_gen() -> typing.Iterator[str]:
+        try:
+            yield "Grandchild Resource"
+        finally:
+            pass
+
+    parent_resource = Resource(_grandchild_gen)
+    child_singleton = Singleton(lambda g: f"Child uses {g}", parent_resource)
+    grandchild = Resource(_sync_resource_gen, child_singleton.cast)
+
+    grandchild.sync_resolve()
+
+    assert child_singleton in parent_resource._children
+    assert grandchild in child_singleton._children
+    parent_resource.sync_tear_down(propagate=True)
+
+    assert child_singleton not in parent_resource._children
+    assert grandchild not in child_singleton._children
+
+
+def test_propagate_off() -> None:
+    parent = Singleton(_simple_factory_value)  # not a teardown provider
+    child = Singleton(lambda x: x + 1, parent.cast)
+
+    child.sync_resolve()
+
+    parent.sync_tear_down(propagate=False)
+
+    assert child in parent._children
