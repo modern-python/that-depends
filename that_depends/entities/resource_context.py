@@ -2,12 +2,17 @@ import asyncio
 import contextlib
 import threading
 import typing
+import warnings
+
+from typing_extensions import override
+
+from that_depends.providers.mixin import CannotTearDownSyncError, SupportsTeardown
 
 
 T_co = typing.TypeVar("T_co", covariant=True)
 
 
-class ResourceContext(typing.Generic[T_co]):
+class ResourceContext(SupportsTeardown, typing.Generic[T_co]):
     """Class to manage a resources' context."""
 
     __slots__ = "asyncio_lock", "context_stack", "instance", "is_async", "threading_lock"
@@ -41,7 +46,8 @@ class ResourceContext(typing.Generic[T_co]):
         """Check if the context stack is a sync context stack."""
         return isinstance(context_stack, contextlib.ExitStack)
 
-    async def tear_down(self) -> None:
+    @override
+    async def tear_down(self, propagate: bool = True) -> None:
         """Tear down the async context stack."""
         if self.context_stack is None:
             return
@@ -53,7 +59,8 @@ class ResourceContext(typing.Generic[T_co]):
         self.context_stack = None
         self.instance = None
 
-    def sync_tear_down(self) -> None:
+    @override
+    def sync_tear_down(self, propagate: bool = True, raise_on_async: bool = True) -> None:
         """Tear down the sync context stack."""
         if self.context_stack is None:
             return
@@ -64,4 +71,6 @@ class ResourceContext(typing.Generic[T_co]):
             self.instance = None
         elif self.is_context_stack_async(self.context_stack):
             msg = "Cannot tear down async context in sync mode"
-            raise RuntimeError(msg)
+            if raise_on_async:
+                raise CannotTearDownSyncError(msg)
+            warnings.warn(msg, RuntimeWarning, stacklevel=2)

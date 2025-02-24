@@ -1,6 +1,7 @@
 import abc
 import contextlib
 import inspect
+import threading
 import typing
 from contextlib import contextmanager
 from operator import attrgetter
@@ -9,6 +10,7 @@ import typing_extensions
 from typing_extensions import override
 
 from that_depends.entities.resource_context import ResourceContext
+from that_depends.providers.mixin import SupportsTeardown
 
 
 T_co = typing.TypeVar("T_co", covariant=True)
@@ -23,10 +25,66 @@ ResourceCreatorType: typing.TypeAlias = typing.Callable[
 class AbstractProvider(typing.Generic[T_co], abc.ABC):
     """Base class for all providers."""
 
-    def __init__(self, **kwargs: typing.Any) -> None:  # noqa: ANN401
+    def __init__(self) -> None:
         """Create a new provider."""
-        super().__init__(**kwargs)
+        super().__init__()
+        self._children: set[AbstractProvider[typing.Any]] = set()
         self._override: typing.Any = None
+        self._lock = threading.Lock()
+
+    def _register(self, candidates: typing.Iterable[typing.Any]) -> None:
+        """Register current provider as child.
+
+        Args:
+            candidates: iterable of potential parent providers.
+
+        Returns:
+            None
+
+        """
+        for candidate in candidates:
+            if isinstance(candidate, AbstractProvider):
+                candidate.add_child_provider(self)
+
+    def _deregister(self, candidates: typing.Iterable[typing.Any]) -> None:
+        """Deregister current provider as child.
+
+        Args:
+            candidates: iterable of potential parent providers.
+
+        Returns:
+            None
+
+        """
+        for candidate in candidates:
+            if isinstance(candidate, AbstractProvider) and self in candidate._children:  # noqa: SLF001
+                candidate.remove_child_provider(self)
+
+    def add_child_provider(self, provider: "AbstractProvider[typing.Any]") -> None:
+        """Add a child provider to the current provider.
+
+        Args:
+            provider: provider to add as a child.
+
+        Returns:
+            None
+
+        """
+        with self._lock:
+            self._children.add(provider)
+
+    def remove_child_provider(self, provider: "AbstractProvider[typing.Any]") -> None:
+        """Remove a child provider from the current provider.
+
+        Args:
+            provider: provider to remove as a child.
+
+        Returns:
+            None
+
+        """
+        with self._lock:
+            self._children.remove(provider)
 
     def __deepcopy__(self, *_: object, **__: object) -> typing_extensions.Self:
         """Hack for Litestar to prevent cloning object.
@@ -118,6 +176,18 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
         """
         return typing.cast(T_co, self)
 
+    async def _tear_down_children(self) -> None:
+        """Tear down all child providers."""
+        for child in self._children:
+            if isinstance(child, SupportsTeardown):
+                await child.tear_down()
+
+    def _sync_tear_down_children(self, propagate: bool = True, raise_on_async: bool = True) -> None:
+        """Tear down all child providers."""
+        eligible_children = [child for child in self._children if isinstance(child, SupportsTeardown)]
+        for child in eligible_children:
+            child.sync_tear_down(raise_on_async=raise_on_async, propagate=propagate)
+
 
 class AbstractResource(AbstractProvider[T_co], abc.ABC):
     """Base class for Resource providers."""
@@ -158,6 +228,14 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
         self._args = args
         self._kwargs = kwargs
 
+    def _register_arguments(self) -> None:
+        self._register(self._args)
+        self._register(self._kwargs.values())
+
+    def _deregister_arguments(self) -> None:
+        self._deregister(self._args)
+        self._deregister(self._kwargs.values())
+
     @abc.abstractmethod
     def _fetch_context(self) -> ResourceContext[T_co]: ...
 
@@ -168,13 +246,12 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
 
         context = self._fetch_context()
 
-        if context.instance is not None:
-            return context.instance
-
         # lock to prevent race condition while resolving
         async with context.asyncio_lock:
             if context.instance is not None:
                 return context.instance
+
+            self._register_arguments()
 
             cm: typing.ContextManager[T_co] | typing.AsyncContextManager[T_co] = self._creator(
                 *[await x.async_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
@@ -203,17 +280,17 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
             return typing.cast(T_co, self._override)
 
         context = self._fetch_context()
-        if context.instance is not None:
-            return context.instance
-
-        if self._is_async:
-            msg = "AsyncResource cannot be resolved synchronously"
-            raise RuntimeError(msg)
 
         # lock to prevent race condition while resolving
         with context.threading_lock:
             if context.instance is not None:
                 return context.instance
+
+            if self._is_async:
+                msg = "AsyncResource cannot be resolved synchronously"
+                raise RuntimeError(msg)
+
+            self._register_arguments()
 
             cm = self._creator(
                 *[x.sync_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],

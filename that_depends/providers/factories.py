@@ -87,6 +87,8 @@ class Factory(AbstractFactory[T_co]):
         self._factory: typing.Final = factory
         self._args: typing.Final = args
         self._kwargs: typing.Final = kwargs
+        self._register(self._args)
+        self._register(self._kwargs.values())
 
     @override
     async def async_resolve(self) -> T_co:
@@ -151,6 +153,8 @@ class AsyncFactory(AbstractFactory[T_co]):
         self._factory: typing.Final = factory
         self._args: typing.Final = args
         self._kwargs: typing.Final = kwargs
+        self._register(self._args)
+        self._register(self._kwargs.values())
 
     @override
     async def async_resolve(self) -> T_co:

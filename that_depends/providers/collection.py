@@ -45,6 +45,7 @@ class List(AbstractProvider[list[T_co]]):
         """
         super().__init__()
         self._providers: typing.Final = providers
+        self._register(self._providers)
 
     @override
     def __getattr__(self, attr_name: str) -> typing.Any:
@@ -101,6 +102,7 @@ class Dict(AbstractProvider[dict[str, T_co]]):
         """
         super().__init__()
         self._providers: typing.Final = providers
+        self._register(self._providers.values())
 
     @override
     def __getattr__(self, attr_name: str) -> typing.Any:
