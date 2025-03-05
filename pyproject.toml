@@ -73,6 +73,7 @@ ignore = [
     "FBT", # allow boolean args
     "D203", # "one-blank-line-before-class" conflicting with D211
     "D213", # "multi-line-summary-second-line" conflicting with D212
+    "S311", # Standard pseudo-random generators are not suitable for cryptographic purposes
     "COM812", # flake8-commas "Trailing comma missing"
     "ISC001", # flake8-implicit-str-concat
 ]

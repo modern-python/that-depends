@@ -20,7 +20,7 @@ async def _async_factory() -> int:
 
 def _factory() -> int:
     time.sleep(0.01)
-    return random.randint(1, 100)  # noqa: S311
+    return random.randint(1, 100)
 
 
 def test_thread_local_singleton_same_thread() -> None:

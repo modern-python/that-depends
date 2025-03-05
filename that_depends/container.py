@@ -6,7 +6,7 @@ from typing import overload
 from typing_extensions import override
 
 from that_depends.meta import BaseContainerMeta
-from that_depends.providers import AbstractProvider, Resource, Singleton
+from that_depends.providers import AbstractProvider, AsyncSingleton, Resource, Singleton
 from that_depends.providers.context_resources import ContextScope, ContextScopes
 
 
@@ -89,7 +89,7 @@ class BaseContainer(metaclass=BaseContainerMeta):
     async def init_resources(cls) -> None:
         """Initialize all resources."""
         for provider in cls.get_providers().values():
-            if isinstance(provider, Resource | Singleton):
+            if isinstance(provider, Resource | Singleton | AsyncSingleton):
                 await provider.async_resolve()
 
         for container in cls.get_containers():

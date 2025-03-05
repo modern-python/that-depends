@@ -148,7 +148,7 @@ class BaseContainerMeta(SupportsContext[None], abc.ABCMeta):
             await container.tear_down()
 
     def sync_tear_down(cls) -> None:
-        """Tear down all sync singleton adn resource providers."""
+        """Tear down all sync singleton and resource providers."""
         for provider in reversed(cls.get_providers().values()):
             if isinstance(provider, Resource):
                 if not provider._is_async:  # noqa: SLF001
@@ -158,3 +158,5 @@ class BaseContainerMeta(SupportsContext[None], abc.ABCMeta):
             if isinstance(provider, SupportsTeardown):
                 provider.sync_tear_down()
                 continue
+        for container in cls.get_containers():
+            container.sync_tear_down()
