@@ -222,7 +222,7 @@ def test_teardown_propagation_chain() -> None:
 
 
 def test_propagate_off() -> None:
-    parent = Singleton(_simple_factory_value)  # not a teardown provider
+    parent = Singleton(_simple_factory_value)
     child = Singleton(lambda x: x + 1, parent.cast)
 
     child.sync_resolve()
@@ -230,3 +230,26 @@ def test_propagate_off() -> None:
     parent.sync_tear_down(propagate=False)
 
     assert child in parent._children
+    assert child._instance is not None
+
+
+async def test_async_tear_down_propagation_with_singleton() -> None:
+    parent = Singleton(_simple_factory_value)
+    child = Singleton(lambda x: x + 1, parent.cast)
+
+    await child.async_resolve()
+
+    await parent.tear_down()
+
+    assert child._instance is None
+
+
+async def test_async_propagate_off() -> None:
+    parent = Singleton(_simple_factory_value)
+    child = Singleton(lambda x: x + 1, parent.cast)
+
+    await child.async_resolve()
+
+    await parent.tear_down(propagate=False)
+
+    assert child._instance is not None

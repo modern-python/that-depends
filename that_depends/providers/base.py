@@ -202,9 +202,9 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
 
     async def _tear_down_children(self) -> None:
         """Tear down all child providers."""
-        for child in self._children:
-            if isinstance(child, SupportsTeardown):
-                await child.tear_down()
+        eligible_children = [child for child in self._children if isinstance(child, SupportsTeardown)]
+        for child in eligible_children:
+            await child.tear_down()
 
     def _sync_tear_down_children(self, propagate: bool = True, raise_on_async: bool = True) -> None:
         """Tear down all child providers."""
