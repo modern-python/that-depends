@@ -180,7 +180,7 @@ in the [Litestar documentation](https://docs.litestar.dev/2/usage/dependency-inj
 ## Overriding and tear-down
 
 If you have a provider `A` that caches the resolved value, which depends on a provider
-`B` that you wish to override you might the following behavior:
+`B` that you wish to override you might experience the following behavior:
 
 ```python
 class MyContainer(BaseContainer):
@@ -196,7 +196,7 @@ a_new = await MyContainer.A()
 assert a_old != a_new # raises
 ```
 
-This is due to the fact that A caches the value and doesn't get reset when you override B.
+This is due to the fact that `A` caches the value and doesn't get reset when you override `B`.
 
 If you wish to fix this you can tell the provider to tear-down children on override: 
 
