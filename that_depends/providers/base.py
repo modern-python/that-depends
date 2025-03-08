@@ -137,9 +137,9 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
         """
         self._override = mock
         if tear_down_children:
-            for child in self._children:
-                if isinstance(child, SupportsTeardown):
-                    child.sync_tear_down(propagate=propagate, raise_on_async=raise_on_async)
+            eligible_children = [child for child in self._children if isinstance(child, SupportsTeardown)]
+            for child in eligible_children:
+                child.sync_tear_down(propagate=propagate, raise_on_async=raise_on_async)
 
     @contextmanager
     def override_context(self, mock: object) -> typing.Iterator[None]:
@@ -177,9 +177,9 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
         """
         self._override = None
         if tear_down_children:
-            for child in self._children:
-                if isinstance(child, SupportsTeardown):
-                    child.sync_tear_down(propagate=propagate, raise_on_async=raise_on_async)
+            eligible_children = [child for child in self._children if isinstance(child, SupportsTeardown)]
+            for child in eligible_children:
+                child.sync_tear_down(propagate=propagate, raise_on_async=raise_on_async)
 
     @property
     def cast(self) -> T_co:

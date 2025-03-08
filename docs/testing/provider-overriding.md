@@ -174,3 +174,32 @@ def test_litestar_endpoint_with_overriding() -> None:
 
 More about `Dependency` 
 in the [Litestar documentation](https://docs.litestar.dev/2/usage/dependency-injection.html#the-dependency-function).
+
+---
+
+## Overriding and tear-down
+
+If you have a provider `A` that caches the resolved value, which depends on a provider
+`B` that you wish to override you might the following behavior:
+
+```python
+class MyContainer(BaseContainer):
+    B = providers.Singleton(lambda: 1)
+    A = providers.Singleton(lambda x: x, B)
+
+a_old = await MyContainer.A()
+
+MyContainer.B.override(32) # will not reset A's cached value
+
+a_new = await MyContainer.A()
+
+assert a_old != a_new # raises
+```
+
+This is due to the fact that A caches the value and doesn't get reset when you override B.
+
+If you wish to fix this you can tell the provider to tear-down children on override: 
+
+```python
+MyContainer.B.override(32, tear_down_children=True)
+```
