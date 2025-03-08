@@ -92,3 +92,17 @@ If you do not want to see these errors you can reduce this to a `RuntimeWarning`
 ```python
 MyContainer.B.sync_tear_down(raise_on_async=False)
 ```
+
+---
+
+## Containers and tear-down
+
+Containers also support the `tear_down` and `sync_tear_down` methods. When calling
+`await Container.tear_down()` all providers in the container will be torn down.
+
+
+`Container.sync_tear_down()` is also implemented but not recommended unless you are sure 
+all providers in your container are sync. 
+
+> Container methods do not support the `propagate` & `raise_on_async` arguments, so if you
+> need more granular control try to tear down the providers explicitly.
