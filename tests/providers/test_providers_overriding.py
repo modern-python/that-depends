@@ -1,8 +1,10 @@
 import datetime
+from dataclasses import dataclass
 
 import pytest
 
 from tests import container
+from that_depends import BaseContainer, Provide, inject, providers
 
 
 async def test_batch_providers_overriding() -> None:
@@ -149,3 +151,38 @@ async def test_providers_overriding_sync_resolve() -> None:
 
     container.DIContainer.reset_override()
     assert container.DIContainer.sync_resource.sync_resolve() != sync_resource_mock
+
+
+async def test_provider_tear_down_after_override() -> None:
+    default_redis_url = "url_1"
+    mock_redis_url = "url_2"
+
+    @dataclass
+    class _Settings:
+        redis_url: str = default_redis_url
+
+    class _Redis:
+        def __init__(self, url: str) -> None:
+            self.url = url
+
+    class _DIContainer(BaseContainer):
+        settings = providers.Singleton(_Settings)
+        redis = providers.Singleton(_Redis, url=settings.redis_url)
+
+    @inject
+    def _func(redis: _Redis = Provide[_DIContainer.redis]) -> str:
+        return redis.url
+
+    _DIContainer.settings.override(_Settings(redis_url=mock_redis_url))
+
+    assert _func() == mock_redis_url
+
+    _DIContainer.settings.reset_override(tear_down_children=True)
+    assert _func() == default_redis_url
+
+    assert _DIContainer.redis.sync_resolve().url == default_redis_url
+
+    _DIContainer.settings.override(_Settings(redis_url=mock_redis_url), tear_down_children=True)
+
+    redis_url = _func()
+    assert redis_url == mock_redis_url
