@@ -120,17 +120,26 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
         """Resolve dependency asynchronously."""
         return await self.async_resolve()
 
-    def override(self, mock: object) -> None:
+    def override(
+        self, mock: object, tear_down_children: bool = False, propagate: bool = True, raise_on_async: bool = False
+    ) -> None:
         """Override the provider with a mock object.
 
         Args:
             mock: object to resolve while the provider is overridden.
+            tear_down_children: tear down child providers.
+            raise_on_async: raise if tear down requires async context.
+            propagate: propagate teardown.
 
         Returns:
             None
 
         """
         self._override = mock
+        if tear_down_children:
+            for child in self._children:
+                if isinstance(child, SupportsTeardown):
+                    child.sync_tear_down(propagate=propagate, raise_on_async=raise_on_async)
 
     @contextmanager
     def override_context(self, mock: object) -> typing.Iterator[None]:
@@ -149,13 +158,28 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
         finally:
             self.reset_override()
 
-    def reset_override(self) -> None:
+    def reset_override(
+        self, tear_down_children: bool = False, propagate: bool = True, raise_on_async: bool = False
+    ) -> None:
         """Reset the provider to its original state.
 
         Use this is you have previously called `override` or `override_context`
         to reset the provider to its original state.
+
+        Args:
+            tear_down_children: tear down all child providers.
+            raise_on_async: raise if an async teardown is necessary.
+            propagate: propagate tear downs.
+
+        Returns:
+            None
+
         """
         self._override = None
+        if tear_down_children:
+            for child in self._children:
+                if isinstance(child, SupportsTeardown):
+                    child.sync_tear_down(propagate=propagate, raise_on_async=raise_on_async)
 
     @property
     def cast(self) -> T_co:
@@ -345,3 +369,7 @@ class AttrGetter(
         resolved_provider_object = self._provider.sync_resolve()
         attribute_path = ".".join(self._attrs)
         return _get_value_from_object_by_dotted_path(resolved_provider_object, attribute_path)
+
+    @override
+    def add_child_provider(self, provider: "AbstractProvider[typing.Any]") -> None:
+        self._provider.add_child_provider(provider)

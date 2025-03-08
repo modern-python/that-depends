@@ -64,6 +64,7 @@ class Singleton(SupportsTeardown, AbstractProvider[T_co]):
     @override
     async def async_resolve(self) -> T_co:
         if self._override is not None:
+            self._register_arguments()
             return typing.cast(T_co, self._override)
 
         # lock to prevent resolving several times
@@ -83,6 +84,7 @@ class Singleton(SupportsTeardown, AbstractProvider[T_co]):
     @override
     def sync_resolve(self) -> T_co:
         if self._override is not None:
+            self._register_arguments()
             return typing.cast(T_co, self._override)
 
         # lock to prevent resolving several times
