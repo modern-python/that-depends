@@ -54,13 +54,13 @@ def main():
     pg_container = PostgresContainer(image='postgres:alpine3.19')
     pg_container.start()
     db_url = pg_container.get_connection_url()
-    
+
     """
     We override only settings, but this override will also affect the 'sqla_engine' 
     and 'some_sqla_dao' providers because the 'settings' provider is used by them!
     """
     local_testing_settings = Settings(db_url=db_url)
-    DIContainer.settings.override(local_testing_settings)
+    DIContainer.settings.sync_override(local_testing_settings)
 
     try:
         result = exec_query_example()
@@ -187,19 +187,20 @@ class MyContainer(BaseContainer):
     B = providers.Singleton(lambda: 1)
     A = providers.Singleton(lambda x: x, B)
 
+
 a_old = await MyContainer.A()
 
-MyContainer.B.override(32) # will not reset A's cached value
+MyContainer.B.sync_override(32)  # will not reset A's cached value
 
 a_new = await MyContainer.A()
 
-assert a_old != a_new # raises
+assert a_old != a_new  # raises
 ```
 
 This is due to the fact that `A` caches the value and doesn't get reset when you override `B`.
 
-If you wish to fix this you can tell the provider to tear-down children on override: 
+If you wish to fix this you can tell the provider to tear-down children on override:
 
 ```python
-MyContainer.B.override(32, tear_down_children=True)
+MyContainer.B.sync_override(32, tear_down_children=True)
 ```

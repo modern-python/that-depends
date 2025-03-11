@@ -65,7 +65,7 @@ async def test_selector_provider_sync_missing() -> None:
 
 async def test_selector_provider_overriding() -> None:
     now = datetime.datetime.now(tz=datetime.timezone.utc)
-    DIContainer.selector.override(now)
+    DIContainer.selector.sync_override(now)
     selected_async = await DIContainer.selector()
     selected_sync = DIContainer.selector.sync_resolve()
     assert selected_async == selected_sync == now
@@ -94,7 +94,7 @@ async def test_selector_with_attrgetter_selector_sync() -> None:
     assert SettingsSelectorContainer.settings.sync_resolve().mode == "one"
     assert SettingsSelectorContainer.operator.sync_resolve() == "Provider 1"
 
-    SettingsSelectorContainer.settings.override(Settings(mode="two"))
+    SettingsSelectorContainer.settings.sync_override(Settings(mode="two"))
     assert SettingsSelectorContainer.settings.sync_resolve().mode == "two"
     assert SettingsSelectorContainer.operator.sync_resolve() == "Provider 2"
     SettingsSelectorContainer.settings.reset_override()
@@ -104,7 +104,7 @@ async def test_selector_with_attrgetter_selector_async() -> None:
     assert (await SettingsSelectorContainer.settings.async_resolve()).mode == "one"
     assert (await SettingsSelectorContainer.operator.async_resolve()) == "Provider 1"
 
-    SettingsSelectorContainer.settings.override(Settings(mode="two"))
+    SettingsSelectorContainer.settings.sync_override(Settings(mode="two"))
     assert (await SettingsSelectorContainer.settings.async_resolve()).mode == "two"
     assert (await SettingsSelectorContainer.operator.async_resolve()) == "Provider 2"
     SettingsSelectorContainer.settings.reset_override()

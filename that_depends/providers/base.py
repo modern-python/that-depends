@@ -120,7 +120,7 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
         """Resolve dependency asynchronously."""
         return await self.async_resolve()
 
-    def override(
+    def sync_override(
         self, mock: object, tear_down_children: bool = False, propagate: bool = True, raise_on_async: bool = False
     ) -> None:
         """Override the provider with a mock object.
@@ -152,7 +152,7 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
             None
 
         """
-        self.override(mock)
+        self.sync_override(mock)
         try:
             yield
         finally:

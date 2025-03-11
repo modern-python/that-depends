@@ -77,7 +77,7 @@ def test_thread_local_singleton_override() -> None:
     provider = ThreadLocalSingleton(_factory)
 
     override_value = 101
-    provider.override(override_value)
+    provider.sync_override(override_value)
     instance = provider.sync_resolve()
     assert instance == override_value, "Override failed: Expected overridden value."
 
@@ -94,7 +94,7 @@ def test_thread_local_singleton_override_in_threads() -> None:
 
     def _thread_task(thread_id: int, override_value: int | None = None) -> None:
         if override_value is not None:
-            provider.override(override_value)
+            provider.sync_override(override_value)
         results[thread_id] = provider.sync_resolve()
         if override_value is not None:
             provider.reset_override()
@@ -190,6 +190,6 @@ async def test_thread_local_singleton_async_resolve_override() -> None:
 
     override_value = 101
 
-    provider.override(override_value)
+    provider.sync_override(override_value)
 
     assert await provider.async_resolve() == override_value, "Override failed: Expected overridden value."

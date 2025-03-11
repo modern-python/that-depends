@@ -62,7 +62,7 @@ async def test_sync_resource_from_class() -> None:
 async def test_async_resource_overridden() -> None:
     async_resource1 = await DIContainer.sync_resource.async_resolve()
 
-    DIContainer.sync_resource.override("override")
+    DIContainer.sync_resource.sync_override("override")
 
     async_resource2 = DIContainer.sync_resource.sync_resolve()
     async_resource3 = await DIContainer.sync_resource.async_resolve()
@@ -79,7 +79,7 @@ async def test_async_resource_overridden() -> None:
 async def test_sync_resource_overridden() -> None:
     sync_resource1 = await DIContainer.sync_resource.async_resolve()
 
-    DIContainer.sync_resource.override("override")
+    DIContainer.sync_resource.sync_override("override")
 
     sync_resource2 = DIContainer.sync_resource.sync_resolve()
     sync_resource3 = await DIContainer.sync_resource.async_resolve()

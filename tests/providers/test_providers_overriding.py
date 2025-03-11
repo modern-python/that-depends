@@ -98,12 +98,12 @@ async def test_providers_overriding() -> None:
     simple_factory_mock = container.SimpleFactory(dep1="override", dep2=999)
     singleton_mock = container.SingletonFactory(dep1=False)
     object_mock = object()
-    container.DIContainer.async_resource.override(async_resource_mock)
-    container.DIContainer.sync_resource.override(sync_resource_mock)
-    container.DIContainer.simple_factory.override(simple_factory_mock)
-    container.DIContainer.singleton.override(singleton_mock)
-    container.DIContainer.async_factory.override(async_factory_mock)
-    container.DIContainer.object.override(object_mock)
+    container.DIContainer.async_resource.sync_override(async_resource_mock)
+    container.DIContainer.sync_resource.sync_override(sync_resource_mock)
+    container.DIContainer.simple_factory.sync_override(simple_factory_mock)
+    container.DIContainer.singleton.sync_override(singleton_mock)
+    container.DIContainer.async_factory.sync_override(async_factory_mock)
+    container.DIContainer.object.sync_override(object_mock)
 
     await container.DIContainer.simple_factory()
     dependent_factory = await container.DIContainer.dependent_factory()
@@ -129,11 +129,11 @@ async def test_providers_overriding_sync_resolve() -> None:
     simple_factory_mock = container.SimpleFactory(dep1="override", dep2=999)
     singleton_mock = container.SingletonFactory(dep1=False)
     object_mock = object()
-    container.DIContainer.async_resource.override(async_resource_mock)
-    container.DIContainer.sync_resource.override(sync_resource_mock)
-    container.DIContainer.simple_factory.override(simple_factory_mock)
-    container.DIContainer.singleton.override(singleton_mock)
-    container.DIContainer.object.override(object_mock)
+    container.DIContainer.async_resource.sync_override(async_resource_mock)
+    container.DIContainer.sync_resource.sync_override(sync_resource_mock)
+    container.DIContainer.simple_factory.sync_override(simple_factory_mock)
+    container.DIContainer.singleton.sync_override(singleton_mock)
+    container.DIContainer.object.sync_override(object_mock)
 
     container.DIContainer.simple_factory.sync_resolve()
     await container.DIContainer.async_resource.async_resolve()
@@ -162,7 +162,7 @@ async def test_provider_tear_down_after_override() -> None:
 
     a_old = await _MyContainer.A.async_resolve()
 
-    _MyContainer.B.override(override_value, tear_down_children=True)
+    _MyContainer.B.sync_override(override_value, tear_down_children=True)
 
     a_new = await _MyContainer.A()
 

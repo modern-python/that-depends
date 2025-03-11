@@ -159,7 +159,7 @@ class BaseContainer(metaclass=BaseContainerMeta):
 
         for provider_name, mock in providers_for_overriding.items():
             provider = current_providers[provider_name]
-            provider.override(mock)
+            provider.sync_override(mock)
 
         try:
             yield
