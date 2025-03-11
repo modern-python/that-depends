@@ -3,7 +3,6 @@ import asyncio
 import contextlib
 import inspect
 import logging
-import threading
 import typing
 from abc import abstractmethod
 from contextlib import AbstractAsyncContextManager, AbstractContextManager
@@ -250,7 +249,6 @@ class ContextResource(
         self._context: ContextVar[ResourceContext[T_co]] = ContextVar(f"{self._creator.__name__}-context")
         self._token: Token[ResourceContext[T_co]] | None = None
         self._async_lock: Final = asyncio.Lock()
-        self._lock: Final = threading.Lock()
         self._scope: ContextScope | None = ContextScopes.ANY
         self._strict_scope: bool = False
 
@@ -308,8 +306,8 @@ class ContextResource(
             msg = f"Cannot set strict_scope with scope {scope}."
             raise ValueError(msg)
         r = ContextResource(self._from_creator, *self._args, **self._kwargs)  # type: ignore[arg-type]
-        r._scope = scope  # noqa: SLF001
-        r._strict_scope = strict_scope  # noqa: SLF001
+        r._scope = scope
+        r._strict_scope = strict_scope
 
         return r
 

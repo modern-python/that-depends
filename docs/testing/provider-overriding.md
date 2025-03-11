@@ -106,65 +106,6 @@ def main():
             pg_container.stop()
 ```
 
-## Limitations
-If singleton attribute is used in other singleton or resource and this other provider is initialized,
-then in case of overriding of the first singleton, second one will be cached with original value.
-
-Same with resetting overriding. Here is an example.
-
-```python
-import typing
-from dataclasses import dataclass
-
-from that_depends import Provide, BaseContainer, providers, inject
-
-
-DEFAULT_REDIS_URL: typing.Final = 'url_1'
-MOCK_REDIS_URL: typing.Final = 'url_2'
-
-
-@dataclass
-class Settings:
-    redis_url: str = DEFAULT_REDIS_URL
-
-
-class Redis:
-    def __init__(self, url: str):
-        self.url = url
-
-
-class DIContainer(BaseContainer):
-    settings = providers.Singleton(Settings)
-    redis = providers.Singleton(Redis, url=settings.redis_url)
-
-
-@inject
-def func(redis: Redis = Provide[DIContainer.redis]):
-    return redis.url
-
-
-async def test_case_1():
-    DIContainer.settings.override(Settings(redis_url=MOCK_REDIS_URL))
-
-    assert func() == MOCK_REDIS_URL
-
-    DIContainer.settings.reset_override()
-    # await DIContainer.tear_down()
-
-    assert func() == DEFAULT_REDIS_URL  # ASSERTION ERROR
-
-
-async def test_case_2():
-    assert DIContainer.redis.sync_resolve().url == DEFAULT_REDIS_URL
-
-    DIContainer.settings.override(Settings(redis_url=MOCK_REDIS_URL))
-    # await DIContainer.tear_down()
-
-    redis_url = func()
-    assert redis_url == MOCK_REDIS_URL  # ASSERTION ERROR
-
-```
-
 ---
 ## Using with Litestar
 In order to be able to inject dependencies of any type instead of existing objects, 
@@ -233,3 +174,32 @@ def test_litestar_endpoint_with_overriding() -> None:
 
 More about `Dependency` 
 in the [Litestar documentation](https://docs.litestar.dev/2/usage/dependency-injection.html#the-dependency-function).
+
+---
+
+## Overriding and tear-down
+
+If you have a provider `A` that caches the resolved value, which depends on a provider
+`B` that you wish to override you might experience the following behavior:
+
+```python
+class MyContainer(BaseContainer):
+    B = providers.Singleton(lambda: 1)
+    A = providers.Singleton(lambda x: x, B)
+
+a_old = await MyContainer.A()
+
+MyContainer.B.override(32) # will not reset A's cached value
+
+a_new = await MyContainer.A()
+
+assert a_old != a_new # raises
+```
+
+This is due to the fact that `A` caches the value and doesn't get reset when you override `B`.
+
+If you wish to fix this you can tell the provider to tear-down children on override: 
+
+```python
+MyContainer.B.override(32, tear_down_children=True)
+```

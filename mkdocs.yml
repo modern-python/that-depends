@@ -11,6 +11,7 @@ nav:
       - String Injection: introduction/string-injection.md
       - Multiple Containers: introduction/multiple-containers.md
       - Application Settings: introduction/application-settings.md
+      - Tear-down: introduction/tear-down.md
   - Providers:
       - Collections: providers/collections.md
       - Context-Resources: providers/context-resources.md

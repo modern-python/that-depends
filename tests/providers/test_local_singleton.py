@@ -20,7 +20,7 @@ async def _async_factory() -> int:
 
 def _factory() -> int:
     time.sleep(0.01)
-    return random.randint(1, 100)  # noqa: S311
+    return random.randint(1, 100)
 
 
 def test_thread_local_singleton_same_thread() -> None:
@@ -32,7 +32,21 @@ def test_thread_local_singleton_same_thread() -> None:
 
     assert instance1 == instance2, "Singleton failed: Instances within the same thread should be identical."
 
-    provider.tear_down()
+    provider.sync_tear_down()
+
+    assert provider._instance is None, "Tear down failed: Instance should be reset to None."
+
+
+async def test_async_thread_local_singleton_asyncio() -> None:
+    """Test that the same instance is returned within a single thread."""
+    provider = ThreadLocalSingleton(_factory)
+
+    instance1 = await provider.async_resolve()
+    instance2 = await provider.async_resolve()
+
+    assert instance1 == instance2, "Singleton failed: Instances within the same thread should be identical."
+
+    await provider.tear_down()
 
     assert provider._instance is None, "Tear down failed: Instance should be reset to None."
 

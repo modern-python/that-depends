@@ -3,6 +3,7 @@ import datetime
 import pytest
 
 from tests import container
+from that_depends import BaseContainer, providers
 
 
 async def test_batch_providers_overriding() -> None:
@@ -149,3 +150,24 @@ async def test_providers_overriding_sync_resolve() -> None:
 
     container.DIContainer.reset_override()
     assert container.DIContainer.sync_resource.sync_resolve() != sync_resource_mock
+
+
+async def test_provider_tear_down_after_override() -> None:
+    original_value = 100
+    override_value = 32
+
+    class _MyContainer(BaseContainer):
+        B = providers.Singleton(lambda: original_value)
+        A = providers.Singleton(lambda x: x, B)
+
+    a_old = await _MyContainer.A.async_resolve()
+
+    _MyContainer.B.override(override_value, tear_down_children=True)
+
+    a_new = await _MyContainer.A()
+
+    assert a_old != a_new
+
+    _MyContainer.B.reset_override(tear_down_children=True)
+
+    assert original_value == _MyContainer.B.sync_resolve()

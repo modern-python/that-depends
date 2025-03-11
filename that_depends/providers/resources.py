@@ -1,14 +1,17 @@
 import typing
 
+from typing_extensions import override
+
 from that_depends.entities.resource_context import ResourceContext
 from that_depends.providers.base import AbstractResource, ResourceCreatorType
+from that_depends.providers.mixin import SupportsTeardown
 
 
 T_co = typing.TypeVar("T_co", covariant=True)
 P = typing.ParamSpec("P")
 
 
-class Resource(AbstractResource[T_co]):
+class Resource(SupportsTeardown, AbstractResource[T_co]):
     """Provides a resource that is resolved once and cached for future usage.
 
     Unlike a singleton, this provider includes finalization logic and can be
@@ -83,7 +86,8 @@ class Resource(AbstractResource[T_co]):
     def _fetch_context(self) -> ResourceContext[T_co]:
         return self._context
 
-    async def tear_down(self) -> None:
+    @override
+    async def tear_down(self, propagate: bool = True) -> None:
         """Tear down the resource if it has been created.
 
         If the resource was never resolved, or was already torn down,
@@ -97,8 +101,12 @@ class Resource(AbstractResource[T_co]):
 
         """
         await self._fetch_context().tear_down()
+        self._deregister_arguments()
+        if propagate:
+            await self._tear_down_children()
 
-    def sync_tear_down(self) -> None:
+    @override
+    def sync_tear_down(self, propagate: bool = True, raise_on_async: bool = True) -> None:
         """Sync tear down the resource if it has been created.
 
         If the resource was never resolved, or was already torn down,
@@ -113,4 +121,7 @@ class Resource(AbstractResource[T_co]):
             ```
 
         """
-        self._fetch_context().sync_tear_down()
+        self._fetch_context().sync_tear_down(propagate=propagate, raise_on_async=raise_on_async)
+        self._deregister_arguments()
+        if propagate:
+            self._sync_tear_down_children(propagate=propagate, raise_on_async=raise_on_async)

@@ -44,6 +44,8 @@ await MyContainer.singleton.tear_down()
 This clears the cached instance, causing a new one to be created the next time `sync_resolve()` or `async_resolve()` is called.  
 *(If you only ever use synchronous resolution, you can call `MyContainer.singleton.sync_tear_down()` instead.)*
 
+For further details refer to the [teardown documentation](../introduction/tear-down.md).
+
 ---
 
 ## Concurrency Safety

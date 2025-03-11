@@ -6,7 +6,7 @@ from typing import overload
 from typing_extensions import override
 
 from that_depends.meta import BaseContainerMeta
-from that_depends.providers import AbstractProvider, Resource, Singleton
+from that_depends.providers import AbstractProvider, AsyncSingleton, Resource, Singleton
 from that_depends.providers.context_resources import ContextScope, ContextScopes
 
 
@@ -89,30 +89,11 @@ class BaseContainer(metaclass=BaseContainerMeta):
     async def init_resources(cls) -> None:
         """Initialize all resources."""
         for provider in cls.get_providers().values():
-            if isinstance(provider, Resource | Singleton):
+            if isinstance(provider, Resource | Singleton | AsyncSingleton):
                 await provider.async_resolve()
 
         for container in cls.get_containers():
             await container.init_resources()
-
-    @classmethod
-    async def tear_down(cls) -> None:
-        """Tear down all singleton and resource providers."""
-        for provider in reversed(cls.get_providers().values()):
-            if isinstance(provider, Resource | Singleton):
-                await provider.tear_down()
-
-        for container in cls.get_containers():
-            await container.tear_down()
-
-    @classmethod
-    def sync_tear_down(cls) -> None:
-        """Tear down all sync singleton adn resource providers."""
-        for provider in reversed(cls.get_providers().values()):
-            if isinstance(provider, Singleton):
-                provider.sync_tear_down()
-            if isinstance(provider, Resource) and not provider._is_async:  # noqa: SLF001
-                provider.sync_tear_down()
 
     @classmethod
     def reset_override(cls) -> None:
