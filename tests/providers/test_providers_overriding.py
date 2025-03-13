@@ -76,7 +76,7 @@ async def test_batch_providers_overriding_sync_resolve() -> None:
 def test_providers_overriding_with_context_manager() -> None:
     simple_factory_mock = container.SimpleFactory(dep1="override", dep2=999)
 
-    with container.DIContainer.simple_factory.override_context(simple_factory_mock):
+    with container.DIContainer.simple_factory.sync_override_context(simple_factory_mock):
         assert container.DIContainer.simple_factory.sync_resolve() is simple_factory_mock
 
     assert container.DIContainer.simple_factory.sync_resolve() is not simple_factory_mock
@@ -168,6 +168,6 @@ async def test_provider_tear_down_after_override() -> None:
 
     assert a_old != a_new
 
-    _MyContainer.B.reset_override(tear_down_children=True)
+    _MyContainer.B.sync_reset_override(tear_down_children=True)
 
     assert original_value == _MyContainer.B.sync_resolve()

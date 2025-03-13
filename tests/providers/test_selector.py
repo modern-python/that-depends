@@ -97,7 +97,7 @@ async def test_selector_with_attrgetter_selector_sync() -> None:
     SettingsSelectorContainer.settings.sync_override(Settings(mode="two"))
     assert SettingsSelectorContainer.settings.sync_resolve().mode == "two"
     assert SettingsSelectorContainer.operator.sync_resolve() == "Provider 2"
-    SettingsSelectorContainer.settings.reset_override()
+    SettingsSelectorContainer.settings.sync_reset_override()
 
 
 async def test_selector_with_attrgetter_selector_async() -> None:
@@ -107,7 +107,7 @@ async def test_selector_with_attrgetter_selector_async() -> None:
     SettingsSelectorContainer.settings.sync_override(Settings(mode="two"))
     assert (await SettingsSelectorContainer.settings.async_resolve()).mode == "two"
     assert (await SettingsSelectorContainer.operator.async_resolve()) == "Provider 2"
-    SettingsSelectorContainer.settings.reset_override()
+    SettingsSelectorContainer.settings.sync_reset_override()
 
 
 class StringSelectorContainer(BaseContainer):

@@ -66,7 +66,7 @@ def main():
         result = exec_query_example()
         assert result == (234,)
     finally:
-        DIContainer.settings.reset_override()
+        DIContainer.settings.sync_reset_override()
         pg_container.stop()
 
 
@@ -161,11 +161,12 @@ app = Litestar(route_handlers=[router])
 ```
 
 Now we are ready to write tests with **overriding** and this will work with **any types**:
+
 ```python3
 def test_litestar_endpoint_with_overriding() -> None:
     some_service_mock = Mock(do_smth=lambda: "mock func")
 
-    with DIContainer.example_service.override_context(some_service_mock), TestClient(app=app) as client:
+    with DIContainer.example_service.sync_override_context(some_service_mock), TestClient(app=app) as client:
         response = client.get("/router/another-endpoint")
 
     assert response.status_code == 200

@@ -82,7 +82,7 @@ def test_thread_local_singleton_override() -> None:
     assert instance == override_value, "Override failed: Expected overridden value."
 
     # Reset override and ensure a new instance is created
-    provider.reset_override()
+    provider.sync_reset_override()
     new_instance = provider.sync_resolve()
     assert new_instance != override_value, "Reset override failed: Should no longer return overridden value."
 
@@ -97,7 +97,7 @@ def test_thread_local_singleton_override_in_threads() -> None:
             provider.sync_override(override_value)
         results[thread_id] = provider.sync_resolve()
         if override_value is not None:
-            provider.reset_override()
+            provider.sync_reset_override()
 
     override_value: typing.Final[int] = 101
     thread1 = threading.Thread(target=_thread_task, args=(1, override_value))
@@ -121,7 +121,7 @@ def test_thread_local_singleton_override_temporarily() -> None:
 
     override_value: typing.Final = 101
     # Set a temporary override
-    with provider.override_context(override_value):
+    with provider.sync_override_context(override_value):
         instance = provider.sync_resolve()
         assert instance == override_value, "Override context failed: Expected overridden value."
 

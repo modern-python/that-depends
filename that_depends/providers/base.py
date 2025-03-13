@@ -3,7 +3,7 @@ import contextlib
 import inspect
 import threading
 import typing
-from contextlib import contextmanager
+from contextlib import asynccontextmanager, contextmanager
 from operator import attrgetter
 
 import typing_extensions
@@ -141,8 +141,26 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
             for child in eligible_children:
                 child.sync_tear_down(propagate=propagate, raise_on_async=raise_on_async)
 
+    async def override(self, mock: object, tear_down_children: bool = False, propagate: bool = True) -> None:
+        """Override the provider with a mock object.
+
+        Args:
+            mock: object to resolve while the provider is overridden.
+            tear_down_children: tear down child providers.
+            propagate: propagate teardown.
+
+        Returns:
+            None
+
+        """
+        self._override = mock
+        if tear_down_children:
+            eligible_children = [child for child in self._children if isinstance(child, SupportsTeardown)]
+            for child in eligible_children:
+                await child.tear_down(propagate=propagate)
+
     @contextmanager
-    def override_context(self, mock: object) -> typing.Iterator[None]:
+    def sync_override_context(self, mock: object) -> typing.Iterator[None]:
         """Override the provider with a mock object temporarily.
 
         Args:
@@ -156,9 +174,26 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
         try:
             yield
         finally:
-            self.reset_override()
+            self.sync_reset_override()
 
-    def reset_override(
+    @asynccontextmanager
+    async def override_context(self, mock: object) -> typing.AsyncIterator[None]:
+        """Override the provider with a mock object temporarily.
+
+        Args:
+            mock: object to resolve while the provider is overridden.
+
+        Returns:
+            None
+
+        """
+        await self.override(mock)
+        try:
+            yield
+        finally:
+            self.sync_reset_override()
+
+    def sync_reset_override(
         self, tear_down_children: bool = False, propagate: bool = True, raise_on_async: bool = False
     ) -> None:
         """Reset the provider to its original state.
@@ -180,6 +215,23 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
             eligible_children = [child for child in self._children if isinstance(child, SupportsTeardown)]
             for child in eligible_children:
                 child.sync_tear_down(propagate=propagate, raise_on_async=raise_on_async)
+
+    async def reset_override(self, tear_down_children: bool = False, propagate: bool = True) -> None:
+        """Reset the provider to its original state.
+
+        Args:
+            tear_down_children: tear down all child providers.
+            propagate: propagate tear downs.
+
+        Returns:
+            None
+
+        """
+        self._override = None
+        if tear_down_children:
+            eligible_children = [child for child in self._children if isinstance(child, SupportsTeardown)]
+            for child in eligible_children:
+                await child.tear_down(propagate=propagate)
 
     @property
     def cast(self) -> T_co:
