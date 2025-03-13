@@ -1,9 +1,11 @@
 import datetime
+import typing
 
 import pytest
 
 from tests import container
 from that_depends import BaseContainer, providers
+from that_depends.providers.mixin import CannotTearDownSyncError
 
 
 async def test_batch_providers_overriding() -> None:
@@ -77,6 +79,15 @@ def test_providers_overriding_with_context_manager() -> None:
     simple_factory_mock = container.SimpleFactory(dep1="override", dep2=999)
 
     with container.DIContainer.simple_factory.sync_override_context(simple_factory_mock):
+        assert container.DIContainer.simple_factory.sync_resolve() is simple_factory_mock
+
+    assert container.DIContainer.simple_factory.sync_resolve() is not simple_factory_mock
+
+
+async def test_providers_overriding_with_async_context_manager() -> None:
+    simple_factory_mock = container.SimpleFactory(dep1="override", dep2=999)
+
+    async with container.DIContainer.simple_factory.override_context(simple_factory_mock):
         assert container.DIContainer.simple_factory.sync_resolve() is simple_factory_mock
 
     assert container.DIContainer.simple_factory.sync_resolve() is not simple_factory_mock
@@ -171,3 +182,42 @@ async def test_provider_tear_down_after_override() -> None:
     _MyContainer.B.sync_reset_override(tear_down_children=True)
 
     assert original_value == _MyContainer.B.sync_resolve()
+
+
+async def test_provider_tear_down_after_async_override() -> None:
+    original_value = 100
+    override_value = 32
+
+    class _MyContainer(BaseContainer):
+        B = providers.Singleton(lambda: original_value)
+        A = providers.Singleton(lambda x: x, B)
+
+    a_old = await _MyContainer.A.async_resolve()
+
+    await _MyContainer.B.override(override_value, tear_down_children=True)
+
+    a_new = await _MyContainer.A()
+
+    assert a_old != a_new
+
+    await _MyContainer.B.reset_override(tear_down_children=True)
+
+    assert original_value == _MyContainer.B.sync_resolve()
+
+
+async def test_provider_sync_override_raises_on_async_teardown() -> None:
+    original_value = 100
+
+    async def _async_creator(x: int) -> typing.AsyncIterator[int]:
+        yield x
+
+    class _MyContainer(BaseContainer):
+        B = providers.Singleton(lambda: original_value)
+        A = providers.Resource(_async_creator, B.cast)
+
+    await _MyContainer.A.async_resolve()
+    with pytest.raises(CannotTearDownSyncError):
+        _MyContainer.B.sync_override(20, tear_down_children=True, raise_on_async=True)
+
+    with pytest.warns(RuntimeWarning):
+        _MyContainer.B.sync_override(20, tear_down_children=True, raise_on_async=False)
