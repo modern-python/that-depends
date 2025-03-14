@@ -140,7 +140,7 @@ async def test_async_singleton() -> None:
 
 async def test_async_singleton_override() -> None:
     singleton_async = providers.AsyncSingleton(create_async_obj, "foo")
-    singleton_async.override(SingletonFactory(dep1="bar"))
+    singleton_async.sync_override(SingletonFactory(dep1="bar"))
 
     result = await singleton_async.async_resolve()
     assert result == SingletonFactory(dep1="bar")

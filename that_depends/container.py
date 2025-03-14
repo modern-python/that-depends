@@ -99,7 +99,7 @@ class BaseContainer(metaclass=BaseContainerMeta):
     def reset_override(cls) -> None:
         """Reset all provider overrides."""
         for v in cls.get_providers().values():
-            v.reset_override()
+            v.sync_reset_override()
 
     @classmethod
     def resolver(cls, item: typing.Callable[P, T]) -> typing.Callable[[], typing.Awaitable[T]]:
@@ -159,11 +159,11 @@ class BaseContainer(metaclass=BaseContainerMeta):
 
         for provider_name, mock in providers_for_overriding.items():
             provider = current_providers[provider_name]
-            provider.override(mock)
+            provider.sync_override(mock)
 
         try:
             yield
         finally:
             for provider_name in providers_for_overriding:
                 provider = current_providers[provider_name]
-                provider.reset_override()
+                provider.sync_reset_override()
