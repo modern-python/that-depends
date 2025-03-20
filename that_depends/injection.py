@@ -86,9 +86,9 @@ def _resolve_sync(func: typing.Callable[P, T], *args: P.args, **kwargs: P.kwargs
                 injected = True
             continue
         if isinstance(field_value.default, StringProviderDefinition):
-            kwargs[field_name] = field_value.default.provider.sync_resolve()
+            kwargs[field_name] = field_value.default.provider.resolve_sync()
         else:
-            kwargs[field_name] = field_value.default.sync_resolve()
+            kwargs[field_name] = field_value.default.resolve_sync()
         injected = True
 
     if not injected:
@@ -118,9 +118,9 @@ async def _resolve_async(
                 injected = True
             continue
         if isinstance(field_value.default, StringProviderDefinition):
-            kwargs[field_name] = await field_value.default.provider.async_resolve()
+            kwargs[field_name] = await field_value.default.provider.resolve()
         else:  # AbstractProvider
-            kwargs[field_name] = await field_value.default.async_resolve()
+            kwargs[field_name] = await field_value.default.resolve()
         injected = True
     if not injected:
         warnings.warn("Expected injection, but nothing found. Remove @inject decorator.", RuntimeWarning, stacklevel=1)

@@ -109,18 +109,18 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
         return AttrGetter(provider=self, attr_name=attr_name)
 
     @abc.abstractmethod
-    async def async_resolve(self) -> T_co:
+    async def resolve(self) -> T_co:
         """Resolve dependency asynchronously."""
 
     @abc.abstractmethod
-    def sync_resolve(self) -> T_co:
+    def resolve_sync(self) -> T_co:
         """Resolve dependency synchronously."""
 
     async def __call__(self) -> T_co:
         """Resolve dependency asynchronously."""
-        return await self.async_resolve()
+        return await self.resolve()
 
-    def sync_override(
+    def override_sync(
         self, mock: object, tear_down_children: bool = False, propagate: bool = True, raise_on_async: bool = False
     ) -> None:
         """Override the provider with a mock object.
@@ -139,7 +139,7 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
         if tear_down_children:
             eligible_children = [child for child in self._children if isinstance(child, SupportsTeardown)]
             for child in eligible_children:
-                child.sync_tear_down(propagate=propagate, raise_on_async=raise_on_async)
+                child.tear_down_sync(propagate=propagate, raise_on_async=raise_on_async)
 
     async def override(self, mock: object, tear_down_children: bool = False, propagate: bool = True) -> None:
         """Override the provider with a mock object.
@@ -160,7 +160,7 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
                 await child.tear_down(propagate=propagate)
 
     @contextmanager
-    def sync_override_context(self, mock: object) -> typing.Iterator[None]:
+    def override_context_sync(self, mock: object) -> typing.Iterator[None]:
         """Override the provider with a mock object temporarily.
 
         Args:
@@ -170,11 +170,11 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
             None
 
         """
-        self.sync_override(mock)
+        self.override_sync(mock)
         try:
             yield
         finally:
-            self.sync_reset_override()
+            self.reset_override_sync()
 
     @asynccontextmanager
     async def override_context(self, mock: object) -> typing.AsyncIterator[None]:
@@ -191,9 +191,9 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
         try:
             yield
         finally:
-            self.sync_reset_override()
+            self.reset_override_sync()
 
-    def sync_reset_override(
+    def reset_override_sync(
         self, tear_down_children: bool = False, propagate: bool = True, raise_on_async: bool = False
     ) -> None:
         """Reset the provider to its original state.
@@ -214,7 +214,7 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
         if tear_down_children:
             eligible_children = [child for child in self._children if isinstance(child, SupportsTeardown)]
             for child in eligible_children:
-                child.sync_tear_down(propagate=propagate, raise_on_async=raise_on_async)
+                child.tear_down_sync(propagate=propagate, raise_on_async=raise_on_async)
 
     async def reset_override(self, tear_down_children: bool = False, propagate: bool = True) -> None:
         """Reset the provider to its original state.
@@ -258,11 +258,11 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
         for child in eligible_children:
             await child.tear_down()
 
-    def _sync_tear_down_children(self, propagate: bool = True, raise_on_async: bool = True) -> None:
+    def _tear_down_children_sync(self, propagate: bool = True, raise_on_async: bool = True) -> None:
         """Tear down all child providers."""
         eligible_children = [child for child in self._children if isinstance(child, SupportsTeardown)]
         for child in eligible_children:
-            child.sync_tear_down(raise_on_async=raise_on_async, propagate=propagate)
+            child.tear_down_sync(raise_on_async=raise_on_async, propagate=propagate)
 
 
 class AbstractResource(AbstractProvider[T_co], abc.ABC):
@@ -316,7 +316,7 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
     def _fetch_context(self) -> ResourceContext[T_co]: ...
 
     @override
-    async def async_resolve(self) -> T_co:
+    async def resolve(self) -> T_co:
         if self._override:
             return typing.cast(T_co, self._override)
 
@@ -330,11 +330,8 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
             self._register_arguments()
 
             cm: typing.ContextManager[T_co] | typing.AsyncContextManager[T_co] = self._creator(
-                *[await x.async_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
-                **{
-                    k: await v.async_resolve() if isinstance(v, AbstractProvider) else v
-                    for k, v in self._kwargs.items()
-                },
+                *[await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
+                **{k: await v.resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
             )
 
             if isinstance(cm, typing.AsyncContextManager):
@@ -351,7 +348,7 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
         return context.instance
 
     @override
-    def sync_resolve(self) -> T_co:
+    def resolve_sync(self) -> T_co:
         if self._override:
             return typing.cast(T_co, self._override)
 
@@ -369,8 +366,8 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
             self._register_arguments()
 
             cm = self._creator(
-                *[x.sync_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
-                **{k: v.sync_resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
+                *[x.resolve_sync() if isinstance(x, AbstractProvider) else x for x in self._args],
+                **{k: v.resolve_sync() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
             )
             context.context_stack = contextlib.ExitStack()
             context.instance = context.context_stack.enter_context(cm)
@@ -411,14 +408,14 @@ class AttrGetter(
         return self
 
     @override
-    async def async_resolve(self) -> typing.Any:
-        resolved_provider_object = await self._provider.async_resolve()
+    async def resolve(self) -> typing.Any:
+        resolved_provider_object = await self._provider.resolve()
         attribute_path = ".".join(self._attrs)
         return _get_value_from_object_by_dotted_path(resolved_provider_object, attribute_path)
 
     @override
-    def sync_resolve(self) -> typing.Any:
-        resolved_provider_object = self._provider.sync_resolve()
+    def resolve_sync(self) -> typing.Any:
+        resolved_provider_object = self._provider.resolve_sync()
         attribute_path = ".".join(self._attrs)
         return _get_value_from_object_by_dotted_path(resolved_provider_object, attribute_path)
 

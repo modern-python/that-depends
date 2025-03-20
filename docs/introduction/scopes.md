@@ -34,8 +34,8 @@ After entering a scope, you can resolve resources that have been defined with th
 from that_depends import container_context
 
 async with container_context(scope=ContextScopes.APP):
-    # resolve resources with scope APP
-    await my_app_scoped_provider.async_resolve()
+   # resolve resources with scope APP
+   await my_app_scoped_provider.resolve()
 ```
 
 ## Checking the current scope
@@ -55,12 +55,13 @@ In order for a `ContextResource` to be resolved, you must first initialize the c
 When you call `container_context(scope=ContextScopes.APP)` this both enters the `APP` scope and (re-)initializes context for
 all providers that have `APP` scope. Scoped resources will prevent their context initialization if the current scope does
 not match their scope:
+
 ```python
 p = providers.ContextResource(my_resource).with_config(scope=ContextScopes.APP)
 
-async with p.async_context(): 
-    # will raise an InvalidContextError since current scope is `None`
-    ...
+async with p.context_async():
+   # will raise an InvalidContextError since current scope is `None`
+   ...
 ```
 
 Similarly, this will also not work:
@@ -73,13 +74,13 @@ async with container_context(p, scope=ContextScopes.REQUEST):
 Once the context has been initialized, a resource can be resolved regardless of the current scope. For example:
 
 ```python
-await p.async_resolve()  # will raise an exception
+await p.resolve()  # will raise an exception
 
 async with container_context(p, scope=ContextScopes.APP):
-    val_1 = await p.async_resolve()  # will resolve
-    async with container_context(p, scope=ContextScopes.REQUEST):
-        val_2 = await p.async_resolve()  # will resolve
-        assert val_1 == val_2 # but value stays the same since context is the same
+   val_1 = await p.resolve()  # will resolve
+   async with container_context(p, scope=ContextScopes.REQUEST):
+      val_2 = await p.resolve()  # will resolve
+      assert val_1 == val_2  # but value stays the same since context is the same
 ```
 
 If you want resources to be resolved **only** in the specified scope, enable strict resolution:
@@ -87,22 +88,23 @@ If you want resources to be resolved **only** in the specified scope, enable str
 ```python
 p = providers.ContextResource(my_resource).with_config(scope=ContextScopes.APP, strict_scope=True)
 async with container_context(p, scope=ContextScopes.APP):
-    await p.async_resolve() # will resolve
-    
-    async with container_context(scope=ContextScopes.REQUEST):
-        await p.async_resolve()  # will raise an exception
+   await p.resolve()  # will resolve
+
+   async with container_context(scope=ContextScopes.REQUEST):
+      await p.resolve()  # will raise an exception
 ```
 
 ## Entering a context by force
 
 If you for some reason need to (re-)initialize a context for a `ContextResource` outside of its defined scope,
 you can force enter its context:
+
 ```python
 p = providers.ContextResource(my_resource).with_config(scope=ContextScopes.APP)
 
-async with p.async_context(force=True):
-    assert get_current_scope() == None
-    await p.async_resolve() # will resolve
+async with p.context_async(force=True):
+   assert get_current_scope() == None
+   await p.resolve()  # will resolve
 ```
 Or similarly using the `context` wrapper (both `ContextResource` providers and containers provide this API):
 ```python hl_lines="4"

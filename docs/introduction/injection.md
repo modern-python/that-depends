@@ -142,7 +142,7 @@ For more details on overring providers, see the [Overriding Providers](../testin
 ## Frequently Asked Questions
 
 1. **Do I need to call `@inject` every time I reference a provider?**  
-   No—only when you want **automatic** injection of providers into function parameters. If you are resolving dependencies manually (e.g., `MyContainer.greeting_provider.sync_resolve()`), then `@inject` is not needed.
+   No—only when you want **automatic** injection of providers into function parameters. If you are resolving dependencies manually (e.g., `MyContainer.greeting_provider.resolve_sync()`), then `@inject` is not needed.
 
    2. **What if I provide a custom argument to a parameter that has a default provider?**  
       If you explicitly pass a value, that value overrides the injected default:

@@ -28,15 +28,15 @@ class AbstractFactory(AbstractProvider[T_co], abc.ABC):
 
         Example:
             ```python
-            async_provider = my_factory.provider
-            resource = await async_provider()
+            provider = my_factory.provider
+            resource = await provider()
             ```
 
         """
-        return self.async_resolve
+        return self.resolve
 
     @property
-    def sync_provider(self) -> typing.Callable[[], T_co]:
+    def provider_sync(self) -> typing.Callable[[], T_co]:
         """Return a sync provider function.
 
         The sync provider function can be called to resolve the resource synchronously.
@@ -46,12 +46,12 @@ class AbstractFactory(AbstractProvider[T_co], abc.ABC):
 
         Example:
             ```python
-            sync_provider = my_factory.sync_provider
-            resource = sync_provider()
+            provider = my_factory.provider_sync
+            resource = provider()
             ```
 
         """
-        return self.sync_resolve
+        return self.resolve_sync
 
 
 class Factory(AbstractFactory[T_co]):
@@ -67,7 +67,7 @@ class Factory(AbstractFactory[T_co]):
             return f"{text}-{number}"
 
         factory = Factory(build_resource, "example", 42)
-        resource = factory.sync_provider()  # "example-42"
+        resource = factory.provider_sync()  # "example-42"
         ```
 
     """
@@ -91,30 +91,30 @@ class Factory(AbstractFactory[T_co]):
         self._register(self._kwargs.values())
 
     @override
-    async def async_resolve(self) -> T_co:
+    async def resolve(self) -> T_co:
         if self._override:
             return typing.cast(T_co, self._override)
 
         return self._factory(
             *[  # type: ignore[arg-type]
-                await x.async_resolve() if isinstance(x, AbstractProvider) else x for x in self._args
+                await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args
             ],
             **{  # type: ignore[arg-type]
-                k: await v.async_resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()
+                k: await v.resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()
             },
         )
 
     @override
-    def sync_resolve(self) -> T_co:
+    def resolve_sync(self) -> T_co:
         if self._override:
             return typing.cast(T_co, self._override)
 
         return self._factory(
             *[  # type: ignore[arg-type]
-                x.sync_resolve() if isinstance(x, AbstractProvider) else x for x in self._args
+                x.resolve_sync() if isinstance(x, AbstractProvider) else x for x in self._args
             ],
             **{  # type: ignore[arg-type]
-                k: v.sync_resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()
+                k: v.resolve_sync() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()
             },
         )
 
@@ -157,16 +157,16 @@ class AsyncFactory(AbstractFactory[T_co]):
         self._register(self._kwargs.values())
 
     @override
-    async def async_resolve(self) -> T_co:
+    async def resolve(self) -> T_co:
         if self._override:
             return typing.cast(T_co, self._override)
 
         return await self._factory(
-            *[await x.async_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],  # type: ignore[arg-type]
-            **{k: await v.async_resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},  # type: ignore[arg-type]
+            *[await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args],  # type: ignore[arg-type]
+            **{k: await v.resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},  # type: ignore[arg-type]
         )
 
     @override
-    def sync_resolve(self) -> typing.NoReturn:
+    def resolve_sync(self) -> typing.NoReturn:
         msg = "AsyncFactory cannot be resolved synchronously"
         raise RuntimeError(msg)

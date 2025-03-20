@@ -48,28 +48,28 @@ class BaseContainerMeta(SupportsContext[None], abc.ABCMeta):
 
     @asynccontextmanager
     @override
-    async def async_context(cls, force: bool = False) -> typing.AsyncIterator[None]:
+    async def context_async(cls, force: bool = False) -> typing.AsyncIterator[None]:
         async with AsyncExitStack() as stack:
             for container in cls.get_containers():
-                await stack.enter_async_context(container.async_context(force=force))
+                await stack.enter_async_context(container.context_async(force=force))
             for provider in cls.get_providers().values():
                 if isinstance(provider, ContextResource):
-                    await stack.enter_async_context(provider.async_context(force=force))
+                    await stack.enter_async_context(provider.context_async(force=force))
             yield
 
     @contextmanager
     @override
-    def sync_context(cls, force: bool = False) -> typing.Iterator[None]:
+    def context_sync(cls, force: bool = False) -> typing.Iterator[None]:
         with ExitStack() as stack:
             for container in cls.get_containers():
-                stack.enter_context(container.sync_context(force=force))
+                stack.enter_context(container.context_sync(force=force))
             for provider in cls.get_providers().values():
                 if isinstance(provider, ContextResource) and not provider._is_async:  # noqa: SLF001
-                    stack.enter_context(provider.sync_context(force=force))
+                    stack.enter_context(provider.context_sync(force=force))
             yield
 
     @override
-    def supports_sync_context(cls) -> bool:
+    def supports_context_sync(cls) -> bool:
         return True
 
     _instances: typing.ClassVar[dict[str, type["BaseContainer"]]] = {}
@@ -152,11 +152,11 @@ class BaseContainerMeta(SupportsContext[None], abc.ABCMeta):
         for provider in reversed(cls.get_providers().values()):
             if isinstance(provider, Resource):
                 if not provider._is_async:  # noqa: SLF001
-                    provider.sync_tear_down()
+                    provider.tear_down_sync()
                 continue
 
             if isinstance(provider, SupportsTeardown):
-                provider.sync_tear_down()
+                provider.tear_down_sync()
                 continue
         for container in cls.get_containers():
             container.sync_tear_down()

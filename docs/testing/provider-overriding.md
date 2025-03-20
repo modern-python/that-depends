@@ -60,13 +60,13 @@ def main():
     and 'some_sqla_dao' providers because the 'settings' provider is used by them!
     """
     local_testing_settings = Settings(db_url=db_url)
-    DIContainer.settings.sync_override(local_testing_settings)
+    DIContainer.settings.override_sync(local_testing_settings)
 
     try:
         result = exec_query_example()
         assert result == (234,)
     finally:
-        DIContainer.settings.sync_reset_override()
+        DIContainer.settings.reset_override_sync()
         pg_container.stop()
 
 
@@ -166,7 +166,7 @@ Now we are ready to write tests with **overriding** and this will work with **an
 def test_litestar_endpoint_with_overriding() -> None:
     some_service_mock = Mock(do_smth=lambda: "mock func")
 
-    with DIContainer.example_service.sync_override_context(some_service_mock), TestClient(app=app) as client:
+    with DIContainer.example_service.override_context_sync(some_service_mock), TestClient(app=app) as client:
         response = client.get("/router/another-endpoint")
 
     assert response.status_code == 200
@@ -191,7 +191,7 @@ class MyContainer(BaseContainer):
 
 a_old = await MyContainer.A()
 
-MyContainer.B.sync_override(32)  # will not reset A's cached value
+MyContainer.B.override_sync(32)  # will not reset A's cached value
 
 a_new = await MyContainer.A()
 
@@ -203,5 +203,5 @@ This is due to the fact that `A` caches the value and doesn't get reset when you
 If you wish to fix this you can tell the provider to tear-down children on override:
 
 ```python
-MyContainer.B.sync_override(32, tear_down_children=True)
+MyContainer.B.override_sync(32, tear_down_children=True)
 ```

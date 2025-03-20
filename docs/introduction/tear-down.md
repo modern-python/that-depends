@@ -59,13 +59,13 @@ a_new = await MyContainer.A()
 assert a_new != a
 ```
 
-If you do not wish to propagate tear-down simply call `tear_down(propagate=False)` or `sync_tear_down(propagate=False)`.
+If you do not wish to propagate tear-down simply call `tear_down(propagate=False)` or `tear_down_sync(propagate=False)`.
 
 --- 
 
 ## Sync tear-down
 
-If you need to call tear-down from a sync context you can use the `sync_tear_down()` method. However, 
+If you need to call tear-down from a sync context you can use the `tear_down_sync()` method. However, 
 keep in mind that because dependent resources might be async, this will fail to correctly finalize these async
 resources.
 
@@ -80,28 +80,29 @@ async def async_creator(val: float) -> typing.AsyncIterator[float]:
 class MyContainer(BaseContainer):
     B = providers.Singleton(lambda: random.random())
     A = providers.Resource(async_creator, B.cast)
-    
+
+
 b = await MyContainer.B()
 a = await MyContainer.A()
 
-MyContainer.B.sync_tear_down() # raises
+MyContainer.B.tear_down_sync()  # raises
 ```
 
 If you do not want to see these errors you can reduce this to a `RuntimeWarning`:
 
 ```python
-MyContainer.B.sync_tear_down(raise_on_async=False)
+MyContainer.B.tear_down_sync(raise_on_async=False)
 ```
 
 ---
 
 ## Containers and tear-down
 
-Containers also support the `tear_down` and `sync_tear_down` methods. When calling
+Containers also support the `tear_down` and `tear_down_sync` methods. When calling
 `await Container.tear_down()` all providers in the container will be torn down.
 
 
-`Container.sync_tear_down()` is also implemented but not recommended unless you are sure 
+`Container.tear_down_sync()` is also implemented but not recommended unless you are sure 
 all providers in your container are sync. 
 
 > Container methods do not support the `propagate` & `raise_on_async` arguments, so if you

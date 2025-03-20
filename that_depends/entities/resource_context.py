@@ -60,7 +60,7 @@ class ResourceContext(SupportsTeardown, typing.Generic[T_co]):
         self.instance = None
 
     @override
-    def sync_tear_down(self, propagate: bool = True, raise_on_async: bool = True) -> None:
+    def tear_down_sync(self, propagate: bool = True, raise_on_async: bool = True) -> None:
         """Tear down the sync context stack."""
         if self.context_stack is None:
             return
