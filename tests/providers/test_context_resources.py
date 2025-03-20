@@ -1084,3 +1084,11 @@ def test_sync_container_context_wrapper_with_named_scope() -> None:
         return val
 
     assert _injected() is not None
+
+
+def test_container_context_must_be_called_with_arguments() -> None:
+    msg = "One of context_items, scope or global_context must be provided."
+    with pytest.raises(ValueError, match=msg):
+        container_context()
+    with pytest.raises(ValueError, match=msg):
+        container_context(preserve_global_context=True)
