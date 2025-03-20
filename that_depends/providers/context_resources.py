@@ -465,7 +465,7 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
             )
         else:
             self._initial_context = self._global_context or {}
-        if self._reset_resource_context:  # equivalent to reset_all_containers
+        if self._reset_resource_context:
             from that_depends.meta import BaseContainerMeta
 
             self._add_providers_from_containers(BaseContainerMeta.get_instances().values(), self._scope)
