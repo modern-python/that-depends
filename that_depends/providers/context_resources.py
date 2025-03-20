@@ -5,6 +5,7 @@ import inspect
 import logging
 import typing
 from abc import abstractmethod
+from collections.abc import Iterable
 from contextlib import AbstractAsyncContextManager, AbstractContextManager
 from contextvars import ContextVar, Token
 from functools import wraps
@@ -410,7 +411,6 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
         "_containers",
         "_initial_context",
         "_context_token",
-        "_reset_resource_context",
         "_scope",
     )
 
@@ -419,7 +419,6 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
         *context_items: SupportsContext[typing.Any],
         global_context: ContextType | None = None,
         preserve_global_context: bool = True,
-        reset_all_containers: bool = False,
         scope: ContextScope | None = None,
     ) -> None:
         """Initialize a new container context.
@@ -428,7 +427,6 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
             *context_items (SupportsContext[Any]): Context items to initialize a new context for.
             global_context (dict[str, Any] | None): A dictionary representing the global context.
             preserve_global_context (bool): If True, merges the existing global context with the new one.
-            reset_all_containers (bool): If True, creates a new context for all containers in this scope.
             scope (ContextScope | None): The named scope that should be initialized.
 
         Example:
@@ -441,14 +439,16 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
         if scope == ContextScopes.ANY:
             msg = f"{scope} cannot be entered!"
             raise ValueError(msg)
+        if len(context_items) == 0 and not scope and not global_context:
+            msg = "One of context_items, scope or global_context must be provided."
+            raise ValueError(msg)
         self._scope = scope
         self._preserve_global_context = preserve_global_context
         self._global_context = global_context
         self._context_token: Token[ContextType] | None = None
-        self._context_items: set[SupportsContext[typing.Any]] = set(context_items)
-        self._reset_resource_context: typing.Final[bool] = (
-            not context_items and not global_context
-        ) or reset_all_containers
+        self._context_items: typing.Final[set[SupportsContext[typing.Any]]] = set(context_items)
+        self._context_providers: set[ContextResource[typing.Any]] = set()
+        self._reset_resource_context: typing.Final[bool] = bool(scope)
         self._context_stack: contextlib.AsyncExitStack | contextlib.ExitStack | None = None
         self._scope_token: Token[ContextScope | None] | None = None
 
@@ -468,24 +468,31 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
         if self._reset_resource_context:  # equivalent to reset_all_containers
             from that_depends.meta import BaseContainerMeta
 
-            self._add_providers_from_containers(BaseContainerMeta.get_instances(), self._scope)
+            self._add_providers_from_containers(BaseContainerMeta.get_instances().values(), self._scope)
+        for item in self._context_items:
+            from that_depends.container import BaseContainer
+
+            if isinstance(item, type) and issubclass(item, BaseContainer):
+                self._add_providers_from_containers([item], self._scope)
+            elif isinstance(item, ContextResource):
+                self._context_providers.add(item)
 
     def _add_providers_from_containers(
-        self, containers: dict[str, ContainerType], scope: ContextScope | None = ContextScopes.ANY
+        self, containers: Iterable[ContainerType], scope: ContextScope | None = ContextScopes.ANY
     ) -> None:
-        for container in containers.values():
+        for container in containers:
             for container_provider in container.get_providers().values():
                 if isinstance(container_provider, ContextResource):
                     provider_scope = container_provider.get_scope()
                     if provider_scope in (scope, ContextScopes.ANY):
-                        self._context_items.add(container_provider)
+                        self._context_providers.add(container_provider)
 
     @override
     def __enter__(self) -> ContextType:
         self._resolve_initial_conditions()
         self._context_stack = contextlib.ExitStack()
         self._scope_token = _set_current_scope(self._scope)
-        for item in self._context_items:
+        for item in self._context_providers:
             if item.supports_sync_context():
                 self._context_stack.enter_context(item.sync_context())
         return self._enter_globals()
@@ -495,7 +502,7 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
         self._resolve_initial_conditions()
         self._context_stack = contextlib.AsyncExitStack()
         self._scope_token = _set_current_scope(self._scope)
-        for item in self._context_items:
+        for item in self._context_providers:
             await self._context_stack.enter_async_context(item.async_context())
         return self._enter_globals()
 
@@ -582,7 +589,6 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
             async def _async_inner(*args: P.args, **kwargs: P.kwargs) -> T_co:
                 async with container_context(
                     *self._context_items,
-                    reset_all_containers=self._reset_resource_context,
                     scope=self._scope,
                     global_context=self._global_context,
                     preserve_global_context=self._preserve_global_context,
@@ -595,7 +601,6 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
         def _sync_inner(*args: P.args, **kwargs: P.kwargs) -> T_co:
             with container_context(
                 *self._context_items,
-                reset_all_containers=self._reset_resource_context,
                 scope=self._scope,
                 global_context=self._global_context,
                 preserve_global_context=self._preserve_global_context,
@@ -618,7 +623,6 @@ class DIContextMiddleware:
         app: ASGIApp,
         *context_items: SupportsContext[typing.Any],
         global_context: dict[str, typing.Any] | None = None,
-        reset_all_containers: bool = False,
         scope: ContextScope | None = None,
     ) -> None:
         """Initialize the DIContextMiddleware.
@@ -628,7 +632,6 @@ class DIContextMiddleware:
             *context_items (SupportsContext[Any]): A collection of containers and providers that
                 need context initialization prior to a request.
             global_context (dict[str, Any] | None): A global context dictionary to set before requests.
-            reset_all_containers (bool): Whether to reset all containers in the current scope before the request.
             scope (ContextScope | None): The scope in which the context should be initialized.
 
         Example:
@@ -640,7 +643,6 @@ class DIContextMiddleware:
         self.app: typing.Final = app
         self._context_items: set[SupportsContext[typing.Any]] = set(context_items)
         self._global_context: dict[str, typing.Any] | None = global_context
-        self._reset_all_containers: bool = reset_all_containers
         if scope == ContextScopes.ANY:
             msg = f"{scope} cannot be entered!"
             raise ValueError(msg)
@@ -664,8 +666,6 @@ class DIContextMiddleware:
         async with (
             container_context(*self._context_items, global_context=self._global_context, scope=self._scope)
             if self._context_items
-            else container_context(
-                global_context=self._global_context, reset_all_containers=self._reset_all_containers, scope=self._scope
-            )
+            else container_context(global_context=self._global_context, scope=self._scope)
         ):
             return await self.app(scope, receive, send)
