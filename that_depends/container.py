@@ -53,13 +53,13 @@ class BaseContainer(metaclass=BaseContainerMeta):
             if inspect.iscoroutinefunction(func):
 
                 async def _async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-                    async with cls.async_context(force=force):
+                    async with cls.context_async(force=force):
                         return await func(*args, **kwargs)  # type: ignore[no-any-return]
 
                 return typing.cast(typing.Callable[P, T], _async_wrapper)
 
             def _sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-                with cls.sync_context(force=force):
+                with cls.context_sync(force=force):
                     return func(*args, **kwargs)
 
             return _sync_wrapper
@@ -90,7 +90,7 @@ class BaseContainer(metaclass=BaseContainerMeta):
         """Initialize all resources."""
         for provider in cls.get_providers().values():
             if isinstance(provider, Resource | Singleton | AsyncSingleton):
-                await provider.async_resolve()
+                await provider.resolve()
 
         for container in cls.get_containers():
             await container.init_resources()
@@ -99,7 +99,7 @@ class BaseContainer(metaclass=BaseContainerMeta):
     def reset_override(cls) -> None:
         """Reset all provider overrides."""
         for v in cls.get_providers().values():
-            v.sync_reset_override()
+            v.reset_override_sync()
 
     @classmethod
     def resolver(cls, item: typing.Callable[P, T]) -> typing.Callable[[], typing.Awaitable[T]]:
@@ -132,7 +132,7 @@ class BaseContainer(metaclass=BaseContainerMeta):
                 msg = f"Provider is not found, {field_name=}"
                 raise RuntimeError(msg)
 
-            kwargs[field_name] = await providers[field_name].async_resolve()
+            kwargs[field_name] = await providers[field_name].resolve()
 
         return object_to_resolve(**kwargs)
 
@@ -159,11 +159,11 @@ class BaseContainer(metaclass=BaseContainerMeta):
 
         for provider_name, mock in providers_for_overriding.items():
             provider = current_providers[provider_name]
-            provider.sync_override(mock)
+            provider.override_sync(mock)
 
         try:
             yield
         finally:
             for provider_name in providers_for_overriding:
                 provider = current_providers[provider_name]
-                provider.sync_reset_override()
+                provider.reset_override_sync()

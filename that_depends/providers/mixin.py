@@ -16,7 +16,7 @@ class SupportsTeardown(abc.ABC):
         """
 
     @abc.abstractmethod
-    def sync_tear_down(self, propagate: bool = True, raise_on_async: bool = True) -> None:
+    def tear_down_sync(self, propagate: bool = True, raise_on_async: bool = True) -> None:
         """Perform any necessary cleanup operations.
 
         This method is called when the object is no longer needed.

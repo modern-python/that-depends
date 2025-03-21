@@ -15,7 +15,7 @@ class DIContainer(BaseContainer):
     numbers_sequence = providers.List(random_number, random_number)
 
 
-DIContainer.numbers_sequence.sync_resolve()
+DIContainer.numbers_sequence.resolve_sync()
 # [0.3035656170071561, 0.8280498192037787]
 ```
 
@@ -33,6 +33,6 @@ class DIContainer(BaseContainer):
     numbers_map = providers.Dict(key1=random_number, key2=random_number)
 
 
-DIContainer.numbers_map.sync_resolve()
+DIContainer.numbers_map.resolve_sync()
 # {'key1': 0.6851384528299208, 'key2': 0.41044920948045294}
 ```

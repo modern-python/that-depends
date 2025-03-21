@@ -40,7 +40,7 @@ def fastapi_app() -> fastapi.FastAPI:
         assert dependency.async_resource == free_dependency.dependent_factory.async_resource
         assert singleton.dep1 is True
         assert singleton_attribute is True
-        assert context_resource == await container.DIContainer.context_resource.async_resolve()
+        assert context_resource == await container.DIContainer.context_resource.resolve()
         for key, value in _GLOBAL_CONTEXT.items():
             assert fetch_context_item(key) == value
         return dependency.async_resource

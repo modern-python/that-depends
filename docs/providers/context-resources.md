@@ -120,14 +120,16 @@ async with container_context(global_context={"key_1": "value_1", "key_2": "value
 To resolve a `ContextResource`, you must first initialize a new context for that resource.
 ```python
 async with container_context(MyContainer):  # this will make all containers initialize a new context
-    await MyContainer.async_resource.async_resolve()  # "async resource"
-    MyContainer.sync_resource.sync_resolve()          # "sync resource"
+    await MyContainer.async_resource.resolve()  # "async resource"
+    MyContainer.sync_resource.resolve_sync()          # "sync resource"
 ```
 
 Trying to resolve a `ContextResource` without first entering `container_context` will yield a `RuntimeError`:
+
 ```python
-value = MyContainer.sync_resource.sync_resolve()
- > RuntimeError: Context is not set. Use container_context
+value = MyContainer.sync_resource.resolve_sync()
+> RuntimeError: Context is not set.Use
+container_context
 ```
 
 ### Resolving async and sync dependencies
@@ -147,11 +149,12 @@ with container_context(MyContainer):
     ...
 ```
 A sync context will only allow resolution of sync dependencies:
+
 ```python
 async def my_func():
     with container_context(MyContainer):  # enter sync context
         # trying to resolve async dependency
-        await MyContainer.async_resource.async_resolve()
+        await MyContainer.async_resource.resolve()
 
 > RuntimeError: AsyncResource cannot be resolved in a sync context.
 ```
@@ -178,15 +181,16 @@ It is not necessary to use `container_context()` to do this. Instead, you can us
 
 Resources are cached in the context after their first resolution.  
 They are torn down when `container_context` exits:
+
 ```python
 async with container_context(MyContainer):
-    value_outer = await MyContainer.resource.async_resolve()
+    value_outer = await MyContainer.resource.resolve()
     async with container_context(MyContainer):
         # new context -> resource will be resolved anew
-        value_inner = await MyContainer.resource.async_resolve()
+        value_inner = await MyContainer.resource.resolve()
         assert value_inner != value_outer
     # previously resolved value is cached in the outer context
-    assert value_outer == await MyContainer.resource.async_resolve()
+    assert value_outer == await MyContainer.resource.resolve()
 ```
 
 ### Resolving resources whenever a function is called
@@ -204,10 +208,10 @@ Each time you call `await insert_into_database()`, a new instance of `session` w
 
 | Intention                                             | Using `container_context()`                   | Using `SupportsContext` explicitly         | Using `SupportsContext` decorator |
 |-------------------------------------------------------|-----------------------------------------------|--------------------------------------------|-----------------------------------|
-| Reset a `provider.ContextResource` context            | `async with container_context(my_provider):`  | `async with my_provider.async_context():`  | `@my_provider.context`            |
-| Reset a sync `provider.ContextResource` context       | `with container_context(my_provider):`        | `with my_provider.sync_context():`         | `@my_provider.context`            |
-| Reset all resources in a container                   | `async with container_context(my_container):` | `async with my_container.async_context():` | `@my_container.context`           |
-| Reset all sync resources in a container              | `with container_context(my_container):`       | `with my_container.sync_context():`        | `@my_container.context`           |
+| Reset a `provider.ContextResource` context            | `async with container_context(my_provider):`  | `async with my_provider.context_async():`  | `@my_provider.context`            |
+| Reset a sync `provider.ContextResource` context       | `with container_context(my_provider):`        | `with my_provider.context_sync():`         | `@my_provider.context`            |
+| Reset all resources in a container                   | `async with container_context(my_container):` | `async with my_container.context_async():` | `@my_container.context`           |
+| Reset all sync resources in a container              | `with container_context(my_container):`       | `with my_container.context_sync():`        | `@my_container.context`           |
 
 > **Note:** the `context()` wrapper is technically not part of the `SupportsContext` API, however all classes which 
 > implement this `SupportsContext` also implement this method. 
