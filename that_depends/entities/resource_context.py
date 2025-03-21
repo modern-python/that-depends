@@ -23,7 +23,7 @@ class ResourceContext(SupportsTeardown, typing.Generic[T_co]):
         Args:
             is_async (bool): Whether the ResourceContext was created in
                 an async context.
-        For example within a ``async with container_context(): ...`` statement.
+        For example within a ``async with container_context(Container): ...`` statement.
 
         """
         self.instance: T_co | None = None

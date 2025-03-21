@@ -14,15 +14,10 @@ from that_depends.providers import DIContextMiddleware
 _GLOBAL_CONTEXT: typing.Final[dict[str, str]] = {"test2": "value2", "test1": "value1"}
 
 
-@pytest.fixture(params=[None, container.DIContainer])
-def fastapi_app(request: pytest.FixtureRequest) -> fastapi.FastAPI:
+@pytest.fixture
+def fastapi_app() -> fastapi.FastAPI:
     app = fastapi.FastAPI()
-    if request.param:
-        app.add_middleware(
-            DIContextMiddleware, request.param, global_context=_GLOBAL_CONTEXT, reset_all_containers=True
-        )
-    else:
-        app.add_middleware(DIContextMiddleware, global_context=_GLOBAL_CONTEXT, reset_all_containers=True)
+    app.add_middleware(DIContextMiddleware, container.DIContainer, global_context=_GLOBAL_CONTEXT)
 
     @app.get("/")
     async def read_root(

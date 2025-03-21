@@ -95,32 +95,35 @@ async def test_context_resource_without_context_init(
         context_resource.resolve_sync()
 
 
-@container_context()
 async def test_context_resource(context_resource: providers.ContextResource[str]) -> None:
-    context_resource_result = await context_resource()
+    async with container_context(context_resource):
+        context_resource_result = await context_resource()
 
-    assert await context_resource() is context_resource_result
+        assert await context_resource() is context_resource_result
 
 
-@container_context()
 def test_sync_context_resource(sync_context_resource: providers.ContextResource[str]) -> None:
-    context_resource_result = sync_context_resource.resolve_sync()
+    with container_context(sync_context_resource):
+        context_resource_result = sync_context_resource.resolve_sync()
 
-    assert sync_context_resource.resolve_sync() is context_resource_result
+        assert sync_context_resource.resolve_sync() is context_resource_result
 
 
 async def test_async_context_resource_in_sync_context(async_context_resource: providers.ContextResource[str]) -> None:
-    with pytest.raises(RuntimeError, match="Context is not set. Use container_context"), container_context():
+    with (
+        pytest.raises(RuntimeError, match="Context is not set. Use container_context"),
+        container_context(async_context_resource),
+    ):
         await async_context_resource()
 
 
 async def test_context_resource_different_context(
     context_resource: providers.ContextResource[datetime.datetime],
 ) -> None:
-    async with container_context():
+    async with container_context(context_resource):
         context_resource_instance1 = await context_resource()
 
-    async with container_context():
+    async with container_context(context_resource):
         context_resource_instance2 = await context_resource()
 
     assert context_resource_instance1 is not context_resource_instance2
@@ -129,9 +132,9 @@ async def test_context_resource_different_context(
 async def test_context_resource_included_context(
     context_resource: providers.ContextResource[datetime.datetime],
 ) -> None:
-    async with container_context():
+    async with container_context(context_resource):
         context_resource_instance1 = await context_resource()
-        async with container_context():
+        async with container_context(context_resource):
             context_resource_instance2 = await context_resource()
 
         context_resource_instance3 = await context_resource()
@@ -164,21 +167,21 @@ def test_context_resources_wrong_providers_init() -> None:
 
 
 async def test_context_resource_with_dynamic_resource() -> None:
-    async with container_context(global_context={"resource_type": "sync"}, reset_all_containers=True):
+    async with container_context(DIContainer, global_context={"resource_type": "sync"}):
         assert (await DIContainer.dynamic_context_resource()).startswith("sync")
 
-    async with container_context(global_context={"resource_type": "async_"}, reset_all_containers=True):
+    async with container_context(DIContainer, global_context={"resource_type": "async_"}):
         assert (await DIContainer.dynamic_context_resource()).startswith("async")
 
-    async with container_context():
+    async with container_context(DIContainer):
         assert (await DIContainer.dynamic_context_resource()).startswith("sync")
 
 
 async def test_early_exit_of_container_context() -> None:
     with pytest.raises(RuntimeError, match="No context token set for global vars, use __enter__ or __aenter__ first."):
-        await container_context().__aexit__(None, None, None)
+        await container_context(global_context={"a": "a"}).__aexit__(None, None, None)
     with pytest.raises(RuntimeError, match="No context token set for global vars, use __enter__ or __aenter__ first."):
-        container_context().__exit__(None, None, None)
+        container_context(global_context={"a": "a"}).__exit__(None, None, None)
 
 
 async def test_resource_context_early_teardown() -> None:
@@ -199,7 +202,7 @@ async def test_teardown_sync_container_context_with_async_resource() -> None:
 
 
 async def test_sync_container_context_with_different_stack() -> None:
-    @container_context()
+    @container_context(DIContainer)
     @inject
     def some_injected(depth: int, val: str = Provide[DIContainer.sync_context_resource]) -> str:
         if depth > 1:
@@ -210,7 +213,7 @@ async def test_sync_container_context_with_different_stack() -> None:
 
 
 async def test_async_container_context_with_different_stack() -> None:
-    @container_context()
+    @container_context(DIContainer)
     @inject
     async def some_injected(depth: int, val: str = Provide[DIContainer.async_context_resource]) -> str:
         if depth > 1:
@@ -424,11 +427,11 @@ async def test_async_global_context_resolution() -> None:
         for key, item in my_global_resources.items():
             assert fetch_context_item(key) == item
 
-        async with container_context(preserve_global_context=True):
+        async with container_context(global_context={"test_3": "test_3"}, preserve_global_context=True):
             for key, item in my_global_resources.items():
                 assert fetch_context_item(key) == item
 
-            async with container_context(preserve_global_context=False):
+            async with container_context(global_context={"test_3": "test_3"}, preserve_global_context=False):
                 for key in my_global_resources:
                     assert fetch_context_item(key) is None
 
@@ -446,10 +449,10 @@ def test_sync_global_context_resolution() -> None:
     with container_context(global_context=my_global_resources):
         for key, item in my_global_resources.items():
             assert fetch_context_item(key) == item
-        with container_context(preserve_global_context=True):
+        with container_context(global_context={"test_3": "test_3"}, preserve_global_context=True):
             for key, item in my_global_resources.items():
                 assert fetch_context_item(key) == item
-            with container_context(preserve_global_context=False):
+            with container_context(global_context={"test_3": "test_3"}, preserve_global_context=False):
                 for key in my_global_resources:
                     assert fetch_context_item(key) is None
             for key, item in my_global_resources.items():
@@ -462,11 +465,11 @@ def test_sync_global_context_resolution() -> None:
 
 async def test_async_global_context_reset(async_context_resource: providers.ContextResource[str]) -> None:
     """container_context should reset async providers."""
-    async with container_context():
+    async with container_context(async_context_resource):
         val_1 = await async_context_resource.resolve()
         val_2 = await async_context_resource.resolve()
         assert val_1 == val_2
-        async with container_context():
+        async with container_context(async_context_resource):
             val_3 = await async_context_resource.resolve()
             assert val_3 != val_1
         val_4 = await async_context_resource.resolve()
@@ -475,11 +478,11 @@ async def test_async_global_context_reset(async_context_resource: providers.Cont
 
 def test_sync_global_context_reset(sync_context_resource: providers.ContextResource[str]) -> None:
     """container_context should reset sync providers."""
-    with container_context():
+    with container_context(sync_context_resource):
         val_1 = sync_context_resource.resolve_sync()
         val_2 = sync_context_resource.resolve_sync()
         assert val_1 == val_2
-        with container_context():
+        with container_context(sync_context_resource):
             val_3 = sync_context_resource.resolve_sync()
             assert val_3 != val_1
         val_4 = sync_context_resource.resolve_sync()
@@ -741,7 +744,7 @@ async def test_async_container_init_context_for_scoped_resources() -> None:
     async with container_context(scope=ContextScopes.INJECT):
         assert await _Container.async_resource.resolve() is not None
     with pytest.raises(RuntimeError):
-        async with container_context(scope=None):
+        async with container_context(scope=ContextScopes.APP):
             assert await _Container.async_resource.resolve() is not None
 
 
@@ -751,7 +754,7 @@ def test_sync_container_init_context_for_scoped_resources() -> None:
 
     with container_context(scope=ContextScopes.INJECT):
         assert _Container.sync_resource.resolve_sync() is not None
-    with pytest.raises(RuntimeError), container_context(scope=None):
+    with pytest.raises(RuntimeError), container_context(scope=ContextScopes.APP):
         assert _Container.sync_resource.resolve_sync() is not None
 
 
@@ -922,40 +925,40 @@ async def test_async_resource_with_custom_scope() -> None:
         assert await _Container.p_custom.resolve() is not None
 
 
-async def test_async_entering_container_context_for_all_containers_correctly_handles_named_scopes() -> None:
+async def test_async_entering_container_context_correctly_handles_named_scopes() -> None:
     class _Container(BaseContainer):
         p_app = providers.ContextResource(create_async_context_resource).with_config(scope=ContextScopes.APP)
         p_request = providers.ContextResource(create_async_context_resource).with_config(scope=ContextScopes.REQUEST)
 
-    async with container_context(reset_all_containers=True):
+    async with container_context(_Container):
         with pytest.raises(RuntimeError):
             await _Container.p_app.resolve()
 
-    async with container_context(reset_all_containers=True, scope=ContextScopes.APP):
+    async with container_context(_Container, scope=ContextScopes.APP):
         assert await _Container.p_app.resolve() is not None
         with pytest.raises(RuntimeError):
             await _Container.p_request.resolve()
 
-    async with container_context(reset_all_containers=True, scope=ContextScopes.REQUEST):
+    async with container_context(_Container, scope=ContextScopes.REQUEST):
         assert await _Container.p_request.resolve() is not None
         with pytest.raises(RuntimeError):
             await _Container.p_app.resolve()
 
 
-def test_sync_entering_container_context_for_all_containers_correctly_handles_named_scopes() -> None:
+def test_sync_entering_container_context_correctly_handles_named_scopes() -> None:
     class _Container(BaseContainer):
         p_app = providers.ContextResource(create_sync_context_resource).with_config(scope=ContextScopes.APP)
         p_request = providers.ContextResource(create_sync_context_resource).with_config(scope=ContextScopes.REQUEST)
 
-    with container_context(reset_all_containers=True), pytest.raises(RuntimeError):
+    with container_context(_Container), pytest.raises(RuntimeError):
         _Container.p_app.resolve_sync()
 
-    with container_context(reset_all_containers=True, scope=ContextScopes.APP):
+    with container_context(_Container, scope=ContextScopes.APP):
         assert _Container.p_app.resolve_sync() is not None
         with pytest.raises(RuntimeError):
             _Container.p_request.resolve_sync()
 
-    with container_context(reset_all_containers=True, scope=ContextScopes.REQUEST):
+    with container_context(_Container, scope=ContextScopes.REQUEST):
         assert _Container.p_request.resolve_sync() is not None
         with pytest.raises(RuntimeError):
             _Container.p_app.resolve_sync()
@@ -1029,7 +1032,7 @@ async def test_async_container_context_selects_context_items_on_entry() -> None:
         )
 
     async with container_context(scope=ContextScopes.APP):
-        cc = container_context()
+        cc = container_context(global_context={"resource_type": "async"})
 
         async with container_context(scope=ContextScopes.REQUEST):
             assert get_current_scope() == ContextScopes.REQUEST
@@ -1048,7 +1051,7 @@ def test_sync_container_context_selects_context_items_on_entry() -> None:
         )
 
     with container_context(scope=ContextScopes.APP):
-        cc = container_context()
+        cc = container_context(global_context={"resource_type": "async"})
 
         with container_context(scope=ContextScopes.REQUEST):
             assert get_current_scope() == ContextScopes.REQUEST
@@ -1061,7 +1064,7 @@ async def test_async_container_context_wrapper_with_named_scope() -> None:
     class _Container(BaseContainer):
         p_app = providers.ContextResource(create_async_context_resource).with_config(scope=ContextScopes.APP)
 
-    @container_context(scope=ContextScopes.APP, global_context={"resource_type": "async"}, reset_all_containers=True)
+    @container_context(_Container, scope=ContextScopes.APP, global_context={"resource_type": "async"})
     @inject
     async def _injected(val: str = Provide[_Container.p_app]) -> str:
         assert fetch_context_item("resource_type") == "async"
@@ -1074,10 +1077,18 @@ def test_sync_container_context_wrapper_with_named_scope() -> None:
     class _Container(BaseContainer):
         p_app = providers.ContextResource(create_sync_context_resource).with_config(scope=ContextScopes.APP)
 
-    @container_context(scope=ContextScopes.APP, global_context={"resource_type": "sync"}, reset_all_containers=True)
+    @container_context(_Container, scope=ContextScopes.APP, global_context={"resource_type": "sync"})
     @inject
     def _injected(val: str = Provide[_Container.p_app]) -> str:
         assert fetch_context_item("resource_type") == "sync"
         return val
 
     assert _injected() is not None
+
+
+def test_container_context_must_be_called_with_arguments() -> None:
+    msg = "One of context_items, scope or global_context must be provided."
+    with pytest.raises(ValueError, match=msg):
+        container_context()
+    with pytest.raises(ValueError, match=msg):
+        container_context(preserve_global_context=True)

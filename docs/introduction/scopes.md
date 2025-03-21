@@ -27,7 +27,7 @@ You can change the scope of a `ContextResource` in two ways:
 
 ### Entering and exiting scopes
 
-Once you have assigned scopes to providers, you can enter a named scope using `container_context()`.  
+Once you have assigned scopes to providers, you can enter a named scope using `container_context(scope=<Scope>)`.  
 After entering a scope, you can resolve resources that have been defined with that scope:
 
 ```python
