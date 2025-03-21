@@ -33,12 +33,12 @@ async def test_list_provider() -> None:
 
 def test_list_failed_sync_resolve() -> None:
     with pytest.raises(RuntimeError, match="AsyncResource cannot be resolved synchronously"):
-        DIContainer.sequence.sync_resolve()
+        DIContainer.sequence.resolve_sync()
 
 
 async def test_list_sync_resolve_after_init() -> None:
     await DIContainer.init_resources()
-    DIContainer.sequence.sync_resolve()
+    DIContainer.sequence.resolve_sync()
 
 
 async def test_dict_provider() -> None:
@@ -47,7 +47,7 @@ async def test_dict_provider() -> None:
     async_resource = await DIContainer.async_resource()
 
     assert mapping == {"sync_resource": sync_resource, "async_resource": async_resource}
-    assert mapping == DIContainer.mapping.sync_resolve()
+    assert mapping == DIContainer.mapping.resolve_sync()
 
 
 @pytest.mark.parametrize("provider", [DIContainer.sequence, DIContainer.mapping])

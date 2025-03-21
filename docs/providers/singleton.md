@@ -1,6 +1,6 @@
 # Singleton Provider
 
-A **Singleton** provider creates its instance once and caches it for all future injections or resolutions. When the instance is first requested (via `sync_resolve()` or `async_resolve()`), the underlying factory is called. On subsequent calls, the cached instance is returned without calling the factory again.
+A **Singleton** provider creates its instance once and caches it for all future injections or resolutions. When the instance is first requested (via `resolve_sync()` or `resolve()`), the underlying factory is called. On subsequent calls, the cached instance is returned without calling the factory again.
 
 ## How it Works
 
@@ -11,29 +11,30 @@ from that_depends import BaseContainer, Provide, inject, providers
 
 
 def some_function() -> float:
-    """Generate number between 0.0 and 1.0"""
-    return random.random()
+   """Generate number between 0.0 and 1.0"""
+   return random.random()
 
 
 # define container with `Singleton` provider:
 class MyContainer(BaseContainer):
-    singleton = providers.Singleton(some_function)
+   singleton = providers.Singleton(some_function)
 
 
 # The provider will call `some_function` once and cache the return value
 
 # 1) Synchronous resolution
-MyContainer.singleton.sync_resolve()  # e.g. 0.3
-MyContainer.singleton.sync_resolve()  # 0.3 (cached)
+MyContainer.singleton.resolve_sync()  # e.g. 0.3
+MyContainer.singleton.resolve_sync()  # 0.3 (cached)
 
 # 2) Asynchronous resolution
-await MyContainer.singleton.async_resolve()  # 0.3 (same cached value)
+await MyContainer.singleton.resolve()  # 0.3 (same cached value)
+
 
 # 3) Injection example
 @inject
 async def with_singleton(number: float = Provide[MyContainer.singleton]):
-    # number == 0.3
-    ...
+   # number == 0.3
+   ...
 ```
 
 ### Teardown Support
@@ -41,8 +42,8 @@ If you need to reset the singleton (for example, in tests or at application shut
 ```python 
 await MyContainer.singleton.tear_down()
 ```
-This clears the cached instance, causing a new one to be created the next time `sync_resolve()` or `async_resolve()` is called.  
-*(If you only ever use synchronous resolution, you can call `MyContainer.singleton.sync_tear_down()` instead.)*
+This clears the cached instance, causing a new one to be created the next time `resolve_sync()` or `resolve()` is called.  
+*(If you only ever use synchronous resolution, you can call `MyContainer.singleton.tear_down_sync()` instead.)*
 
 For further details refer to the [teardown documentation](../introduction/tear-down.md).
 
@@ -53,32 +54,35 @@ For further details refer to the [teardown documentation](../introduction/tear-d
 `Singleton` is **thread-safe** and **async-safe**:
 
 1. **Async Concurrency**  
-   If multiple coroutines call `async_resolve()` concurrently, the factory function is guaranteed to be called only once. All callers receive the same cached instance.
+   If multiple coroutines call `resolve()` concurrently, the factory function is guaranteed to be called only once. All callers receive the same cached instance.
 
 2. **Thread Concurrency**  
-   If multiple threads call `sync_resolve()` at the same time, the factory is only called once. All threads receive the same cached instance.
+   If multiple threads call `resolve_sync()` at the same time, the factory is only called once. All threads receive the same cached instance.
 
 ```python
 import threading
 import asyncio
 
+
 # In async code:
 async def main():
-    # calling async_resolve concurrently in different coroutines
-    results = await asyncio.gather(
-        MyContainer.singleton.async_resolve(),
-        MyContainer.singleton.async_resolve(),
-    )
-    # Both results point to the same instance
+   # calling resolve concurrently in different coroutines
+   results = await asyncio.gather(
+      MyContainer.singleton.resolve(),
+      MyContainer.singleton.resolve(),
+   )
+   # Both results point to the same instance
+
 
 # In threaded code:
 def thread_task():
-    instance = MyContainer.singleton.sync_resolve()
-    ...
+   instance = MyContainer.singleton.resolve_sync()
+   ...
+
 
 threads = [threading.Thread(target=thread_task) for _ in range(5)]
 for t in threads:
-    t.start()
+   t.start()
 ```
 
 ---
@@ -94,20 +98,22 @@ from that_depends.providers import ThreadLocalSingleton
 
 
 def factory() -> int:
-    """Return a random int between 1 and 100."""
-    return random.randint(1, 100)
+   """Return a random int between 1 and 100."""
+   return random.randint(1, 100)
 
 
 # ThreadLocalSingleton caches an instance per thread
 singleton = ThreadLocalSingleton(factory)
 
 # In a single thread:
-instance1 = singleton.sync_resolve()  # e.g. 56
-instance2 = singleton.sync_resolve()  # 56 (cached in the same thread)
+instance1 = singleton.resolve_sync()  # e.g. 56
+instance2 = singleton.resolve_sync()  # 56 (cached in the same thread)
+
 
 # In multiple threads:
 def thread_task():
-    return singleton.sync_resolve()
+   return singleton.resolve_sync()
+
 
 thread1 = threading.Thread(target=thread_task)
 thread2 = threading.Thread(target=thread_task)
@@ -117,7 +123,7 @@ thread2.start()
 # thread1 and thread2 each get a different cached value
 ```
 
-You can still use `.async_resolve()` with `ThreadLocalSingleton`, which will also maintain isolation per thread. However, note that this does *not* isolate instances per asynchronous Task – only per OS thread.
+You can still use `.resolve()` with `ThreadLocalSingleton`, which will also maintain isolation per thread. However, note that this does *not* isolate instances per asynchronous Task – only per OS thread.
 
 ---
 
@@ -182,10 +188,10 @@ Or you can manually resolve them when needed:
 
 ```python
 # Synchronously resolve the config
-cfg = MyContainer.config.sync_resolve()
+cfg = MyContainer.config.resolve_sync()
 
 # Asynchronously resolve the DB connection
-connection = await MyContainer.db_connection.async_resolve()
+connection = await MyContainer.db_connection.resolve()
 ```
 
 By using `Singleton` for `Settings`, you avoid re-parsing the environment or re-initializing the configuration on each request.

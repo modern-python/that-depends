@@ -25,18 +25,18 @@ class DummyProvider(SupportsTeardown, AbstractProvider[int]):
             await self._tear_down_children()
 
     @override
-    def sync_tear_down(self, propagate: bool = True, raise_on_async: bool = True) -> None:
+    def tear_down_sync(self, propagate: bool = True, raise_on_async: bool = True) -> None:
         self._instance = None
         if propagate:
-            self._sync_tear_down_children(propagate=propagate, raise_on_async=raise_on_async)
+            self._tear_down_children_sync(propagate=propagate, raise_on_async=raise_on_async)
 
     @override
-    async def async_resolve(self) -> int:
+    async def resolve(self) -> int:
         self._instance = 1
         return self._instance
 
     @override
-    def sync_resolve(self) -> int:
+    def resolve_sync(self) -> int:
         self._instance = 1
         return self._instance  # pragma: no cover
 
@@ -81,11 +81,11 @@ def test_sync_tear_down_propagation() -> None:
     parent.add_child_provider(child_1)
     parent.add_child_provider(child_2)
 
-    assert parent.sync_resolve() == 1
+    assert parent.resolve_sync() == 1
 
     assert parent._instance == 1
 
-    parent.sync_tear_down()
+    parent.tear_down_sync()
 
     assert parent._instance is None
     assert child_1._instance is None
@@ -100,7 +100,7 @@ async def test_async_tear_down_propagation() -> None:
     parent.add_child_provider(child_1)
     parent.add_child_provider(child_2)
 
-    assert await parent.async_resolve() == 1
+    assert await parent.resolve() == 1
 
     assert parent._instance == 1
 
@@ -141,11 +141,11 @@ def dummy_singleton() -> Singleton[int]:
 def test_singleton_registration_and_deregistration(dummy_singleton: Singleton[int]) -> None:
     singleton = Singleton(lambda x: x + 1, dummy_singleton.cast)
     assert singleton not in dummy_singleton._children, "Singleton should not be registered as child yet."
-    singleton.sync_resolve()
+    singleton.resolve_sync()
 
     assert singleton in dummy_singleton._children, "Singleton should be registered as a child."
 
-    dummy_singleton.sync_tear_down()
+    dummy_singleton.tear_down_sync()
 
     assert singleton not in dummy_singleton._children, (
         "Singleton should be removed from parent's children after tear_down."
@@ -157,11 +157,11 @@ def test_thread_local_singleton_registration_and_deregistration(dummy_singleton:
 
     assert thread_local not in dummy_singleton._children, "ThreadLocalSingleton not registered as child."
 
-    thread_local.sync_resolve()
+    thread_local.resolve_sync()
     assert thread_local in dummy_singleton._children, "ThreadLocalSingleton not registered as child."
 
     # Teardown
-    thread_local.sync_tear_down()
+    thread_local.tear_down_sync()
 
     assert thread_local not in dummy_singleton._children, "ThreadLocalSingleton should be deregistered after teardown."
 
@@ -171,22 +171,22 @@ def test_resource_registration_and_deregistration(dummy_singleton: Singleton[int
 
     assert resource not in dummy_singleton._children, "Resource should not be registered as child yet."
 
-    resource.sync_resolve()
+    resource.resolve_sync()
 
     assert resource in dummy_singleton._children, "Resource should be registered as child."
 
-    resource.sync_tear_down()
+    resource.tear_down_sync()
     assert resource not in dummy_singleton._children, "Resource should be deregistered after teardown."
 
 
 async def test_async_singleton_registration_and_deregistration(dummy_singleton: Singleton[int]) -> None:
     async_singleton = AsyncSingleton(_simple_async_factory_value, dummy_singleton.cast)
 
-    await async_singleton.async_resolve()
+    await async_singleton.resolve()
 
     assert async_singleton in dummy_singleton._children
 
-    value = await async_singleton.async_resolve()
+    value = await async_singleton.resolve()
     assert value == _RETURN_VALUE
 
     await async_singleton.tear_down()
@@ -211,11 +211,11 @@ def test_teardown_propagation_chain() -> None:
     child_singleton = Singleton(lambda g: f"Child uses {g}", parent_resource)
     grandchild = Resource(_sync_resource_gen, child_singleton.cast)
 
-    grandchild.sync_resolve()
+    grandchild.resolve_sync()
 
     assert child_singleton in parent_resource._children
     assert grandchild in child_singleton._children
-    parent_resource.sync_tear_down(propagate=True)
+    parent_resource.tear_down_sync(propagate=True)
 
     assert child_singleton not in parent_resource._children
     assert grandchild not in child_singleton._children
@@ -225,9 +225,9 @@ def test_propagate_off() -> None:
     parent = Singleton(_simple_factory_value)
     child = Singleton(lambda x: x + 1, parent.cast)
 
-    child.sync_resolve()
+    child.resolve_sync()
 
-    parent.sync_tear_down(propagate=False)
+    parent.tear_down_sync(propagate=False)
 
     assert child in parent._children
     assert child._instance is not None
@@ -237,7 +237,7 @@ async def test_async_tear_down_propagation_with_singleton() -> None:
     parent = Singleton(_simple_factory_value)
     child = Singleton(lambda x: x + 1, parent.cast)
 
-    await child.async_resolve()
+    await child.resolve()
 
     await parent.tear_down()
 
@@ -248,7 +248,7 @@ async def test_async_propagate_off() -> None:
     parent = Singleton(_simple_factory_value)
     child = Singleton(lambda x: x + 1, parent.cast)
 
-    await child.async_resolve()
+    await child.resolve()
 
     await parent.tear_down(propagate=False)
 

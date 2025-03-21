@@ -11,6 +11,6 @@ class DIContainer(BaseContainer):
 
 async def test_object_provider() -> None:
     instance1 = await DIContainer.instance()
-    instance2 = DIContainer.instance.sync_resolve()
+    instance2 = DIContainer.instance.resolve_sync()
 
     assert instance1 is instance2 is instance

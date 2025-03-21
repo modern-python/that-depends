@@ -113,7 +113,7 @@ class SupportsContext(typing.Generic[CT], abc.ABC):
         """Return the scope of the resource."""
 
     @abstractmethod
-    def async_context(self, force: bool = False) -> typing.AsyncContextManager[CT]:
+    def context_async(self, force: bool = False) -> typing.AsyncContextManager[CT]:
         """Create an async context manager for this resource.
 
         Args:
@@ -124,14 +124,14 @@ class SupportsContext(typing.Generic[CT], abc.ABC):
 
         Example:
             ```python
-            async with my_resource.async_context():
-                result = await my_resource.async_resolve()
+            async with my_resource.context_async():
+                result = await my_resource.resolve()
             ```
 
         """
 
     @abstractmethod
-    def sync_context(self, force: bool = False) -> typing.ContextManager[CT]:
+    def context_sync(self, force: bool = False) -> typing.ContextManager[CT]:
         """Create a sync context manager for this resource.
 
         Args:
@@ -142,14 +142,14 @@ class SupportsContext(typing.Generic[CT], abc.ABC):
 
         Example:
             ```python
-            with my_resource.sync_context():
-                result = my_resource.sync_resolve()
+            with my_resource.context_sync():
+                result = my_resource.resolve_sync()
             ```
 
         """
 
     @abstractmethod
-    def supports_sync_context(self) -> bool:
+    def supports_context_sync(self) -> bool:
         """Check whether the resource supports sync context.
 
         Returns:
@@ -198,18 +198,18 @@ class ContextResource(
     """
 
     @override
-    async def async_resolve(self) -> T_co:
+    async def resolve(self) -> T_co:
         current_scope = get_current_scope()
         if not self._strict_scope or self._scope in (ContextScopes.ANY, current_scope):
-            return await super().async_resolve()
+            return await super().resolve()
         msg = f"Cannot resolve resource with scope `{self._scope}` in scope `{current_scope}`"
         raise RuntimeError(msg)
 
     @override
-    def sync_resolve(self) -> T_co:
+    def resolve_sync(self) -> T_co:
         current_scope = get_current_scope()
         if not self._strict_scope or self._scope in (ContextScopes.ANY, current_scope):
-            return super().sync_resolve()
+            return super().resolve_sync()
         msg = f"Cannot resolve resource with scope `{self._scope}` in scope `{current_scope}`"
         raise RuntimeError(msg)
 
@@ -274,7 +274,7 @@ class ContextResource(
 
                 @wraps(func)
                 async def _async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-                    async with self.async_context(force=force):
+                    async with self.context_async(force=force):
                         return await func(*args, **kwargs)  # type: ignore[no-any-return, misc]
 
                 return typing.cast(typing.Callable[P, T], _async_wrapper)
@@ -282,7 +282,7 @@ class ContextResource(
             # wrapped function is sync
             @wraps(func)
             def _sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-                with self.sync_context(force=force):
+                with self.context_sync(force=force):
                     return func(*args, **kwargs)
 
             return typing.cast(typing.Callable[P, T], _sync_wrapper)
@@ -312,16 +312,16 @@ class ContextResource(
         return r
 
     @override
-    def supports_sync_context(self) -> bool:
+    def supports_context_sync(self) -> bool:
         return not self._is_async
 
-    def _enter_sync_context(self, force: bool = False) -> ResourceContext[T_co]:
+    def _enter_context_sync(self, force: bool = False) -> ResourceContext[T_co]:
         if self._is_async:
             msg = "You must enter async context for async creators."
             raise RuntimeError(msg)
         return self._enter(force)
 
-    async def _enter_async_context(self, force: bool = False) -> ResourceContext[T_co]:
+    async def _enter_context_async(self, force: bool = False) -> ResourceContext[T_co]:
         return self._enter(force)
 
     def _enter(self, force: bool = False) -> ResourceContext[T_co]:
@@ -331,18 +331,18 @@ class ContextResource(
         self._token = self._context.set(ResourceContext(is_async=self._is_async))
         return self._context.get()
 
-    def _exit_sync_context(self) -> None:
+    def _exit_context_sync(self) -> None:
         if not self._token:
             msg = "Context is not set, call ``_enter_sync_context`` first"
             raise RuntimeError(msg)
 
         try:
             context_item = self._context.get()
-            context_item.sync_tear_down()
+            context_item.tear_down_sync()
         finally:
             self._context.reset(self._token)
 
-    async def _exit_async_context(self) -> None:
+    async def _exit_context_async(self) -> None:
         if self._token is None:
             msg = "Context is not set, call ``_enter_async_context`` first"
             raise RuntimeError(msg)
@@ -352,38 +352,38 @@ class ContextResource(
             if context_item.is_context_stack_async(context_item.context_stack):
                 await context_item.tear_down()
             else:
-                context_item.sync_tear_down()
+                context_item.tear_down_sync()
         finally:
             self._context.reset(self._token)
 
     @contextlib.contextmanager
     @override
-    def sync_context(self, force: bool = False) -> typing.Iterator[ResourceContext[T_co]]:
+    def context_sync(self, force: bool = False) -> typing.Iterator[ResourceContext[T_co]]:
         if self._is_async:
             msg = "Please use async context instead."
             raise RuntimeError(msg)
         token = self._token
         with self._lock:
-            val = self._enter_sync_context(force=force)
+            val = self._enter_context_sync(force=force)
             temp_token = self._token
         yield val
         with self._lock:
             self._token = temp_token
-            self._exit_sync_context()
+            self._exit_context_sync()
         self._token = token
 
     @contextlib.asynccontextmanager
     @override
-    async def async_context(self, force: bool = False) -> typing.AsyncIterator[ResourceContext[T_co]]:
+    async def context_async(self, force: bool = False) -> typing.AsyncIterator[ResourceContext[T_co]]:
         token = self._token
 
         async with self._async_lock:
-            val = await self._enter_async_context(force=force)
+            val = await self._enter_context_async(force=force)
             temp_token = self._token
         yield val
         async with self._async_lock:
             self._token = temp_token
-            await self._exit_async_context()
+            await self._exit_context_async()
         self._token = token
 
     def _fetch_context(self) -> ResourceContext[T_co]:
@@ -486,8 +486,8 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
         self._context_stack = contextlib.ExitStack()
         self._scope_token = _set_current_scope(self._scope)
         for item in self._context_items:
-            if item.supports_sync_context():
-                self._context_stack.enter_context(item.sync_context())
+            if item.supports_context_sync():
+                self._context_stack.enter_context(item.context_sync())
         return self._enter_globals()
 
     @override
@@ -496,7 +496,7 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
         self._context_stack = contextlib.AsyncExitStack()
         self._scope_token = _set_current_scope(self._scope)
         for item in self._context_items:
-            await self._context_stack.enter_async_context(item.async_context())
+            await self._context_stack.enter_async_context(item.context_async())
         return self._enter_globals()
 
     def _enter_globals(self) -> ContextType:

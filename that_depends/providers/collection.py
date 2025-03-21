@@ -23,12 +23,12 @@ class List(AbstractProvider[list[T_co]]):
         list_provider = List(provider1, provider2)
 
         # Synchronous resolution
-        resolved_list = list_provider.sync_resolve()
+        resolved_list = list_provider.resolve_sync()
         print(resolved_list)  # Output: [1, 2]
 
         # Asynchronous resolution
         import asyncio
-        resolved_list_async = asyncio.run(list_provider.async_resolve())
+        resolved_list_async = asyncio.run(list_provider.resolve())
         print(resolved_list_async)  # Output: [1, 2]
         ```
 
@@ -53,16 +53,16 @@ class List(AbstractProvider[list[T_co]]):
         raise AttributeError(msg)
 
     @override
-    async def async_resolve(self) -> list[T_co]:
-        return [await x.async_resolve() for x in self._providers]
+    async def resolve(self) -> list[T_co]:
+        return [await x.resolve() for x in self._providers]
 
     @override
-    def sync_resolve(self) -> list[T_co]:
-        return [x.sync_resolve() for x in self._providers]
+    def resolve_sync(self) -> list[T_co]:
+        return [x.resolve_sync() for x in self._providers]
 
     @override
     async def __call__(self) -> list[T_co]:
-        return await self.async_resolve()
+        return await self.resolve()
 
 
 class Dict(AbstractProvider[dict[str, T_co]]):
@@ -110,9 +110,9 @@ class Dict(AbstractProvider[dict[str, T_co]]):
         raise AttributeError(msg)
 
     @override
-    async def async_resolve(self) -> dict[str, T_co]:
-        return {key: await provider.async_resolve() for key, provider in self._providers.items()}
+    async def resolve(self) -> dict[str, T_co]:
+        return {key: await provider.resolve() for key, provider in self._providers.items()}
 
     @override
-    def sync_resolve(self) -> dict[str, T_co]:
-        return {key: provider.sync_resolve() for key, provider in self._providers.items()}
+    def resolve_sync(self) -> dict[str, T_co]:
+        return {key: provider.resolve_sync() for key, provider in self._providers.items()}

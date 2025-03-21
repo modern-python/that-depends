@@ -88,7 +88,7 @@ app = Litestar(route_handlers=[my_router], dependencies={"app_dependency": Provi
 def test_litestar_endpoint_with_mock_overriding() -> None:
     some_service_mock = Mock()
 
-    with DIContainer.some_service.sync_override_context(some_service_mock), TestClient(app=app) as client:
+    with DIContainer.some_service.override_context_sync(some_service_mock), TestClient(app=app) as client:
         response = client.get("/router/controller/mock_overriding")
 
     assert response.status_code == HTTP_200_OK
@@ -108,7 +108,7 @@ def test_litestar_di() -> None:
 
 def test_litestar_di_override_fail_on_provider_override() -> None:
     mock = 12345364758999
-    with TestClient(app=app) as client, DIContainer.int_fn.sync_override_context(mock):
+    with TestClient(app=app) as client, DIContainer.int_fn.override_context_sync(mock):
         response = client.get("/router/controller/handler")
 
     assert response.status_code == HTTP_200_OK, response.text

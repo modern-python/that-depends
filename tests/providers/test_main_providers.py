@@ -15,7 +15,7 @@ async def test_factory_providers() -> None:
     async_resource = await DIContainer.async_resource()
 
     assert dependent_factory.simple_factory is not simple_factory
-    assert DIContainer.simple_factory.sync_resolve() is not simple_factory
+    assert DIContainer.simple_factory.resolve_sync() is not simple_factory
     assert dependent_factory.sync_resource == sync_resource
     assert dependent_factory.async_resource == async_resource
     assert isinstance(async_factory, datetime.datetime)
@@ -24,15 +24,15 @@ async def test_factory_providers() -> None:
 async def test_async_resource_provider() -> None:
     async_resource = await DIContainer.async_resource()
 
-    assert DIContainer.async_resource.sync_resolve() is async_resource
+    assert DIContainer.async_resource.resolve_sync() is async_resource
 
 
 def test_failed_sync_resolve() -> None:
     with pytest.raises(RuntimeError, match="AsyncFactory cannot be resolved synchronously"):
-        DIContainer.async_factory.sync_resolve()
+        DIContainer.async_factory.resolve_sync()
 
     with pytest.raises(RuntimeError, match="AsyncResource cannot be resolved synchronously"):
-        DIContainer.async_resource.sync_resolve()
+        DIContainer.async_resource.resolve_sync()
 
 
 def test_wrong_providers_init() -> None:
