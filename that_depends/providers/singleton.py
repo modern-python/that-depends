@@ -73,8 +73,14 @@ class Singleton(SupportsTeardown, AbstractProvider[T_co]):
                 return self._instance
             self._register_arguments()
             self._instance = self._factory(
-                *[await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
-                **{k: await v.resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
+                *[await x.resolve(**kwargs) if isinstance(x, AbstractProvider) else x for x in self._args],
+                **{
+                    **kwargs,
+                    **{
+                        k: await v.resolve(**kwargs) if isinstance(v, AbstractProvider) else v
+                        for k, v in self._kwargs.items()
+                    },
+                },
             )
             return self._instance
 
@@ -90,10 +96,13 @@ class Singleton(SupportsTeardown, AbstractProvider[T_co]):
                 return self._instance
             self._register_arguments()
             self._instance = self._factory(
-                *[x.resolve_sync() if isinstance(x, AbstractProvider) else x for x in self._args],
+                *[x.resolve_sync(**kwargs) if isinstance(x, AbstractProvider) else x for x in self._args],
                 **{
                     **kwargs,
-                    **{k: v.resolve_sync() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
+                    **{
+                        k: v.resolve_sync(**kwargs) if isinstance(v, AbstractProvider) else v
+                        for k, v in self._kwargs.items()
+                    },
                 },
             )
             return self._instance
