@@ -73,7 +73,7 @@ class ThreadLocalSingleton(SupportsTeardown, AbstractProvider[T_co]):
         self._thread_local.instance = value
 
     @override
-    async def resolve(self) -> T_co:
+    async def resolve(self, **kwargs: typing.Any) -> T_co:
         if self._override is not None:
             return typing.cast(T_co, self._override)
 
@@ -92,7 +92,7 @@ class ThreadLocalSingleton(SupportsTeardown, AbstractProvider[T_co]):
             return self._instance
 
     @override
-    def resolve_sync(self) -> T_co:
+    def resolve_sync(self, **kwargs: typing.Any) -> T_co:
         if self._override is not None:
             return typing.cast(T_co, self._override)
 

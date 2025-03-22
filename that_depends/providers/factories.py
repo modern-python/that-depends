@@ -91,7 +91,7 @@ class Factory(AbstractFactory[T_co]):
         self._register(self._kwargs.values())
 
     @override
-    async def resolve(self) -> T_co:
+    async def resolve(self, **kwargs: typing.Any) -> T_co:
         if self._override:
             return typing.cast(T_co, self._override)
 
@@ -105,7 +105,7 @@ class Factory(AbstractFactory[T_co]):
         )
 
     @override
-    def resolve_sync(self) -> T_co:
+    def resolve_sync(self, **kwargs: typing.Any) -> T_co:
         if self._override:
             return typing.cast(T_co, self._override)
 
@@ -157,7 +157,7 @@ class AsyncFactory(AbstractFactory[T_co]):
         self._register(self._kwargs.values())
 
     @override
-    async def resolve(self) -> T_co:
+    async def resolve(self, **kwargs: typing.Any) -> T_co:
         if self._override:
             return typing.cast(T_co, self._override)
 
@@ -167,6 +167,6 @@ class AsyncFactory(AbstractFactory[T_co]):
         )
 
     @override
-    def resolve_sync(self) -> typing.NoReturn:
+    def resolve_sync(self, **kwargs: typing.Any) -> typing.NoReturn:
         msg = "AsyncFactory cannot be resolved synchronously"
         raise RuntimeError(msg)

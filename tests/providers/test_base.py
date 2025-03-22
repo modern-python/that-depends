@@ -31,12 +31,12 @@ class DummyProvider(SupportsTeardown, AbstractProvider[int]):
             self._tear_down_children_sync(propagate=propagate, raise_on_async=raise_on_async)
 
     @override
-    async def resolve(self) -> int:
+    async def resolve(self, **kwargs: typing.Any) -> int:
         self._instance = 1
         return self._instance
 
     @override
-    def resolve_sync(self) -> int:
+    def resolve_sync(self, **kwargs: typing.Any) -> int:
         self._instance = 1
         return self._instance  # pragma: no cover
 

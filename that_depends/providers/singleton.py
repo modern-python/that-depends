@@ -36,7 +36,7 @@ class Singleton(SupportsTeardown, AbstractProvider[T_co]):
 
     __slots__ = "_args", "_asyncio_lock", "_factory", "_instance", "_kwargs", "_override", "_threading_lock"
 
-    def __init__(self, factory: typing.Callable[P, T_co], *args: P.args, **kwargs: P.kwargs) -> None:
+    def __init__(self, factory: typing.Callable[P, T_co], *args: typing.Any, **kwargs: typing.Any) -> None:  # noqa: ANN401
         """Initialize the Singleton provider.
 
         Args:
@@ -62,7 +62,7 @@ class Singleton(SupportsTeardown, AbstractProvider[T_co]):
         self._deregister(self._kwargs.values())
 
     @override
-    async def resolve(self) -> T_co:
+    async def resolve(self, **kwargs: typing.Any) -> T_co:
         if self._override is not None:
             self._register_arguments()
             return typing.cast(T_co, self._override)
@@ -73,15 +73,13 @@ class Singleton(SupportsTeardown, AbstractProvider[T_co]):
                 return self._instance
             self._register_arguments()
             self._instance = self._factory(
-                *[await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args],  # type: ignore[arg-type]
-                **{  # type: ignore[arg-type]
-                    k: await v.resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()
-                },
+                *[await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
+                **{k: await v.resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
             )
             return self._instance
 
     @override
-    def resolve_sync(self) -> T_co:
+    def resolve_sync(self, **kwargs: typing.Any) -> T_co:
         if self._override is not None:
             self._register_arguments()
             return typing.cast(T_co, self._override)
@@ -92,8 +90,11 @@ class Singleton(SupportsTeardown, AbstractProvider[T_co]):
                 return self._instance
             self._register_arguments()
             self._instance = self._factory(
-                *[x.resolve_sync() if isinstance(x, AbstractProvider) else x for x in self._args],  # type: ignore[arg-type]
-                **{k: v.resolve_sync() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},  # type: ignore[arg-type]
+                *[x.resolve_sync() if isinstance(x, AbstractProvider) else x for x in self._args],
+                **{
+                    **kwargs,
+                    **{k: v.resolve_sync() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
+                },
             )
             return self._instance
 
@@ -174,7 +175,7 @@ class AsyncSingleton(SupportsTeardown, AbstractProvider[T_co]):
         self._deregister(self._kwargs.values())
 
     @override
-    async def resolve(self) -> T_co:
+    async def resolve(self, **kwargs: typing.Any) -> T_co:
         if self._override is not None:
             return typing.cast(T_co, self._override)
 
@@ -194,7 +195,7 @@ class AsyncSingleton(SupportsTeardown, AbstractProvider[T_co]):
             return self._instance
 
     @override
-    def resolve_sync(self) -> typing.NoReturn:
+    def resolve_sync(self, **kwargs: typing.Any) -> typing.NoReturn:
         msg = "AsyncSingleton cannot be resolved in an sync context."
         raise RuntimeError(msg)
 

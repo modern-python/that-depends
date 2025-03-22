@@ -199,7 +199,7 @@ class ContextResource(
     """
 
     @override
-    async def resolve(self) -> T_co:
+    async def resolve(self, **kwargs: typing.Any) -> T_co:
         current_scope = get_current_scope()
         if not self._strict_scope or self._scope in (ContextScopes.ANY, current_scope):
             return await super().resolve()
@@ -207,10 +207,10 @@ class ContextResource(
         raise RuntimeError(msg)
 
     @override
-    def resolve_sync(self) -> T_co:
+    def resolve_sync(self, **kwargs: typing.Any) -> T_co:
         current_scope = get_current_scope()
         if not self._strict_scope or self._scope in (ContextScopes.ANY, current_scope):
-            return super().resolve_sync()
+            return super().resolve_sync(**kwargs)
         msg = f"Cannot resolve resource with scope `{self._scope}` in scope `{current_scope}`"
         raise RuntimeError(msg)
 

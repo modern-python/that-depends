@@ -109,11 +109,11 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
         return AttrGetter(provider=self, attr_name=attr_name)
 
     @abc.abstractmethod
-    async def resolve(self) -> T_co:
+    async def resolve(self, **kwargs: typing.Any) -> T_co:  # noqa: ANN401
         """Resolve dependency asynchronously."""
 
     @abc.abstractmethod
-    def resolve_sync(self) -> T_co:
+    def resolve_sync(self, **kwargs: typing.Any) -> T_co:  # noqa: ANN401
         """Resolve dependency synchronously."""
 
     async def __call__(self) -> T_co:
@@ -316,7 +316,7 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
     def _fetch_context(self) -> ResourceContext[T_co]: ...
 
     @override
-    async def resolve(self) -> T_co:
+    async def resolve(self, **kwargs: typing.Any) -> T_co:
         if self._override:
             return typing.cast(T_co, self._override)
 
@@ -348,7 +348,7 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
         return context.instance
 
     @override
-    def resolve_sync(self) -> T_co:
+    def resolve_sync(self, **kwargs: typing.Any) -> T_co:
         if self._override:
             return typing.cast(T_co, self._override)
 
@@ -408,13 +408,13 @@ class AttrGetter(
         return self
 
     @override
-    async def resolve(self) -> typing.Any:
+    async def resolve(self, **kwargs: typing.Any) -> typing.Any:
         resolved_provider_object = await self._provider.resolve()
         attribute_path = ".".join(self._attrs)
         return _get_value_from_object_by_dotted_path(resolved_provider_object, attribute_path)
 
     @override
-    def resolve_sync(self) -> typing.Any:
+    def resolve_sync(self, **kwargs: typing.Any) -> typing.Any:
         resolved_provider_object = self._provider.resolve_sync()
         attribute_path = ".".join(self._attrs)
         return _get_value_from_object_by_dotted_path(resolved_provider_object, attribute_path)
