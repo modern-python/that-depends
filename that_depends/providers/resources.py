@@ -33,7 +33,7 @@ class Resource(SupportsTeardown, AbstractResource[T_co]):
             async_resource = Resource(create_async_resource)
 
         async def main():
-            async_resource_instance = await MyContainer.async_resource.async_resolve()
+            async_resource_instance = await MyContainer.async_resource.resolve()
             await MyContainer.async_resource.tear_down()
         ```
 
@@ -75,7 +75,7 @@ class Resource(SupportsTeardown, AbstractResource[T_co]):
                     pass  # Teardown
 
             resource_provider = Resource(custom_creator, "example")
-            instance = resource_provider.sync_resolve()
+            instance = resource_provider.resolve_sync()
             resource_provider.tear_down()
             ```
 
@@ -117,7 +117,7 @@ class Resource(SupportsTeardown, AbstractResource[T_co]):
         Example:
             ```python
             # Assuming my_provider was previously resolved
-            my_provider.sync_tear_down()
+            my_provider.tear_down_sync()
             ```
 
         """

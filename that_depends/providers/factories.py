@@ -67,7 +67,7 @@ class Factory(AbstractFactory[T_co]):
             return f"{text}-{number}"
 
         factory = Factory(build_resource, "example", 42)
-        resource = factory.provider_sync()  # "example-42"
+        resource = factory.resolve_sync()  # "example-42"
         ```
 
     """
@@ -132,7 +132,7 @@ class AsyncFactory(AbstractFactory[T_co]):
             return text.upper()
 
         async_factory = AsyncFactory(async_build_resource, "example")
-        resource = await async_factory.provider()  # "EXAMPLE"
+        resource = await async_factory.resolve()  # "EXAMPLE"
         ```
 
     """

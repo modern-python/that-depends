@@ -578,7 +578,7 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
             ```python
             @container_context(MyContainer)
             async def my_async_function():
-                result = await MyContainer.some_resource.async_resolve()
+                result = await MyContainer.some_resource.resolve()
                 return result
             ```
 

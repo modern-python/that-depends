@@ -11,7 +11,7 @@ def _sync_resource() -> typing.Iterator[float]:
 
 async def test_container_sync_teardown() -> None:
     await DIContainer.init_resources()
-    DIContainer.sync_tear_down()
+    DIContainer.tear_down_sync()
     for provider in DIContainer.providers.values():
         if isinstance(provider, providers.Resource):
             if provider._is_async:
@@ -44,7 +44,7 @@ async def test_container_sync_tear_down_propagation() -> None:
     assert isinstance(_DependentContainer.singleton._instance, float)
     assert isinstance(_DependentContainer.resource._context.instance, float)
 
-    DIContainer.sync_tear_down()
+    DIContainer.tear_down_sync()
 
     assert _DependentContainer.singleton._instance is None
     assert _DependentContainer.resource._context.instance is None
