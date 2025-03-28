@@ -1,4 +1,5 @@
 import abc
+import inspect
 import typing
 
 from typing_extensions import override
@@ -74,7 +75,7 @@ class Factory(AbstractFactory[T_co]):
 
     __slots__ = "_args", "_factory", "_kwargs", "_override"
 
-    def __init__(self, factory: typing.Callable[P, T_co], *args: P.args, **kwargs: P.kwargs) -> None:
+    def __init__(self, factory: typing.Callable[P, T_co], *args: typing.Any, **kwargs: typing.Any) -> None:  # noqa:ANN401
         """Initialize a Factory instance.
 
         Args:
@@ -89,34 +90,41 @@ class Factory(AbstractFactory[T_co]):
         self._kwargs: typing.Final = kwargs
         self._register(self._args)
         self._register(self._kwargs.values())
+        self._signature = inspect.signature(factory)
+        self._has_var_keyword = self._check_var_keyword(self._signature)
+        self._has_missing_kwargs: bool = self._requires_additional_kwargs(
+            signature=self._signature, args=self._args, kwargs=self._kwargs, has_var_keyword=self._has_var_keyword
+        )
 
     @override
     async def resolve(self, **kwargs: typing.Any) -> T_co:
         if self._override:
             return typing.cast(T_co, self._override)
 
-        return self._factory(
-            *[  # type: ignore[arg-type]
-                await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args
-            ],
-            **{  # type: ignore[arg-type]
-                k: await v.resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()
-            },
-        )
+        provided_args = [await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args]
+        provided_kwargs = {
+            k: await v.resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()
+        }
+        if self._has_missing_kwargs:
+            return self._call_with_relevant_args_kwargs_sync(
+                self._factory, self._signature, provided_args, {**kwargs, **provided_kwargs}, self._has_var_keyword
+            )
+        return self._factory(*provided_args, **provided_kwargs)
 
     @override
     def resolve_sync(self, **kwargs: typing.Any) -> T_co:
         if self._override:
             return typing.cast(T_co, self._override)
+        provided_args = [x.resolve_sync() if isinstance(x, AbstractProvider) else x for x in self._args]
+        provided_kwargs = {
+            k: v.resolve_sync() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()
+        }
 
-        return self._factory(
-            *[  # type: ignore[arg-type]
-                x.resolve_sync() if isinstance(x, AbstractProvider) else x for x in self._args
-            ],
-            **{  # type: ignore[arg-type]
-                k: v.resolve_sync() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()
-            },
-        )
+        if self._has_missing_kwargs:
+            return self._call_with_relevant_args_kwargs_sync(
+                self._factory, self._signature, provided_args, {**kwargs, **provided_kwargs}, self._has_var_keyword
+            )
+        return self._factory(*provided_args, **provided_kwargs)
 
 
 class AsyncFactory(AbstractFactory[T_co]):
@@ -139,7 +147,12 @@ class AsyncFactory(AbstractFactory[T_co]):
 
     __slots__ = "_args", "_factory", "_kwargs", "_override"
 
-    def __init__(self, factory: typing.Callable[P, typing.Awaitable[T_co]], *args: P.args, **kwargs: P.kwargs) -> None:
+    def __init__(
+        self,
+        factory: typing.Callable[P, typing.Awaitable[T_co]],
+        *args: typing.Any,  # noqa: ANN401
+        **kwargs: typing.Any,  # noqa: ANN401
+    ) -> None:
         """Initialize an AsyncFactory instance.
 
         Args:
@@ -155,16 +168,29 @@ class AsyncFactory(AbstractFactory[T_co]):
         self._kwargs: typing.Final = kwargs
         self._register(self._args)
         self._register(self._kwargs.values())
+        self._signature = inspect.signature(factory)
+        self._has_var_keyword = self._check_var_keyword(self._signature)
+        self._has_missing_kwargs: bool = self._requires_additional_kwargs(
+            signature=self._signature, args=self._args, kwargs=self._kwargs, has_var_keyword=self._has_var_keyword
+        )
 
     @override
     async def resolve(self, **kwargs: typing.Any) -> T_co:
         if self._override:
             return typing.cast(T_co, self._override)
-
-        return await self._factory(
-            *[await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args],  # type: ignore[arg-type]
-            **{k: await v.resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},  # type: ignore[arg-type]
-        )
+        provided_args = [await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args]
+        provided_kwargs = {
+            k: await v.resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()
+        }
+        if self._has_missing_kwargs:
+            return await self._call_with_relevant_args_kwargs(
+                func=self._factory,  # typing: ignore[arg-type]
+                signature=self._signature,
+                args=provided_args,
+                kwargs={**kwargs, **provided_kwargs},
+                has_var_keyword=self._has_var_keyword,
+            )
+        return await self._factory(*provided_args, **provided_kwargs)
 
     @override
     def resolve_sync(self, **kwargs: typing.Any) -> typing.NoReturn:

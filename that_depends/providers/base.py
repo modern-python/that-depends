@@ -4,6 +4,7 @@ import inspect
 import threading
 import typing
 from contextlib import asynccontextmanager, contextmanager
+from inspect import Signature
 from operator import attrgetter
 
 import typing_extensions
@@ -31,6 +32,112 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
         self._children: set[AbstractProvider[typing.Any]] = set()
         self._override: typing.Any = None
         self._lock = threading.Lock()
+
+    @staticmethod
+    def _check_var_keyword(signature: Signature) -> bool:
+        """Check if signature has a **kwargs argument.
+
+        Args:
+            signature: signature.
+
+        Returns:
+            True if signature has a **kwargs.
+
+        """
+        return bool(
+            signature and any(param.kind == inspect.Parameter.VAR_KEYWORD for param in signature.parameters.values())
+        )
+
+    @staticmethod
+    def _requires_additional_kwargs(
+        signature: Signature,
+        args: typing.Any,  # noqa: ANN401
+        kwargs: typing.Any,  # noqa: ANN401
+        has_var_keyword: bool = False,
+    ) -> bool:
+        """Check if signature has sufficient args and kwargs.
+
+        Args:
+            signature: signature.
+            args: positional arguments.
+            kwargs: keyword arguments.
+            has_var_keyword: whether the signature contains a **kwargs.
+
+        Returns:
+            False if signature requires additional arguments.
+
+        """
+        if has_var_keyword:
+            return True
+        try:
+            signature.bind(*args, **kwargs)
+        except TypeError:
+            return True
+        return False
+
+    @staticmethod
+    def _call_with_relevant_args_kwargs_sync(
+        func: typing.Callable[P, T_co],
+        signature: Signature,
+        args: typing.Any,  # noqa: ANN401
+        kwargs: dict[str, typing.Any],
+        has_var_keyword: bool = False,
+    ) -> T_co:
+        """Call a sync callable with additional kwargs.
+
+        Args:
+            func: callable.
+            signature: the signature of the callable.
+            args: args to pass to the callable.
+            kwargs: kwargs to pass to the callable.
+            has_var_keyword: whether the callable has a **kwargs.
+
+        Returns:
+            Result of the call.
+
+        """
+        if has_var_keyword:
+            return func(*args, **kwargs)
+
+        param_names = list(signature.parameters.keys())
+        positional_names = set(param_names[: len(args)])
+
+        allowed_keys = set(signature.parameters.keys()) - positional_names
+        filtered_kwargs = {k: v for k, v in kwargs.items() if k in allowed_keys}
+
+        return func(*args, **filtered_kwargs)
+
+    @staticmethod
+    async def _call_with_relevant_args_kwargs(
+        func: typing.Callable[P, typing.Awaitable[T_co]],
+        signature: Signature,
+        args: typing.Any,  # noqa: ANN401
+        kwargs: dict[str, typing.Any],
+        has_var_keyword: bool = False,
+    ) -> T_co:
+        """Call an async callable with additional kwargs.
+
+        Args:
+            func: callable.
+            signature: the signature of the callable.
+            args: args to pass to the callable.
+            kwargs: kwargs to pass to the callable.
+            has_var_keyword: whether the callable has a **kwargs.
+
+        Returns:
+            Result of the call.
+
+        """
+        if has_var_keyword:
+            return await func(*args, **kwargs)
+
+        param_names = list(signature.parameters.keys())
+        positional_names = set(param_names[: len(args)])
+
+        allowed_keys = set(signature.parameters.keys()) - positional_names
+        filtered_kwargs = {k: v for k, v in kwargs.items() if k in allowed_keys}
+
+        return await func(*args, **filtered_kwargs)
 
     def _register(self, candidates: typing.Iterable[typing.Any]) -> None:
         """Register current provider as child.
