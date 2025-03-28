@@ -23,7 +23,7 @@ from that_depends import (
 from that_depends.entities.resource_context import ResourceContext
 from that_depends.meta import DefaultScopeNotDefinedError
 from that_depends.providers import DIContextMiddleware, container_context
-from that_depends.providers.context_resources import InvalidContextError, _enter_named_scope
+from that_depends.providers.context_resources import InvalidContextError, _enter_named_scope, fetch_context_item_by_type
 
 
 logger = logging.getLogger(__name__)
@@ -1092,3 +1092,18 @@ def test_container_context_must_be_called_with_arguments() -> None:
         container_context()
     with pytest.raises(ValueError, match=msg):
         container_context(preserve_global_context=True)
+
+
+def test_fetch_context_item_by_type() -> None:
+    int_value = 3
+    str_value = "value"
+    with container_context(global_context={"key": str_value, "key2": int_value}):
+        assert fetch_context_item_by_type(str) == str_value
+        assert fetch_context_item_by_type(int) == int_value
+        with pytest.raises(RuntimeError):
+            fetch_context_item_by_type(float)
+
+
+def test_fetch_context_item_raises() -> None:
+    with pytest.raises(KeyError):
+        fetch_context_item("s", raise_on_not_found=True)

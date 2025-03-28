@@ -166,12 +166,13 @@ def _get_container_context() -> dict[str, typing.Any] | None:
         return None
 
 
-def fetch_context_item(key: str, default: typing.Any = None) -> typing.Any:  # noqa: ANN401
+def fetch_context_item(key: str, default: typing.Any = None, raise_on_not_found: bool = False) -> typing.Any:  # noqa: ANN401
     """Retrieve a value from the global context.
 
     Args:
         key (str): The key to retrieve from the global context.
         default (Any): The default value to return if the key is not found.
+        raise_on_not_found (bool): If True, raises a KeyError if the key is not found.
 
     Returns:
         Any: The value associated with the key in the global context or the default value.
@@ -185,7 +186,31 @@ def fetch_context_item(key: str, default: typing.Any = None) -> typing.Any:  # n
     """
     if context := _get_container_context():
         return context.get(key, default)
+    if raise_on_not_found:
+        msg = f"Key `{key}` not found in global context."
+        raise KeyError(msg)
     return default
+
+
+def fetch_context_item_by_type(t: type[T]) -> T | None:
+    """Retrieve a value from the global context by type.
+
+    Args:
+        t (type[T]): The type of the value to retrieve.
+
+    Returns:
+        T | None: The value associated with the type in the global context or None if not found.
+
+    Raises:
+        RuntimeError: If the context item of the specified type is not found in the global context.
+
+    """
+    if context := _get_container_context():
+        for value in context.values():
+            if isinstance(value, t):
+                return value
+    msg = f"Cannot find context item of type {t} in the global context."
+    raise RuntimeError(msg)
 
 
 class ContextResource(
