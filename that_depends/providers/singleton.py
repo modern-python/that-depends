@@ -18,7 +18,7 @@ class Singleton(SupportsTeardown, AbstractProvider[T_co]):
     """A provider that creates an instance once and caches it for subsequent injections.
 
     This provider is safe to use concurrently in both threading and asyncio contexts.
-    On the first call to either ``sync_resolve()`` or ``async_resolve()``, the instance
+    On the first call to either ``resolve_sync()`` or ``resolve()``, the instance
     is created by calling the provided factory. All future calls return the cached instance.
 
     Example:
@@ -27,8 +27,8 @@ class Singleton(SupportsTeardown, AbstractProvider[T_co]):
             return 0.5
 
         singleton = Singleton(my_factory)
-        value1 = singleton.sync_resolve()
-        value2 = singleton.sync_resolve()
+        value1 = singleton.resolve_sync()
+        value2 = singleton.resolve_sync()
         assert value1 == value2
         ```
 
@@ -36,7 +36,7 @@ class Singleton(SupportsTeardown, AbstractProvider[T_co]):
 
     __slots__ = "_args", "_asyncio_lock", "_factory", "_instance", "_kwargs", "_override", "_threading_lock"
 
-    def __init__(self, factory: typing.Callable[P, T_co], *args: P.args, **kwargs: P.kwargs) -> None:
+    def __init__(self, factory: typing.Callable[P, T_co], *args: typing.Any, **kwargs: typing.Any) -> None:  # noqa: ANN401
         """Initialize the Singleton provider.
 
         Args:
@@ -62,7 +62,7 @@ class Singleton(SupportsTeardown, AbstractProvider[T_co]):
         self._deregister(self._kwargs.values())
 
     @override
-    async def resolve(self) -> T_co:
+    async def resolve(self, **kwargs: typing.Any) -> T_co:
         if self._override is not None:
             self._register_arguments()
             return typing.cast(T_co, self._override)
@@ -73,15 +73,19 @@ class Singleton(SupportsTeardown, AbstractProvider[T_co]):
                 return self._instance
             self._register_arguments()
             self._instance = self._factory(
-                *[await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args],  # type: ignore[arg-type]
-                **{  # type: ignore[arg-type]
-                    k: await v.resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()
+                *[await x.resolve(**kwargs) if isinstance(x, AbstractProvider) else x for x in self._args],
+                **{
+                    **kwargs,
+                    **{
+                        k: await v.resolve(**kwargs) if isinstance(v, AbstractProvider) else v
+                        for k, v in self._kwargs.items()
+                    },
                 },
             )
             return self._instance
 
     @override
-    def resolve_sync(self) -> T_co:
+    def resolve_sync(self, **kwargs: typing.Any) -> T_co:
         if self._override is not None:
             self._register_arguments()
             return typing.cast(T_co, self._override)
@@ -92,8 +96,14 @@ class Singleton(SupportsTeardown, AbstractProvider[T_co]):
                 return self._instance
             self._register_arguments()
             self._instance = self._factory(
-                *[x.resolve_sync() if isinstance(x, AbstractProvider) else x for x in self._args],  # type: ignore[arg-type]
-                **{k: v.resolve_sync() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},  # type: ignore[arg-type]
+                *[x.resolve_sync(**kwargs) if isinstance(x, AbstractProvider) else x for x in self._args],
+                **{
+                    **kwargs,
+                    **{
+                        k: v.resolve_sync(**kwargs) if isinstance(v, AbstractProvider) else v
+                        for k, v in self._kwargs.items()
+                    },
+                },
             )
             return self._instance
 
@@ -101,7 +111,7 @@ class Singleton(SupportsTeardown, AbstractProvider[T_co]):
     async def tear_down(self, propagate: bool = True) -> None:
         """Reset the cached instance.
 
-        After calling this method, the next async_resolve call will recreate the instance.
+        After calling this method, the next resolve call will recreate the instance.
         """
         if self._instance is not None:
             self._instance = None
@@ -126,7 +136,7 @@ class AsyncSingleton(SupportsTeardown, AbstractProvider[T_co]):
     """A provider that creates an instance asynchronously and caches it for subsequent injections.
 
     This provider is safe to use concurrently in asyncio contexts. On the first call
-    to ``async_resolve()``, the instance is created by awaiting the provided factory.
+    to ``resolve()``, the instance is created by awaiting the provided factory.
     All subsequent calls return the cached instance.
 
     Example:
@@ -135,8 +145,8 @@ class AsyncSingleton(SupportsTeardown, AbstractProvider[T_co]):
             return 0.5
 
         async_singleton = AsyncSingleton(my_async_factory)
-        value1 = await async_singleton.async_resolve()
-        value2 = await async_singleton.async_resolve()
+        value1 = await async_singleton.resolve()
+        value2 = await async_singleton.resolve()
         assert value1 == value2
         ```
 
@@ -174,7 +184,7 @@ class AsyncSingleton(SupportsTeardown, AbstractProvider[T_co]):
         self._deregister(self._kwargs.values())
 
     @override
-    async def resolve(self) -> T_co:
+    async def resolve(self, **kwargs: typing.Any) -> T_co:
         if self._override is not None:
             return typing.cast(T_co, self._override)
 
@@ -194,7 +204,7 @@ class AsyncSingleton(SupportsTeardown, AbstractProvider[T_co]):
             return self._instance
 
     @override
-    def resolve_sync(self) -> typing.NoReturn:
+    def resolve_sync(self, **kwargs: typing.Any) -> typing.NoReturn:
         msg = "AsyncSingleton cannot be resolved in an sync context."
         raise RuntimeError(msg)
 
@@ -202,7 +212,7 @@ class AsyncSingleton(SupportsTeardown, AbstractProvider[T_co]):
     async def tear_down(self, propagate: bool = True) -> None:
         """Reset the cached instance.
 
-        After calling this method, the next call to ``async_resolve()`` will recreate the instance.
+        After calling this method, the next call to ``resolve()`` will recreate the instance.
         """
         if self._instance is not None:
             self._instance = None
@@ -214,7 +224,7 @@ class AsyncSingleton(SupportsTeardown, AbstractProvider[T_co]):
     def tear_down_sync(self, propagate: bool = True, raise_on_async: bool = True) -> None:
         """Reset the cached instance.
 
-        After calling this method, the next call to ``sync_resolve()`` will recreate the instance.
+        After calling this method, the next call to ``resolve_sync()`` will recreate the instance.
         """
         if self._instance is not None:
             self._instance = None

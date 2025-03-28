@@ -27,11 +27,11 @@ class ThreadLocalSingleton(SupportsTeardown, AbstractProvider[T_co]):
         singleton = ThreadLocalSingleton(factory)
 
         # Same thread, same instance
-        instance1 = singleton.sync_resolve()
-        instance2 = singleton.sync_resolve()
+        instance1 = singleton.resolve_sync()
+        instance2 = singleton.resolve_sync()
 
         def thread_task():
-            return singleton.sync_resolve()
+            return singleton.resolve_sync()
 
         threads = [threading.Thread(target=thread_task) for i in range(10)]
         for thread in threads:
@@ -73,7 +73,7 @@ class ThreadLocalSingleton(SupportsTeardown, AbstractProvider[T_co]):
         self._thread_local.instance = value
 
     @override
-    async def resolve(self) -> T_co:
+    async def resolve(self, **kwargs: typing.Any) -> T_co:
         if self._override is not None:
             return typing.cast(T_co, self._override)
 
@@ -92,7 +92,7 @@ class ThreadLocalSingleton(SupportsTeardown, AbstractProvider[T_co]):
             return self._instance
 
     @override
-    def resolve_sync(self) -> T_co:
+    def resolve_sync(self, **kwargs: typing.Any) -> T_co:
         if self._override is not None:
             return typing.cast(T_co, self._override)
 
@@ -119,7 +119,7 @@ class ThreadLocalSingleton(SupportsTeardown, AbstractProvider[T_co]):
     async def tear_down(self, propagate: bool = True) -> None:
         """Reset the thread-local instance.
 
-        After calling this method, subsequent calls to `sync_resolve` on the
+        After calling this method, subsequent calls to `resolve_sync` on the
         same thread will produce a new instance.
         """
         if self._instance is not None:

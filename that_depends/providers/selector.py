@@ -29,7 +29,7 @@ class Selector(AbstractProvider[T_co]):
         )
 
         # Synchronously resolve the selected provider
-        service = selector_instance.sync_resolve()
+        service = selector_instance.resolve_sync()
         ```
 
     """
@@ -59,7 +59,7 @@ class Selector(AbstractProvider[T_co]):
             )
 
             # The "remote" provider will be selected
-            selected_service = my_selector_instance.sync_resolve()
+            selected_service = my_selector_instance.resolve_sync()
             ```
 
         """
@@ -68,7 +68,7 @@ class Selector(AbstractProvider[T_co]):
         self._providers: typing.Final = providers
 
     @override
-    async def resolve(self) -> T_co:
+    async def resolve(self, **kwargs: typing.Any) -> T_co:
         if self._override:
             return typing.cast(T_co, self._override)
 
@@ -82,7 +82,7 @@ class Selector(AbstractProvider[T_co]):
         return await self._providers[selected_key].resolve()
 
     @override
-    def resolve_sync(self) -> T_co:
+    def resolve_sync(self, **kwargs: typing.Any) -> T_co:
         if self._override:
             return typing.cast(T_co, self._override)
 

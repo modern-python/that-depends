@@ -71,6 +71,13 @@ def inject(  # noqa: C901
     return _inject
 
 
+def _combine_args_kwargs(func: typing.Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> dict[str, typing.Any]:
+    sig = inspect.signature(func)
+    bound = sig.bind(*args, **kwargs)
+    bound.apply_defaults()
+    return dict(bound.arguments)
+
+
 def _resolve_sync(func: typing.Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> T:
     injected = False
     signature: typing.Final = inspect.signature(func)
@@ -88,7 +95,7 @@ def _resolve_sync(func: typing.Callable[P, T], *args: P.args, **kwargs: P.kwargs
         if isinstance(field_value.default, StringProviderDefinition):
             kwargs[field_name] = field_value.default.provider.resolve_sync()
         else:
-            kwargs[field_name] = field_value.default.resolve_sync()
+            kwargs[field_name] = field_value.default.resolve_sync(**_combine_args_kwargs(func, *args, **kwargs))
         injected = True
 
     if not injected:

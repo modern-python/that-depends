@@ -147,7 +147,7 @@ class BaseContainerMeta(SupportsContext[None], abc.ABCMeta):
         for container in cls.get_containers():
             await container.tear_down()
 
-    def sync_tear_down(cls) -> None:
+    def tear_down_sync(cls) -> None:
         """Tear down all sync singleton and resource providers."""
         for provider in reversed(cls.get_providers().values()):
             if isinstance(provider, Resource):
@@ -159,4 +159,4 @@ class BaseContainerMeta(SupportsContext[None], abc.ABCMeta):
                 provider.tear_down_sync()
                 continue
         for container in cls.get_containers():
-            container.sync_tear_down()
+            container.tear_down_sync()
