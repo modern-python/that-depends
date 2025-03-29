@@ -1,3 +1,4 @@
+import contextlib
 import random
 import typing
 from dataclasses import dataclass, field
@@ -74,9 +75,9 @@ def test_attr_getter_with_zero_attribute_depth_sync(
     attr_getter = some_sync_settings_provider.some_str_value
     if isinstance(some_sync_settings_provider, providers.ContextResource):
         with container_context(some_sync_settings_provider):
-            assert attr_getter.sync_resolve() == Settings().some_str_value
+            assert attr_getter.resolve_sync() == Settings().some_str_value
     else:
-        assert attr_getter.sync_resolve() == Settings().some_str_value
+        assert attr_getter.resolve_sync() == Settings().some_str_value
 
 
 async def test_attr_getter_with_zero_attribute_depth_async(
@@ -85,9 +86,9 @@ async def test_attr_getter_with_zero_attribute_depth_async(
     attr_getter = some_async_settings_provider.some_str_value
     if isinstance(some_async_settings_provider, providers.ContextResource):
         async with container_context(some_async_settings_provider):
-            assert await attr_getter.async_resolve() == Settings().some_str_value
+            assert await attr_getter.resolve() == Settings().some_str_value
     else:
-        assert await attr_getter.async_resolve() == Settings().some_str_value
+        assert await attr_getter.resolve() == Settings().some_str_value
 
 
 def test_attr_getter_with_more_than_zero_attribute_depth_sync(
@@ -96,10 +97,10 @@ def test_attr_getter_with_more_than_zero_attribute_depth_sync(
     with (
         container_context(some_sync_settings_provider)
         if isinstance(some_sync_settings_provider, providers.ContextResource)
-        else container_context()
+        else contextlib.nullcontext()
     ):
         attr_getter = some_sync_settings_provider.nested1_attr.nested2_attr.some_const
-        assert attr_getter.sync_resolve() == Nested2().some_const
+        assert attr_getter.resolve_sync() == Nested2().some_const
 
 
 async def test_attr_getter_with_more_than_zero_attribute_depth_async(
@@ -108,10 +109,10 @@ async def test_attr_getter_with_more_than_zero_attribute_depth_async(
     async with (
         container_context(some_async_settings_provider)
         if isinstance(some_async_settings_provider, providers.ContextResource)
-        else container_context()
+        else contextlib.nullcontext()
     ):
         attr_getter = some_async_settings_provider.nested1_attr.nested2_attr.some_const
-        assert await attr_getter.async_resolve() == Nested2().some_const
+        assert await attr_getter.resolve() == Nested2().some_const
 
 
 @pytest.mark.parametrize(
@@ -137,7 +138,6 @@ def test_nesting_levels(field_count: int, test_field_name: str, test_value: str 
     assert attr_value == test_value
 
 
-@container_context()
 def test_attr_getter_with_invalid_attribute_sync(
     some_sync_settings_provider: providers.AbstractProvider[Settings],
 ) -> None:
@@ -149,7 +149,6 @@ def test_attr_getter_with_invalid_attribute_sync(
         some_sync_settings_provider.nested1_attr._final_private_  # noqa: B018
 
 
-@container_context()
 async def test_attr_getter_with_invalid_attribute_async(
     some_async_settings_provider: providers.AbstractProvider[Settings],
 ) -> None:

@@ -37,7 +37,7 @@ Here, `MyContainer.current_time` is a provider that, when called, creates a new 
 
 ### Setting Up the FastAPI App
 
-You can install **`that-depends`**’s `DIContextMiddleware` so that any request automatically gains a context for your container(s). This approach is convenient if you want to:
+You can use **`that-depends`**’s `DIContextMiddleware` so that any request automatically initializes the context for your container(s). This approach is convenient if you want to:
 
 - Automatically initialize or tear down resources on each request.
 - Provide a global or request-level context dictionary you can read from your container.
@@ -57,8 +57,8 @@ app = FastAPI()
 # Attach the middleware, optionally passing the container and/or a global_context
 app.add_middleware(
     DIContextMiddleware,
+    MyContainer,
     global_context={"app_name": "MyApp"},  # optional dictionary available in the context
-    reset_all_containers=True              # ensures containers are reset each request
 )
 
 @app.get("/")
@@ -72,8 +72,7 @@ def get_time(
     )
 ```
 
-- **`DIContextMiddleware`** automatically enters a that-depends “global context” for every request.  
-- By specifying `container=MyContainer`, any context-based providers or resources will be automatically reinitialized (or “request scoped”) if your container is configured for that.  
+- **`DIContextMiddleware`** automatically sets a “global context” for every request.
 - The `Depends(MyContainer.current_time)` call is how you reference the container’s provider using the standard FastAPI injection system.
 
 To run this app:
@@ -154,7 +153,7 @@ from mycontainer import MyScopedContainer
 app = FastAPI()
 app.add_middleware(
     DIContextMiddleware,
-    reset_all_containers=True
+    MyContainer,
 )
 
 @app.get("/")

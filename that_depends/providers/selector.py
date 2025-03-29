@@ -68,32 +68,32 @@ class Selector(AbstractProvider[T_co]):
         self._providers: typing.Final = providers
 
     @override
-    async def async_resolve(self) -> T_co:
+    async def resolve(self) -> T_co:
         if self._override:
             return typing.cast(T_co, self._override)
 
         if isinstance(self._selector, AbstractProvider):
-            selected_key = await self._selector.async_resolve()
+            selected_key = await self._selector.resolve()
         else:
             selected_key = self._get_selected_key()
 
         self._validate_key(selected_key)
 
-        return await self._providers[selected_key].async_resolve()
+        return await self._providers[selected_key].resolve()
 
     @override
-    def sync_resolve(self) -> T_co:
+    def resolve_sync(self) -> T_co:
         if self._override:
             return typing.cast(T_co, self._override)
 
         if isinstance(self._selector, AbstractProvider):
-            selected_key = self._selector.sync_resolve()
+            selected_key = self._selector.resolve_sync()
         else:
             selected_key = self._get_selected_key()
 
         self._validate_key(selected_key)
 
-        return self._providers[selected_key].sync_resolve()
+        return self._providers[selected_key].resolve_sync()
 
     def _get_selected_key(self) -> str:
         if callable(self._selector):

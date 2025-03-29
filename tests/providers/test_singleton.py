@@ -47,9 +47,9 @@ class DIContainer(BaseContainer):
 async def test_singleton_provider() -> None:
     singleton1 = await DIContainer.singleton()
     singleton2 = await DIContainer.singleton()
-    singleton3 = DIContainer.singleton.sync_resolve()
+    singleton3 = DIContainer.singleton.resolve_sync()
     await DIContainer.singleton.tear_down()
-    singleton4 = DIContainer.singleton.sync_resolve()
+    singleton4 = DIContainer.singleton.resolve_sync()
 
     assert singleton1 is singleton2 is singleton3
     assert singleton4 is not singleton1
@@ -90,9 +90,7 @@ async def test_singleton_asyncio_concurrency() -> None:
     resource = providers.Resource(create_resource)
     factory_with_resource = providers.Singleton(SimpleCreator, dep1=resource.cast)
 
-    client1, client2 = await asyncio.gather(
-        factory_with_resource.async_resolve(), factory_with_resource.async_resolve()
-    )
+    client1, client2 = await asyncio.gather(factory_with_resource.resolve(), factory_with_resource.resolve())
 
     assert client1 is client2
     assert calls == 1
@@ -114,10 +112,10 @@ def test_singleton_threading_concurrency() -> None:
 
     with ThreadPoolExecutor(max_workers=4) as pool:
         tasks = [
-            pool.submit(singleton.sync_resolve),
-            pool.submit(singleton.sync_resolve),
-            pool.submit(singleton.sync_resolve),
-            pool.submit(singleton.sync_resolve),
+            pool.submit(singleton.resolve_sync),
+            pool.submit(singleton.resolve_sync),
+            pool.submit(singleton.resolve_sync),
+            pool.submit(singleton.resolve_sync),
         ]
         results = [x.result() for x in as_completed(tasks)]
 
@@ -128,9 +126,9 @@ def test_singleton_threading_concurrency() -> None:
 async def test_async_singleton() -> None:
     singleton1 = await DIContainer.singleton_async()
     singleton2 = await DIContainer.singleton_async()
-    singleton3 = await DIContainer.singleton_async.async_resolve()
+    singleton3 = await DIContainer.singleton_async.resolve()
     await DIContainer.singleton_async.tear_down()
-    singleton4 = await DIContainer.singleton_async.async_resolve()
+    singleton4 = await DIContainer.singleton_async.resolve()
 
     assert singleton1 is singleton2 is singleton3
     assert singleton4 is not singleton1
@@ -140,9 +138,9 @@ async def test_async_singleton() -> None:
 
 async def test_async_singleton_override() -> None:
     singleton_async = providers.AsyncSingleton(create_async_obj, "foo")
-    singleton_async.override(SingletonFactory(dep1="bar"))
+    singleton_async.override_sync(SingletonFactory(dep1="bar"))
 
-    result = await singleton_async.async_resolve()
+    result = await singleton_async.resolve()
     assert result == SingletonFactory(dep1="bar")
 
 
@@ -162,22 +160,36 @@ async def test_async_singleton_asyncio_concurrency() -> None:
 
 async def test_async_singleton_sync_resolve_failure() -> None:
     with pytest.raises(RuntimeError, match="AsyncSingleton cannot be resolved in an sync context."):
-        DIContainer.singleton_async.sync_resolve()
+        DIContainer.singleton_async.resolve_sync()
 
 
 async def test_singleton_async_resolve_with_async_dependencies() -> None:
-    expected = await DIContainer.singleton_with_dependency.async_resolve()
+    expected = await DIContainer.singleton_with_dependency.resolve()
 
-    assert expected == await DIContainer.singleton_with_dependency.async_resolve()
+    assert expected == await DIContainer.singleton_with_dependency.resolve()
 
-    results = await asyncio.gather(*[DIContainer.singleton_with_dependency.async_resolve() for _ in range(10)])
+    results = await asyncio.gather(*[DIContainer.singleton_with_dependency.resolve() for _ in range(10)])
 
     for val in results:
         assert val == expected
 
     results = await asyncio.gather(
-        *[asyncio.to_thread(DIContainer.singleton_with_dependency.sync_resolve) for _ in range(10)],
+        *[asyncio.to_thread(DIContainer.singleton_with_dependency.resolve_sync) for _ in range(10)],
     )
 
     for val in results:
         assert val == expected
+
+
+async def test_async_singleton_teardown() -> None:
+    singleton_async = providers.AsyncSingleton(create_async_obj, "foo")
+
+    await singleton_async.resolve()
+    singleton_async.tear_down_sync()
+
+    assert singleton_async._instance is None
+
+    await singleton_async.resolve()
+
+    await singleton_async.tear_down()
+    assert singleton_async._instance is None

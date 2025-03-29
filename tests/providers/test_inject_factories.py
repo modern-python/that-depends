@@ -27,7 +27,7 @@ class DIContainer(BaseContainer):
     )
     injected_factories = providers.Factory(
         InjectedFactories,
-        sync_factory=dependent_factory.sync_provider,
+        sync_factory=dependent_factory.provider_sync,
         async_factory=dependent_factory.provider,
     )
 
