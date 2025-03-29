@@ -113,6 +113,18 @@ async with container_context(global_context={"key_1": "value_1", "key_2": "value
         fetch_context_item("key_3")  # returns 'value_3'
 ```
 
+You can also retrieve items from the global context by type:
+```python
+from that_depends import fetch_context_item_by_type
+with container_context(global_context={"key": 4}):
+    fetch_context_item_by_type(int) # returns 4
+```
+
+> Note: this will only return the first item of the type found if there are multiple
+> candidates.
+
+
+
 ---
 
 ## Context Resources
