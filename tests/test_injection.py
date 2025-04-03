@@ -267,3 +267,52 @@ def test_provider_resolution_with_string_definition_happens_at_runtime() -> None
         sync_resource = providers.Factory(lambda: return_value)
 
     assert _injected() == return_value
+
+
+async def test_inject_does_not_initialize_context_async() -> None:
+    return_value = 3.0
+
+    async def _async_resource() -> typing.AsyncIterator[float]:
+        yield return_value
+
+    class _Container(BaseContainer):
+        provider_used = providers.ContextResource(_async_resource).with_config(scope=ContextScopes.INJECT)
+        provider_unused = providers.ContextResource(_async_resource).with_config(scope=ContextScopes.INJECT)
+
+    @inject
+    async def _injected(v: float = Provide[_Container.provider_used]) -> float:
+        with pytest.raises(RuntimeError):
+            assert await _Container.provider_unused.resolve()
+
+        assert isinstance(v, float)
+        assert v == await _Container.provider_used.resolve()
+        return v
+
+    assert await _injected() == return_value
+
+    with pytest.raises(RuntimeError):
+        assert await _Container.provider_used.resolve()
+
+
+def test_inject_does_not_initialize_context_sync() -> None:
+    return_value = 3.0
+
+    def _sync_resource() -> typing.Iterator[float]:
+        yield return_value
+
+    class _Container(BaseContainer):
+        provider_used = providers.ContextResource(_sync_resource).with_config(scope=ContextScopes.INJECT)
+        provider_unused = providers.ContextResource(_sync_resource).with_config(scope=ContextScopes.INJECT)
+
+    @inject
+    def _injected(v: float = Provide[_Container.provider_used]) -> float:
+        with pytest.raises(RuntimeError):
+            assert _Container.provider_unused.resolve_sync()
+        assert isinstance(v, float)
+        assert v == _Container.provider_used.resolve_sync()
+        return v
+
+    assert _injected() == return_value
+
+    with pytest.raises(RuntimeError):
+        assert _Container.provider_used.resolve_sync()
