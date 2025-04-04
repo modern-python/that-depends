@@ -140,7 +140,7 @@ def dummy_singleton() -> Singleton[int]:
 
 def test_singleton_registration_and_deregistration(dummy_singleton: Singleton[int]) -> None:
     singleton = Singleton(lambda x: x + 1, dummy_singleton.cast)
-    assert singleton not in dummy_singleton._children, "Singleton should not be registered as child yet."
+    assert singleton in dummy_singleton._children, "Singleton should be registered as child."
     singleton.resolve_sync()
 
     assert singleton in dummy_singleton._children, "Singleton should be registered as a child."
@@ -155,7 +155,7 @@ def test_singleton_registration_and_deregistration(dummy_singleton: Singleton[in
 def test_thread_local_singleton_registration_and_deregistration(dummy_singleton: Singleton[int]) -> None:
     thread_local = ThreadLocalSingleton(lambda val: f"TL-{val}", dummy_singleton)
 
-    assert thread_local not in dummy_singleton._children, "ThreadLocalSingleton not registered as child."
+    assert thread_local in dummy_singleton._children, "ThreadLocalSingleton registered as child."
 
     thread_local.resolve_sync()
     assert thread_local in dummy_singleton._children, "ThreadLocalSingleton not registered as child."
@@ -169,7 +169,7 @@ def test_thread_local_singleton_registration_and_deregistration(dummy_singleton:
 def test_resource_registration_and_deregistration(dummy_singleton: Singleton[int]) -> None:
     resource = Resource(_resource_generator, dummy_singleton.cast)
 
-    assert resource not in dummy_singleton._children, "Resource should not be registered as child yet."
+    assert resource in dummy_singleton._children, "Resource should be registered as child."
 
     resource.resolve_sync()
 

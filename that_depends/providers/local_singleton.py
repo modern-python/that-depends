@@ -55,6 +55,7 @@ class ThreadLocalSingleton(SupportsTeardown, AbstractProvider[T_co]):
         self._asyncio_lock = asyncio.Lock()
         self._args: typing.Final = args
         self._kwargs: typing.Final = kwargs
+        self._register_arguments()
 
     def _register_arguments(self) -> None:
         self._register(self._args)
@@ -81,8 +82,6 @@ class ThreadLocalSingleton(SupportsTeardown, AbstractProvider[T_co]):
             if self._instance is not None:
                 return self._instance
 
-            self._register_arguments()
-
             self._instance = self._factory(
                 *[await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args],  # type: ignore[arg-type]
                 **{  # type: ignore[arg-type]
@@ -98,8 +97,6 @@ class ThreadLocalSingleton(SupportsTeardown, AbstractProvider[T_co]):
 
         if self._instance is not None:
             return self._instance
-
-        self._register_arguments()
 
         self._instance = self._factory(
             *[x.resolve_sync() if isinstance(x, AbstractProvider) else x for x in self._args],  # type: ignore[arg-type]

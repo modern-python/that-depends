@@ -29,6 +29,7 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
         """Create a new provider."""
         super().__init__()
         self._children: set[AbstractProvider[typing.Any]] = set()
+        self._parents: set[AbstractProvider[typing.Any]] = set()
         self._override: typing.Any = None
         self._lock = threading.Lock()
 
@@ -45,6 +46,7 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
         for candidate in candidates:
             if isinstance(candidate, AbstractProvider):
                 candidate.add_child_provider(self)
+                self._parents.add(candidate)
 
     def _deregister(self, candidates: typing.Iterable[typing.Any]) -> None:
         """Deregister current provider as child.
@@ -59,6 +61,7 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
         for candidate in candidates:
             if isinstance(candidate, AbstractProvider) and self in candidate._children:  # noqa: SLF001
                 candidate.remove_child_provider(self)
+                self._parents.remove(candidate)
 
     def add_child_provider(self, provider: "AbstractProvider[typing.Any]") -> None:
         """Add a child provider to the current provider.
@@ -303,6 +306,7 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
             raise TypeError(msg)
         self._args = args
         self._kwargs = kwargs
+        self._register_arguments()
 
     def _register_arguments(self) -> None:
         self._register(self._args)
@@ -326,8 +330,6 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
         async with context.asyncio_lock:
             if context.instance is not None:
                 return context.instance
-
-            self._register_arguments()
 
             cm: typing.ContextManager[T_co] | typing.AsyncContextManager[T_co] = self._creator(
                 *[await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
@@ -362,8 +364,6 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
             if self._is_async:
                 msg = "AsyncResource cannot be resolved synchronously"
                 raise RuntimeError(msg)
-
-            self._register_arguments()
 
             cm = self._creator(
                 *[x.resolve_sync() if isinstance(x, AbstractProvider) else x for x in self._args],

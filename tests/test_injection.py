@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import random
 import typing
 import warnings
 from unittest.mock import Mock
@@ -316,3 +317,79 @@ def test_inject_does_not_initialize_context_sync() -> None:
 
     with pytest.raises(RuntimeError):
         assert _Container.provider_used.resolve_sync()
+
+
+async def test_injection_initializes_context_for_parents_async() -> None:
+    async def _async_resource() -> typing.AsyncIterator[float]:
+        yield random.random()
+
+    async def _async_resource_dependent(v: float) -> typing.AsyncIterator[float]:
+        yield v
+
+    class _Container(BaseContainer):
+        grandparent_used = providers.ContextResource(_async_resource).with_config(scope=ContextScopes.INJECT)
+        parent_used = providers.ContextResource(_async_resource_dependent, grandparent_used.cast).with_config(
+            scope=ContextScopes.INJECT
+        )
+        provider_used = providers.ContextResource(_async_resource_dependent, parent_used.cast).with_config(
+            scope=ContextScopes.INJECT
+        )
+        provider_unused = providers.ContextResource(_async_resource).with_config(scope=ContextScopes.INJECT)
+
+    @inject
+    async def _injected(v: float = Provide[_Container.provider_used]) -> float:
+        with pytest.raises(RuntimeError):
+            assert await _Container.provider_unused.resolve()
+        assert isinstance(v, float)
+        assert v == await _Container.provider_used.resolve()
+        assert v == await _Container.parent_used.resolve()
+        assert v == await _Container.grandparent_used.resolve()
+        return v
+
+    assert isinstance(await _injected(), float)
+    with pytest.raises(RuntimeError):
+        await _Container.provider_used.resolve()
+    with pytest.raises(RuntimeError):
+        await _Container.parent_used.resolve()
+    with pytest.raises(RuntimeError):
+        await _Container.grandparent_used.resolve()
+    with pytest.raises(RuntimeError):
+        await _Container.provider_unused.resolve()
+
+
+def test_injection_initializes_context_for_parents_sync() -> None:
+    def _sync_resource() -> typing.Iterator[float]:
+        yield random.random()
+
+    def _sync_resource_dependent(v: float) -> typing.Iterator[float]:
+        yield v
+
+    class _Container(BaseContainer):
+        grandparent_used = providers.ContextResource(_sync_resource).with_config(scope=ContextScopes.INJECT)
+        parent_used = providers.ContextResource(_sync_resource_dependent, grandparent_used.cast).with_config(
+            scope=ContextScopes.INJECT
+        )
+        provider_used = providers.ContextResource(_sync_resource_dependent, parent_used.cast).with_config(
+            scope=ContextScopes.INJECT
+        )
+        provider_unused = providers.ContextResource(_sync_resource).with_config(scope=ContextScopes.INJECT)
+
+    @inject
+    def _injected(v: float = Provide[_Container.provider_used]) -> float:
+        with pytest.raises(RuntimeError):
+            assert _Container.provider_unused.resolve_sync()
+        assert isinstance(v, float)
+        assert v == _Container.provider_used.resolve_sync()
+        assert v == _Container.parent_used.resolve_sync()
+        assert v == _Container.grandparent_used.resolve_sync()
+        return v
+
+    assert isinstance(_injected(), float)
+    with pytest.raises(RuntimeError):
+        _Container.provider_used.resolve_sync()
+    with pytest.raises(RuntimeError):
+        _Container.parent_used.resolve_sync()
+    with pytest.raises(RuntimeError):
+        _Container.grandparent_used.resolve_sync()
+    with pytest.raises(RuntimeError):
+        _Container.provider_unused.resolve_sync()

@@ -142,21 +142,49 @@ async def _resolve_async(  # typing: ignore
 async def _resolve_provider_with_scope_async(
     provider: AbstractProvider[T], scope: ContextScope | None, stack: AsyncExitStack
 ) -> T:
-    if isinstance(provider, ContextResource) and scope:
-        provider_scope = provider.get_scope()
-        if provider_scope in (ContextScopes.ANY, scope):
-            await stack.enter_async_context(provider.context_async(force=True))
-            return await provider.resolve()  # type: ignore[no-any-return]
+    providers: set[AbstractProvider[typing.Any]] = set()
+    await _add_provider_to_stack_async(provider, stack, scope, providers)
     return await provider.resolve()
 
 
-def _resolve_provider_with_scope_sync(provider: AbstractProvider[T], scope: ContextScope | None, stack: ExitStack) -> T:
+async def _add_provider_to_stack_async(
+    provider: AbstractProvider[T],
+    stack: AsyncExitStack,
+    scope: ContextScope | None,
+    providers: set[AbstractProvider[typing.Any]],
+) -> None:
+    if provider in providers:
+        return
+    providers.add(provider)
     if isinstance(provider, ContextResource) and scope:
         provider_scope = provider.get_scope()
         if provider_scope in (ContextScopes.ANY, scope):
-            stack.enter_context(provider.context_sync(force=True))
-            return provider.resolve_sync()  # type: ignore[no-any-return]
+            for parent in provider._parents:  # noqa: SLF001
+                await _add_provider_to_stack_async(parent, stack, scope, providers)
+            await stack.enter_async_context(provider.context_async(force=True))
+
+
+def _resolve_provider_with_scope_sync(provider: AbstractProvider[T], scope: ContextScope | None, stack: ExitStack) -> T:
+    providers: set[AbstractProvider[typing.Any]] = set()
+    _add_provider_to_stack_sync(provider, stack, scope, providers)
     return provider.resolve_sync()
+
+
+def _add_provider_to_stack_sync(
+    provider: AbstractProvider[T],
+    stack: ExitStack,
+    scope: ContextScope | None,
+    providers: set[AbstractProvider[typing.Any]],
+) -> None:
+    if provider in providers:
+        return
+    providers.add(provider)
+    if isinstance(provider, ContextResource) and scope:
+        provider_scope = provider.get_scope()
+        if provider_scope in (ContextScopes.ANY, scope):
+            for parent in provider._parents:  # noqa: SLF001
+                _add_provider_to_stack_sync(parent, stack, scope, providers)
+            stack.enter_context(provider.context_sync(force=True))
 
 
 class StringProviderDefinition:
