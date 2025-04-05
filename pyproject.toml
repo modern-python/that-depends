@@ -41,6 +41,7 @@ dev = [
     "litestar",
     "faststream[nats]",
     "mkdocs>=1.6.1",
+    "pytest-randomly",
 ]
 
 [build-system]

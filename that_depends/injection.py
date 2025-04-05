@@ -1,4 +1,3 @@
-import asyncio
 import functools
 import inspect
 import re
@@ -111,7 +110,7 @@ async def _resolve_async(  # typing: ignore
     injected = False
     signature = inspect.signature(func)
     context_providers: set[AbstractProvider[typing.Any]] = set()
-    async with asyncio.Lock(), AsyncExitStack() as stack:
+    async with AsyncExitStack() as stack:
         for i, (field_name, field_value) in enumerate(signature.parameters.items()):
             if i < len(args):
                 if isinstance(field_value.default, AbstractProvider | StringProviderDefinition):
