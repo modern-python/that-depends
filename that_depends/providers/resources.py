@@ -101,6 +101,7 @@ class Resource(SupportsTeardown, AbstractResource[T_co]):
 
         """
         await self._fetch_context().tear_down()
+        self._deregister_arguments()
         if propagate:
             await self._tear_down_children()
 
@@ -121,5 +122,6 @@ class Resource(SupportsTeardown, AbstractResource[T_co]):
 
         """
         self._fetch_context().tear_down_sync(propagate=propagate, raise_on_async=raise_on_async)
+        self._deregister_arguments()
         if propagate:
             self._tear_down_children_sync(propagate=propagate, raise_on_async=raise_on_async)

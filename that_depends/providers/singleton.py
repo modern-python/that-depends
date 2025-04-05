@@ -52,21 +52,26 @@ class Singleton(SupportsTeardown, AbstractProvider[T_co]):
         self._threading_lock: typing.Final = threading.Lock()
         self._args: typing.Final = args
         self._kwargs: typing.Final = kwargs
-        self._register_arguments()
 
     def _register_arguments(self) -> None:
         self._register(self._args)
         self._register(self._kwargs.values())
 
+    def _deregister_arguments(self) -> None:
+        self._deregister(self._args)
+        self._deregister(self._kwargs.values())
+
     @override
     async def resolve(self) -> T_co:
         if self._override is not None:
+            self._register_arguments()
             return typing.cast(T_co, self._override)
 
         # lock to prevent resolving several times
         async with self._asyncio_lock:
             if self._instance is not None:
                 return self._instance
+            self._register_arguments()
             self._instance = self._factory(
                 *[await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args],  # type: ignore[arg-type]
                 **{  # type: ignore[arg-type]
@@ -78,12 +83,14 @@ class Singleton(SupportsTeardown, AbstractProvider[T_co]):
     @override
     def resolve_sync(self) -> T_co:
         if self._override is not None:
+            self._register_arguments()
             return typing.cast(T_co, self._override)
 
         # lock to prevent resolving several times
         with self._threading_lock:
             if self._instance is not None:
                 return self._instance
+            self._register_arguments()
             self._instance = self._factory(
                 *[x.resolve_sync() if isinstance(x, AbstractProvider) else x for x in self._args],  # type: ignore[arg-type]
                 **{k: v.resolve_sync() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},  # type: ignore[arg-type]
@@ -98,6 +105,7 @@ class Singleton(SupportsTeardown, AbstractProvider[T_co]):
         """
         if self._instance is not None:
             self._instance = None
+        self._deregister_arguments()
         if propagate:
             await self._tear_down_children()
 
@@ -109,6 +117,7 @@ class Singleton(SupportsTeardown, AbstractProvider[T_co]):
         """
         if self._instance is not None:
             self._instance = None
+        self._deregister_arguments()
         if propagate:
             self._tear_down_children_sync(propagate=propagate, raise_on_async=raise_on_async)
 
@@ -155,11 +164,14 @@ class AsyncSingleton(SupportsTeardown, AbstractProvider[T_co]):
         self._asyncio_lock: typing.Final = asyncio.Lock()
         self._args: typing.Final = args
         self._kwargs: typing.Final = kwargs
-        self._register_arguments()
 
     def _register_arguments(self) -> None:
         self._register(self._args)
         self._register(self._kwargs.values())
+
+    def _deregister_arguments(self) -> None:
+        self._deregister(self._args)
+        self._deregister(self._kwargs.values())
 
     @override
     async def resolve(self) -> T_co:
@@ -170,6 +182,8 @@ class AsyncSingleton(SupportsTeardown, AbstractProvider[T_co]):
         async with self._asyncio_lock:
             if self._instance is not None:
                 return self._instance
+
+            self._register_arguments()
 
             self._instance = await self._factory(
                 *[await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args],  # type: ignore[arg-type]
@@ -192,6 +206,7 @@ class AsyncSingleton(SupportsTeardown, AbstractProvider[T_co]):
         """
         if self._instance is not None:
             self._instance = None
+        self._deregister_arguments()
         if propagate:
             await self._tear_down_children()
 
@@ -203,5 +218,6 @@ class AsyncSingleton(SupportsTeardown, AbstractProvider[T_co]):
         """
         if self._instance is not None:
             self._instance = None
+        self._deregister_arguments()
         if propagate:
             self._tear_down_children_sync(propagate=propagate, raise_on_async=raise_on_async)

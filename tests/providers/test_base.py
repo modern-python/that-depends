@@ -5,6 +5,7 @@ import typing
 import pytest
 from typing_extensions import override
 
+from that_depends import BaseContainer
 from that_depends.providers.base import AbstractProvider
 from that_depends.providers.local_singleton import ThreadLocalSingleton
 from that_depends.providers.mixin import SupportsTeardown
@@ -139,26 +140,48 @@ def dummy_singleton() -> Singleton[int]:
     return Singleton(_simple_factory_value)
 
 
-def test_singleton_registration(dummy_singleton: Singleton[int]) -> None:
+def test_singleton_registration_and_deregistration(dummy_singleton: Singleton[int]) -> None:
     singleton = Singleton(lambda x: x + 1, dummy_singleton.cast)
-    assert singleton in dummy_singleton._children, "Singleton should be registered as child."
+    assert singleton not in dummy_singleton._children, "Singleton should not be registered as child yet."
+    singleton.resolve_sync()
+
+    assert singleton in dummy_singleton._children, "Singleton should be registered as a child."
+
+    dummy_singleton.tear_down_sync()
+
+    assert singleton not in dummy_singleton._children, (
+        "Singleton should be removed from parent's children after tear_down."
+    )
 
 
-def test_thread_local_singleton_registration(dummy_singleton: Singleton[int]) -> None:
+def test_thread_local_singleton_registration_and_deregistration(dummy_singleton: Singleton[int]) -> None:
     thread_local = ThreadLocalSingleton(lambda val: f"TL-{val}", dummy_singleton)
 
-    assert thread_local in dummy_singleton._children, "ThreadLocalSingleton registered as child."
+    assert thread_local not in dummy_singleton._children, "ThreadLocalSingleton not registered as child."
+
+    thread_local.resolve_sync()
+    assert thread_local in dummy_singleton._children, "ThreadLocalSingleton not registered as child."
+
+    # Teardown
+    thread_local.tear_down_sync()
+
+    assert thread_local not in dummy_singleton._children, "ThreadLocalSingleton should be deregistered after teardown."
 
 
-def test_resource_registration(dummy_singleton: Singleton[int]) -> None:
+def test_resource_registration_and_deregistration(dummy_singleton: Singleton[int]) -> None:
     resource = Resource(_resource_generator, dummy_singleton.cast)
+
+    assert resource not in dummy_singleton._children, "Resource should not be registered as child yet."
+
+    resource.resolve_sync()
 
     assert resource in dummy_singleton._children, "Resource should be registered as child."
 
-    assert isinstance(resource.resolve_sync(), int)
+    resource.tear_down_sync()
+    assert resource not in dummy_singleton._children, "Resource should be deregistered after teardown."
 
 
-async def test_async_singleton_registration(dummy_singleton: Singleton[int]) -> None:
+async def test_async_singleton_registration_and_deregistration(dummy_singleton: Singleton[int]) -> None:
     async_singleton = AsyncSingleton(_simple_async_factory_value, dummy_singleton.cast)
 
     await async_singleton.resolve()
@@ -167,6 +190,10 @@ async def test_async_singleton_registration(dummy_singleton: Singleton[int]) -> 
 
     value = await async_singleton.resolve()
     assert value == _RETURN_VALUE
+
+    await async_singleton.tear_down()
+
+    assert async_singleton not in dummy_singleton._children
 
 
 def test_teardown_propagation_chain() -> None:
@@ -229,3 +256,45 @@ async def test_async_propagate_off() -> None:
     await parent.tear_down(propagate=False)
 
     assert child._instance is not None
+
+
+async def test_provider_registration_in_different_scope_async() -> None:
+    async def _creator() -> int:
+        return 1
+
+    async def _identity(x: int) -> int:
+        return x
+
+    class Container(BaseContainer):
+        provider = AsyncSingleton(_creator)
+
+    async def nested() -> int:
+        p = AsyncSingleton(_identity, Container.provider.cast)
+
+        result = await p.resolve()
+
+        await p.tear_down()
+        assert len(p._parents) == 0
+        return result
+
+    await nested()
+
+    assert len(Container.provider._children) == 0
+
+
+def test_provider_registration_in_different_scope_sync() -> None:
+    class Container(BaseContainer):
+        provider = Singleton(lambda: 1)
+
+    def nested() -> int:
+        p = Singleton(lambda x: x, Container.provider.cast)
+
+        result = p.resolve_sync()
+
+        p.tear_down_sync()
+        assert len(p._parents) == 0
+        return result
+
+    nested()
+
+    assert len(Container.provider._children) == 0

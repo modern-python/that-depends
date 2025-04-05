@@ -48,6 +48,21 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
                 candidate.add_child_provider(self)
                 self._parents.add(candidate)
 
+    def _deregister(self, candidates: typing.Iterable[typing.Any]) -> None:
+        """Deregister current provider as child.
+
+        Args:
+            candidates: iterable of potential parent providers.
+
+        Returns:
+            None
+
+        """
+        for candidate in candidates:
+            if isinstance(candidate, AbstractProvider) and self in candidate._children:  # noqa: SLF001
+                candidate.remove_child_provider(self)
+                self._parents.remove(candidate)
+
     def add_child_provider(self, provider: "AbstractProvider[typing.Any]") -> None:
         """Add a child provider to the current provider.
 
@@ -60,6 +75,19 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
         """
         with self._lock:
             self._children.add(provider)
+
+    def remove_child_provider(self, provider: "AbstractProvider[typing.Any]") -> None:
+        """Remove a child provider from the current provider.
+
+        Args:
+            provider: provider to remove as a child.
+
+        Returns:
+            None
+
+        """
+        with self._lock:
+            self._children.remove(provider)
 
     def __deepcopy__(self, *_: object, **__: object) -> typing_extensions.Self:
         """Hack for Litestar to prevent cloning object.
@@ -278,11 +306,14 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
             raise TypeError(msg)
         self._args = args
         self._kwargs = kwargs
-        self._register_arguments()
 
     def _register_arguments(self) -> None:
         self._register(self._args)
         self._register(self._kwargs.values())
+
+    def _deregister_arguments(self) -> None:
+        self._deregister(self._args)
+        self._deregister(self._kwargs.values())
 
     @abc.abstractmethod
     def _fetch_context(self) -> ResourceContext[T_co]: ...
@@ -298,6 +329,8 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
         async with context.asyncio_lock:
             if context.instance is not None:
                 return context.instance
+
+            self._register_arguments()
 
             cm: typing.ContextManager[T_co] | typing.AsyncContextManager[T_co] = self._creator(
                 *[await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
@@ -332,6 +365,8 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
             if self._is_async:
                 msg = "AsyncResource cannot be resolved synchronously"
                 raise RuntimeError(msg)
+
+            self._register_arguments()
 
             cm = self._creator(
                 *[x.resolve_sync() if isinstance(x, AbstractProvider) else x for x in self._args],

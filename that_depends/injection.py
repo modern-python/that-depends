@@ -70,7 +70,7 @@ def inject(
 def _resolve_sync(func: typing.Callable[P, T], scope: ContextScope | None, *args: P.args, **kwargs: P.kwargs) -> T:
     injected = False
     signature: typing.Final = inspect.signature(func)
-    providers: set[AbstractProvider[typing.Any]] = set()
+    context_providers: set[AbstractProvider[typing.Any]] = set()
     with ExitStack() as stack:
         for i, (field_name, field_value) in enumerate(signature.parameters.items()):
             if i < len(args):
@@ -85,11 +85,11 @@ def _resolve_sync(func: typing.Callable[P, T], scope: ContextScope | None, *args
                 continue
             if isinstance(field_value.default, StringProviderDefinition):
                 kwargs[field_name] = _resolve_provider_with_scope_sync(
-                    field_value.default.provider, scope=scope, stack=stack, providers=providers
+                    field_value.default.provider, scope=scope, stack=stack, providers=context_providers
                 )
             else:
                 kwargs[field_name] = _resolve_provider_with_scope_sync(
-                    field_value.default, scope=scope, stack=stack, providers=providers
+                    field_value.default, scope=scope, stack=stack, providers=context_providers
                 )
             injected = True
 
@@ -109,7 +109,7 @@ async def _resolve_async(  # typing: ignore
 ) -> T:
     injected = False
     signature = inspect.signature(func)
-    providers: set[AbstractProvider[typing.Any]] = set()
+    context_providers: set[AbstractProvider[typing.Any]] = set()
     async with AsyncExitStack() as stack:
         for i, (field_name, field_value) in enumerate(signature.parameters.items()):
             if i < len(args):
@@ -128,11 +128,11 @@ async def _resolve_async(  # typing: ignore
                 continue
             if isinstance(field_value.default, StringProviderDefinition):
                 kwargs[field_name] = await _resolve_provider_with_scope_async(
-                    field_value.default.provider, scope=scope, stack=stack, providers=providers
+                    field_value.default.provider, scope=scope, stack=stack, providers=context_providers
                 )
             else:  # AbstractProvider
                 kwargs[field_name] = await _resolve_provider_with_scope_async(
-                    field_value.default, scope=scope, stack=stack, providers=providers
+                    field_value.default, scope=scope, stack=stack, providers=context_providers
                 )
             injected = True
         if not injected:
@@ -165,6 +165,7 @@ async def _add_provider_to_stack_async(
     if isinstance(provider, ContextResource) and scope:
         provider_scope = provider.get_scope()
         if provider_scope in (ContextScopes.ANY, scope):
+            provider._register_arguments()  # noqa: SLF001
             for parent in provider._parents:  # noqa: SLF001
                 await _add_provider_to_stack_async(parent, stack, scope, providers)
             await stack.enter_async_context(provider.context_async(force=True))
@@ -192,6 +193,7 @@ def _add_provider_to_stack_sync(
     if isinstance(provider, ContextResource) and scope:
         provider_scope = provider.get_scope()
         if provider_scope in (ContextScopes.ANY, scope):
+            provider._register_arguments()  # noqa: SLF001
             for parent in provider._parents:  # noqa: SLF001
                 _add_provider_to_stack_sync(parent, stack, scope, providers)
             stack.enter_context(provider.context_sync(force=True))
