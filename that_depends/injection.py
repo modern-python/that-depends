@@ -140,7 +140,7 @@ async def _resolve_async(  # typing: ignore
                 "Expected injection, but nothing found. Remove @inject decorator.", RuntimeWarning, stacklevel=1
             )
         return await func(*args, **kwargs)
-    raise RuntimeError  # pragma: no cover # for mypy
+    raise RuntimeError  # pragma: no cover # for mypy, otherwise unreachable
 
 
 async def _resolve_provider_with_scope_async(
