@@ -58,10 +58,6 @@ class Singleton(SupportsTeardown, AbstractProvider[T_co]):
         self._register(self._args)
         self._register(self._kwargs.values())
 
-    def _deregister_arguments(self) -> None:
-        self._deregister(self._args)
-        self._deregister(self._kwargs.values())
-
     @override
     async def resolve(self) -> T_co:
         if self._override is not None:
@@ -102,7 +98,6 @@ class Singleton(SupportsTeardown, AbstractProvider[T_co]):
         """
         if self._instance is not None:
             self._instance = None
-        self._deregister_arguments()
         if propagate:
             await self._tear_down_children()
 
@@ -114,7 +109,6 @@ class Singleton(SupportsTeardown, AbstractProvider[T_co]):
         """
         if self._instance is not None:
             self._instance = None
-        self._deregister_arguments()
         if propagate:
             self._tear_down_children_sync(propagate=propagate, raise_on_async=raise_on_async)
 
@@ -167,10 +161,6 @@ class AsyncSingleton(SupportsTeardown, AbstractProvider[T_co]):
         self._register(self._args)
         self._register(self._kwargs.values())
 
-    def _deregister_arguments(self) -> None:
-        self._deregister(self._args)
-        self._deregister(self._kwargs.values())
-
     @override
     async def resolve(self) -> T_co:
         if self._override is not None:
@@ -202,7 +192,6 @@ class AsyncSingleton(SupportsTeardown, AbstractProvider[T_co]):
         """
         if self._instance is not None:
             self._instance = None
-        self._deregister_arguments()
         if propagate:
             await self._tear_down_children()
 
@@ -214,6 +203,5 @@ class AsyncSingleton(SupportsTeardown, AbstractProvider[T_co]):
         """
         if self._instance is not None:
             self._instance = None
-        self._deregister_arguments()
         if propagate:
             self._tear_down_children_sync(propagate=propagate, raise_on_async=raise_on_async)

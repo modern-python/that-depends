@@ -1,4 +1,5 @@
 import asyncio
+import random
 import typing
 
 import pytest
@@ -138,48 +139,26 @@ def dummy_singleton() -> Singleton[int]:
     return Singleton(_simple_factory_value)
 
 
-def test_singleton_registration_and_deregistration(dummy_singleton: Singleton[int]) -> None:
+def test_singleton_registration(dummy_singleton: Singleton[int]) -> None:
     singleton = Singleton(lambda x: x + 1, dummy_singleton.cast)
     assert singleton in dummy_singleton._children, "Singleton should be registered as child."
-    singleton.resolve_sync()
-
-    assert singleton in dummy_singleton._children, "Singleton should be registered as a child."
-
-    dummy_singleton.tear_down_sync()
-
-    assert singleton not in dummy_singleton._children, (
-        "Singleton should be removed from parent's children after tear_down."
-    )
 
 
-def test_thread_local_singleton_registration_and_deregistration(dummy_singleton: Singleton[int]) -> None:
+def test_thread_local_singleton_registration(dummy_singleton: Singleton[int]) -> None:
     thread_local = ThreadLocalSingleton(lambda val: f"TL-{val}", dummy_singleton)
 
     assert thread_local in dummy_singleton._children, "ThreadLocalSingleton registered as child."
 
-    thread_local.resolve_sync()
-    assert thread_local in dummy_singleton._children, "ThreadLocalSingleton not registered as child."
 
-    # Teardown
-    thread_local.tear_down_sync()
-
-    assert thread_local not in dummy_singleton._children, "ThreadLocalSingleton should be deregistered after teardown."
-
-
-def test_resource_registration_and_deregistration(dummy_singleton: Singleton[int]) -> None:
+def test_resource_registration(dummy_singleton: Singleton[int]) -> None:
     resource = Resource(_resource_generator, dummy_singleton.cast)
 
     assert resource in dummy_singleton._children, "Resource should be registered as child."
 
-    resource.resolve_sync()
-
-    assert resource in dummy_singleton._children, "Resource should be registered as child."
-
-    resource.tear_down_sync()
-    assert resource not in dummy_singleton._children, "Resource should be deregistered after teardown."
+    assert isinstance(resource.resolve_sync(), int)
 
 
-async def test_async_singleton_registration_and_deregistration(dummy_singleton: Singleton[int]) -> None:
+async def test_async_singleton_registration(dummy_singleton: Singleton[int]) -> None:
     async_singleton = AsyncSingleton(_simple_async_factory_value, dummy_singleton.cast)
 
     await async_singleton.resolve()
@@ -189,36 +168,33 @@ async def test_async_singleton_registration_and_deregistration(dummy_singleton: 
     value = await async_singleton.resolve()
     assert value == _RETURN_VALUE
 
-    await async_singleton.tear_down()
-
-    assert async_singleton not in dummy_singleton._children
-
 
 def test_teardown_propagation_chain() -> None:
-    def _sync_resource_gen(v: str) -> typing.Iterator[str]:
+    def _sync_resource_gen(v: float) -> typing.Iterator[float]:
         try:
             yield v
         finally:
             pass
 
-    def _grandchild_gen() -> typing.Iterator[str]:
+    def _grandchild_gen() -> typing.Iterator[float]:
         try:
-            yield "Grandchild Resource"
+            yield random.random()
         finally:
             pass
 
     parent_resource = Resource(_grandchild_gen)
-    child_singleton = Singleton(lambda g: f"Child uses {g}", parent_resource)
+    child_singleton = Singleton(lambda g: g + 1.0, parent_resource.cast)
     grandchild = Resource(_sync_resource_gen, child_singleton.cast)
 
-    grandchild.resolve_sync()
+    parent_value = parent_resource.resolve_sync()
+    grandchild_value = grandchild.resolve_sync()
 
     assert child_singleton in parent_resource._children
     assert grandchild in child_singleton._children
     parent_resource.tear_down_sync(propagate=True)
 
-    assert child_singleton not in parent_resource._children
-    assert grandchild not in child_singleton._children
+    assert grandchild.resolve_sync() != grandchild_value
+    assert parent_resource.resolve_sync() != parent_value
 
 
 def test_propagate_off() -> None:

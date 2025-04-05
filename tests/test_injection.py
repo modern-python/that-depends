@@ -393,3 +393,110 @@ def test_injection_initializes_context_for_parents_sync() -> None:
         _Container.grandparent_used.resolve_sync()
     with pytest.raises(RuntimeError):
         _Container.provider_unused.resolve_sync()
+
+
+async def test_injection_initializes_context_for_parents_only_once_async() -> None:
+    async def _async_resource() -> typing.AsyncIterator[float]:
+        yield random.random()
+
+    async def _async_resource_dependent(v: float) -> typing.AsyncIterator[float]:
+        yield v
+
+    class _Container(BaseContainer):
+        grandparent = providers.ContextResource(_async_resource).with_config(scope=ContextScopes.REQUEST)
+        parent = providers.ContextResource(_async_resource_dependent, grandparent.cast).with_config(
+            scope=ContextScopes.REQUEST
+        )
+        provider = providers.ContextResource(_async_resource_dependent, parent.cast).with_config(
+            scope=ContextScopes.REQUEST
+        )
+        provider_with_same_parent = providers.ContextResource(_async_resource_dependent, parent.cast).with_config(
+            scope=ContextScopes.REQUEST
+        )
+
+    @inject(scope=ContextScopes.REQUEST)
+    async def _injected(
+        v_1: float = Provide[_Container.provider], v_2: float = Provide[_Container.provider_with_same_parent]
+    ) -> float:
+        assert isinstance(v_1, float)
+        assert isinstance(v_2, float)
+        assert v_1 == await _Container.provider.resolve()
+        assert v_1 == await _Container.parent.resolve()
+        assert v_1 == await _Container.grandparent.resolve()
+        assert v_1 == v_2
+        return v_1 + v_2
+
+    assert isinstance(await _injected(), float)
+
+
+def test_injection_initializes_context_for_parents_only_once_sync() -> None:
+    def _sync_resource() -> typing.Iterator[float]:
+        yield random.random()
+
+    def _sync_resource_dependent(v: float) -> typing.Iterator[float]:
+        yield v
+
+    class _Container(BaseContainer):
+        default_scope = ContextScopes.APP
+        grandparent = providers.ContextResource(_sync_resource).with_config(scope=ContextScopes.ANY)
+        parent = providers.ContextResource(_sync_resource_dependent, grandparent.cast).with_config(
+            scope=ContextScopes.APP
+        )
+        provider = providers.ContextResource(_sync_resource_dependent, parent.cast).with_config(scope=ContextScopes.APP)
+        provider_with_same_parent = providers.ContextResource(_sync_resource_dependent, parent.cast).with_config(
+            scope=ContextScopes.APP
+        )
+
+    @inject(scope=ContextScopes.APP)
+    def _injected(
+        v_1: float = Provide[_Container.provider], v_2: float = Provide[_Container.provider_with_same_parent]
+    ) -> float:
+        assert isinstance(v_1, float)
+        assert isinstance(v_2, float)
+        assert v_1 == _Container.provider.resolve_sync()
+        assert v_1 == _Container.parent.resolve_sync()
+        assert v_1 == _Container.grandparent.resolve_sync()
+        assert v_1 == v_2
+        return v_1 + v_2
+
+    assert isinstance(_injected(), float)
+
+
+async def test_inject_scope_does_not_init_context_for_out_of_scope_dependents_async() -> None:
+    async def _async_resource() -> typing.AsyncIterator[float]:
+        yield random.random()
+
+    class _Container(BaseContainer):
+        parent = providers.ContextResource(_async_resource).with_config(scope=ContextScopes.INJECT)
+        child = providers.Factory(lambda x: x, parent.cast)
+
+    @inject(scope=ContextScopes.APP)
+    async def _injected(v: float = Provide[_Container.child]) -> float:
+        return v
+
+    with pytest.raises(RuntimeError):
+        await _injected()
+
+    async with _Container.parent.context_async(force=True):
+        parent_value = await _Container.parent.resolve()
+        assert await _injected() == parent_value
+
+
+async def test_inject_scope_does_not_init_context_for_out_of_scope_dependents_sync() -> None:
+    def _sync_resource() -> typing.Iterator[float]:
+        yield random.random()
+
+    class _Container(BaseContainer):
+        parent = providers.ContextResource(_sync_resource).with_config(scope=ContextScopes.INJECT)
+        child = providers.Factory(lambda x: x, parent.cast)
+
+    @inject(scope=ContextScopes.APP)
+    def _injected(v: float = Provide[_Container.child]) -> float:
+        return v
+
+    with pytest.raises(RuntimeError):
+        _injected()
+
+    with _Container.parent.context_sync(force=True):
+        parent_value = _Container.parent.resolve_sync()
+        assert _injected() == parent_value

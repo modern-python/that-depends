@@ -61,10 +61,6 @@ class ThreadLocalSingleton(SupportsTeardown, AbstractProvider[T_co]):
         self._register(self._args)
         self._register(self._kwargs.values())
 
-    def _deregister_arguments(self) -> None:
-        self._deregister(self._args)
-        self._deregister(self._kwargs.values())
-
     @property
     def _instance(self) -> T_co | None:
         return getattr(self._thread_local, "instance", None)
@@ -108,7 +104,6 @@ class ThreadLocalSingleton(SupportsTeardown, AbstractProvider[T_co]):
     def tear_down_sync(self, propagate: bool = True, raise_on_async: bool = True) -> None:
         if self._instance is not None:
             self._instance = None
-        self._deregister_arguments()
         if propagate:
             self._tear_down_children_sync(propagate=propagate, raise_on_async=raise_on_async)
 
@@ -121,6 +116,5 @@ class ThreadLocalSingleton(SupportsTeardown, AbstractProvider[T_co]):
         """
         if self._instance is not None:
             self._instance = None
-        self._deregister_arguments()
         if propagate:
             await self._tear_down_children()
