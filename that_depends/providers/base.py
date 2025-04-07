@@ -29,6 +29,7 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
         """Create a new provider."""
         super().__init__()
         self._children: set[AbstractProvider[typing.Any]] = set()
+        self._parents: set[AbstractProvider[typing.Any]] = set()
         self._override: typing.Any = None
         self._lock = threading.Lock()
 
@@ -45,6 +46,7 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
         for candidate in candidates:
             if isinstance(candidate, AbstractProvider):
                 candidate.add_child_provider(self)
+                self._parents.add(candidate)
 
     def _deregister(self, candidates: typing.Iterable[typing.Any]) -> None:
         """Deregister current provider as child.
@@ -59,6 +61,7 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
         for candidate in candidates:
             if isinstance(candidate, AbstractProvider) and self in candidate._children:  # noqa: SLF001
                 candidate.remove_child_provider(self)
+                self._parents.discard(candidate)
 
     def add_child_provider(self, provider: "AbstractProvider[typing.Any]") -> None:
         """Add a child provider to the current provider.
@@ -84,7 +87,7 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
 
         """
         with self._lock:
-            self._children.remove(provider)
+            self._children.discard(provider)
 
     def __deepcopy__(self, *_: object, **__: object) -> typing_extensions.Self:
         """Hack for Litestar to prevent cloning object.

@@ -1,9 +1,11 @@
 import asyncio
+import random
 import typing
 
 import pytest
 from typing_extensions import override
 
+from that_depends import BaseContainer
 from that_depends.providers.base import AbstractProvider
 from that_depends.providers.local_singleton import ThreadLocalSingleton
 from that_depends.providers.mixin import SupportsTeardown
@@ -195,30 +197,31 @@ async def test_async_singleton_registration_and_deregistration(dummy_singleton: 
 
 
 def test_teardown_propagation_chain() -> None:
-    def _sync_resource_gen(v: str) -> typing.Iterator[str]:
+    def _sync_resource_gen(v: float) -> typing.Iterator[float]:
         try:
             yield v
         finally:
             pass
 
-    def _grandchild_gen() -> typing.Iterator[str]:
+    def _grandchild_gen() -> typing.Iterator[float]:
         try:
-            yield "Grandchild Resource"
+            yield random.random()
         finally:
             pass
 
     parent_resource = Resource(_grandchild_gen)
-    child_singleton = Singleton(lambda g: f"Child uses {g}", parent_resource)
+    child_singleton = Singleton(lambda g: g + 1.0, parent_resource.cast)
     grandchild = Resource(_sync_resource_gen, child_singleton.cast)
 
-    grandchild.resolve_sync()
+    parent_value = parent_resource.resolve_sync()
+    grandchild_value = grandchild.resolve_sync()
 
     assert child_singleton in parent_resource._children
     assert grandchild in child_singleton._children
     parent_resource.tear_down_sync(propagate=True)
 
-    assert child_singleton not in parent_resource._children
-    assert grandchild not in child_singleton._children
+    assert grandchild.resolve_sync() != grandchild_value
+    assert parent_resource.resolve_sync() != parent_value
 
 
 def test_propagate_off() -> None:
@@ -253,3 +256,45 @@ async def test_async_propagate_off() -> None:
     await parent.tear_down(propagate=False)
 
     assert child._instance is not None
+
+
+async def test_provider_registration_in_different_scope_async() -> None:
+    async def _creator() -> int:
+        return 1
+
+    async def _identity(x: int) -> int:
+        return x
+
+    class Container(BaseContainer):
+        provider = AsyncSingleton(_creator)
+
+    async def nested() -> int:
+        p = AsyncSingleton(_identity, Container.provider.cast)
+
+        result = await p.resolve()
+
+        await p.tear_down()
+        assert len(p._parents) == 0
+        return result
+
+    await nested()
+
+    assert len(Container.provider._children) == 0
+
+
+def test_provider_registration_in_different_scope_sync() -> None:
+    class Container(BaseContainer):
+        provider = Singleton(lambda: 1)
+
+    def nested() -> int:
+        p = Singleton(lambda x: x, Container.provider.cast)
+
+        result = p.resolve_sync()
+
+        p.tear_down_sync()
+        assert len(p._parents) == 0
+        return result
+
+    nested()
+
+    assert len(Container.provider._children) == 0
