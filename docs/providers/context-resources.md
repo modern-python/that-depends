@@ -140,8 +140,7 @@ Trying to resolve a `ContextResource` without first entering `container_context`
 
 ```python
 value = MyContainer.sync_resource.resolve_sync()
-> RuntimeError: Context is not set.Use
-container_context
+> RuntimeError: Context is not set. Use container_context
 ```
 
 ### Resolving async and sync dependencies

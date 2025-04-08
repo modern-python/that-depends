@@ -85,8 +85,8 @@ The `.provider` property gives you an *async function* to await, and `.provider_
 
 ```python
 # In a synchronous function or interactive session
->> > msg = MyContainer.sync_message.provider_sync
->> > print(msg)
+>>> msg = MyContainer.sync_message.provider_sync
+>>> print(msg)
 Hello from sync provider!
 ```
 
