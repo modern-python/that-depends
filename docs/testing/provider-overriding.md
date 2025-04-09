@@ -82,7 +82,7 @@ affects another provider ('_engine_' and '_some_sqla_dao_').
 
 The example above looked at overriding only one settings provider, 
 but the container also provides the ability to override 
-multiple providers at once with method ```override_providers```. 
+multiple providers at once with method ```override_providers_sync```. 
 
 The code above could remain the same except that 
 the single provider override could be replaced with the following code:
@@ -98,7 +98,7 @@ def main():
         'settings': local_testing_settings,
         # more values...
     }
-    with DIContainer.override_providers(providers_for_overriding):
+    with DIContainer.override_providers_sync(providers_for_overriding):
         try:
             result = exec_query_example()
             assert result == (234,)

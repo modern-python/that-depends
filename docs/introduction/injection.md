@@ -113,8 +113,8 @@ def greet_user(greeting: str = Provide[MyContainer.greeting_provider]):
 
 When `greet_user` is called, **that-depends**:
 
-1. Enters a resource context with scope `REQUEST`.
-2. Resolves all providers that allow usage within `REQUEST` (or `ANY`).
+1. Initializes the context for all `REQUEST` (or `ANY`) scoped `args` and `kwargs`.
+2. Resolves all providers in the `args` and `kwargs` of the function.
 3. Calls your function with the resolved dependencies.
 
 For more details regarding scopes and context management, see the [Context Resources](../providers/context-resources.md) documentation and the [Scopes](scopes.md) documentation.
@@ -128,7 +128,7 @@ In tests or specialized scenarios, you may want to override a provider’s value
 ```python
 def test_greet_override():
     # Override the greeting_provider with a mock value
-    with MyContainer.override_providers({"greeting_provider": "TestHello"}):
+    with MyContainer.override_providers_sync({"greeting_provider": "TestHello"}):
         result = greet_user()
         assert result == "Greeting: TestHello"
 ```

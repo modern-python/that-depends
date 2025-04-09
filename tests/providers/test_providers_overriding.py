@@ -25,7 +25,7 @@ async def test_batch_providers_overriding() -> None:
         "object": object_mock,
     }
 
-    with container.DIContainer.override_providers(providers_for_overriding):
+    with container.DIContainer.override_providers_sync(providers_for_overriding):
         await container.DIContainer.simple_factory()
         dependent_factory = await container.DIContainer.dependent_factory()
         singleton = await container.DIContainer.singleton()
@@ -58,7 +58,7 @@ async def test_batch_providers_overriding_sync_resolve() -> None:
         "object": object_mock,
     }
 
-    with container.DIContainer.override_providers(providers_for_overriding):
+    with container.DIContainer.override_providers_sync(providers_for_overriding):
         container.DIContainer.simple_factory.resolve_sync()
         await container.DIContainer.async_resource.resolve()
         dependent_factory = container.DIContainer.dependent_factory.resolve_sync()
@@ -98,7 +98,10 @@ def test_providers_overriding_fail_with_unknown_provider() -> None:
     match = f"Provider with name {unknown_provider_name!r} not found"
     providers_for_overriding = {unknown_provider_name: None}
 
-    with pytest.raises(RuntimeError, match=match), container.DIContainer.override_providers(providers_for_overriding):
+    with (
+        pytest.raises(RuntimeError, match=match),
+        container.DIContainer.override_providers_sync(providers_for_overriding),
+    ):
         ...  # pragma: no cover
 
 

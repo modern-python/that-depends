@@ -138,7 +138,7 @@ class BaseContainer(metaclass=BaseContainerMeta):
 
     @classmethod
     @contextmanager
-    def override_providers(cls, providers_for_overriding: dict[str, typing.Any]) -> typing.Iterator[None]:
+    def override_providers_sync(cls, providers_for_overriding: dict[str, typing.Any]) -> typing.Iterator[None]:
         """Override several providers with mocks simultaneously.
 
         Args:

@@ -29,6 +29,7 @@ nav:
       - Overriding: testing/provider-overriding.md
   - Migration:
       - 1.* to 2.*: migration/v2.md
+      - 2.* to 3.*: migration/v3.md
   - Development:
       - Contributing: dev/contributing.md
       - Decisions: dev/main-decisions.md

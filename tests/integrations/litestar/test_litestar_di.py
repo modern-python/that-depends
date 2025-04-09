@@ -125,7 +125,7 @@ def test_litestar_di_override_fail_on_override_providers() -> None:
     overrides = {
         "int_fn": mock,
     }
-    with TestClient(app=app) as client, DIContainer.override_providers(overrides):
+    with TestClient(app=app) as client, DIContainer.override_providers_sync(overrides):
         response = client.get("/router/controller/handler")
 
     assert response.status_code == HTTP_200_OK, response.text

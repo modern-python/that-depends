@@ -140,10 +140,80 @@ The `@inject` wrapper also supports named scopes. Its default scope is `INJECT`,
 ```python
 @inject(scope=ContextScopes.APP)
 def foo(...):
-    get_current_scope()  # APP
+    ...
 ```
 
-When you pass a scope to the `@inject` wrapper, it enters that scope before calling the function, and exits the scope after the function returns. If you do not want to enter any scope, pass `None`.
+The `@inject` wrapper will enter a new context for each injected provider that matches the specified scope.
+However, it will not enter the scope!
+
+Here is a simple example:
+```python hl_lines="5 10"
+def iterator() -> typing.Iterator[float]:
+    yield random.random()
+
+class Container(BaseContainer):
+    default_scope = ContextScopes.INJECT
+    provider = providers.ContextResource(iterator)
+
+@inject(scope=ContextScopes.INJECT)
+def injected(v: int = Provide[Container.provider]) -> int:
+    assert get_current_scope() == None # (1)!
+    return v
+
+injected()
+```   
+
+1. Notice that `v` was resolved although the scope is still `None`. No scope was actually entered.
+
+This means that you will **not** be able to resolve `INJECT` scoped providers in a function annotated with `@inject` unless the 
+provider is specified as the default in the `args` or `kwargs`:
+
+```python hl_lines="4 10"
+class Container(BaseContainer):
+    default_scope = ContextScopes.INJECT
+    provider = providers.ContextResource(iterator).with_config(scope=ContextScopes.INJECT)
+    another_provider = providers.ContextResource(iterator).with_config(scope=ContextScopes.INJECT)
+
+@inject(scope=ContextScopes.INJECT)
+def injected(v: int = Provide[Container.provider]) -> float: # (2)!
+    assert get_current_scope() == None
+    assert v == Container.provider.resolve_sync() # (3)!
+    Container.another_provider.resolve_sync() # (1)!
+    return v
+
+injected()
+```
+
+1. This will raise a `RuntimeError`. Context for this provider was never initialized! 
+2. Context for `Container.provider` is initialized and will exit when the function returns.
+3. This assertion will pass since the context for this provider is still the same.
+
+If you want to enter a scope for the duration of the function you can use the following pattern:
+```python hl_lines="4 10"
+class Container(BaseContainer):
+    default_scope = ContextScopes.INJECT
+    provider = providers.ContextResource(iterator).with_config(scope=ContextScopes.INJECT)
+    another_provider = providers.ContextResource(iterator).with_config(scope=ContextScopes.INJECT)
+
+@container_context(scope=ContextScopes.INJECT)
+@inject(scope=None) # (3)!
+def injected(v: int = Provide[Container.provider]) -> int: # (2)!
+    assert get_current_scope() == ContextScopes.INJECT
+    Container.another_provider.resolve_sync() # (1)!
+    return v
+```
+
+1. This will resolve since this resource has been initialized when you entered the `INJECT` scope.
+2. `Container.provider` was resolved successfully since the `INJECT` scope was entered before the function was called.
+3. `scope=None` means that the `@inject` wrapper will ignore scopes. It will not resolve `None`-scoped ContextResources!
+
+
+This implementation is complex but it providers the following advantages:
+
+- Only context for `ContextResources` you need is initialized. This improves performance.
+- It discourages explicit resolution via `.resolve()` or `.resolve_sync()` in the function body.
+This pattern should be avoided since defining providers in function parameters allows for overriding by just passing an argument 
+instead of having to override the provider.
 
 ## Implementing custom scopes
 
