@@ -146,8 +146,8 @@ class MyContainer(BaseContainer):
 ```
 
 ```python
->> > greeting_sync_fn = MyContainer.greeting.provider_sync
->> > print(greeting_sync_fn())
+>>> greeting_sync_fn = MyContainer.greeting.provider_sync
+>>> print(greeting_sync_fn())
 Hello, Alice!
 ```
 
