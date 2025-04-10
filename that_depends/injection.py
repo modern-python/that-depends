@@ -1,6 +1,8 @@
+import asyncio
 import functools
 import inspect
 import re
+import threading
 import typing
 import warnings
 from contextlib import AsyncExitStack, ExitStack
@@ -67,31 +69,41 @@ def inject(
     return _inject
 
 
-def _resolve_sync(func: typing.Callable[P, T], scope: ContextScope | None, *args: P.args, **kwargs: P.kwargs) -> T:
+_SYNC_SIGNATURE_CACHE: dict[typing.Callable[..., typing.Any], inspect.Signature] = {}
+_THREADING_LOCK = threading.Lock()
+
+
+def _resolve_sync(
+    func: typing.Callable[P, T],
+    scope: ContextScope | None,
+    *args: P.args,
+    **kwargs: P.kwargs,
+) -> T:
+    if func not in _SYNC_SIGNATURE_CACHE:
+        with _THREADING_LOCK:
+            _SYNC_SIGNATURE_CACHE[func] = inspect.signature(func)
+    signature = _SYNC_SIGNATURE_CACHE[func]
+
     injected = False
-    signature: typing.Final = inspect.signature(func)
     context_providers: set[AbstractProvider[typing.Any]] = set()
+
     with ExitStack() as stack:
-        for i, (field_name, field_value) in enumerate(signature.parameters.items()):
-            if i < len(args):
-                continue
-            if not isinstance(field_value.default, AbstractProvider) and not isinstance(
-                field_value.default, StringProviderDefinition
-            ):
-                continue
-            if field_name in kwargs:
-                if isinstance(field_value.default, AbstractProvider | StringProviderDefinition):
+        for i, (field_name, param) in enumerate(signature.parameters.items()):
+            default = param.default
+
+            if i < len(args) or field_name in kwargs:
+                if isinstance(default, (AbstractProvider, StringProviderDefinition)):
                     injected = True
                 continue
-            if isinstance(field_value.default, StringProviderDefinition):
+
+            if isinstance(default, StringProviderDefinition):
+                injected = True
                 kwargs[field_name] = _resolve_provider_with_scope_sync(
-                    field_value.default.provider, scope=scope, stack=stack, providers=context_providers
+                    default.provider, scope, stack, context_providers
                 )
-            else:
-                kwargs[field_name] = _resolve_provider_with_scope_sync(
-                    field_value.default, scope=scope, stack=stack, providers=context_providers
-                )
-            injected = True
+            elif isinstance(default, AbstractProvider):
+                injected = True
+                kwargs[field_name] = _resolve_provider_with_scope_sync(default, scope, stack, context_providers)
 
         if not injected:
             warnings.warn(
@@ -101,46 +113,57 @@ def _resolve_sync(func: typing.Callable[P, T], scope: ContextScope | None, *args
         return func(*args, **kwargs)
 
 
-async def _resolve_async(  # typing: ignore
+_SIGNATURE_CACHE: dict[
+    typing.Callable[..., typing.Coroutine[typing.Any, typing.Any, typing.Any]], inspect.Signature
+] = {}
+
+_ASYNCIO_LOCK = asyncio.Lock()
+
+
+async def _resolve_async(
     func: typing.Callable[P, typing.Coroutine[typing.Any, typing.Any, T]],
     scope: ContextScope | None,
     *args: P.args,
     **kwargs: P.kwargs,
 ) -> T:
+    if func not in _SIGNATURE_CACHE:
+        async with _ASYNCIO_LOCK:
+            _SIGNATURE_CACHE[func] = inspect.signature(func)
+    signature = _SIGNATURE_CACHE[func]
+
     injected = False
-    signature = inspect.signature(func)
     context_providers: set[AbstractProvider[typing.Any]] = set()
+
     async with AsyncExitStack() as stack:
-        for i, (field_name, field_value) in enumerate(signature.parameters.items()):
-            if i < len(args):
-                if isinstance(field_value.default, AbstractProvider | StringProviderDefinition):
+        params = list(signature.parameters.items())
+
+        for i, (field_name, param) in enumerate(params):
+            default = param.default
+
+            if i < len(args) or field_name in kwargs:
+                if isinstance(default, (AbstractProvider, StringProviderDefinition)):
                     injected = True
                 continue
 
-            if not isinstance(field_value.default, AbstractProvider) and not isinstance(
-                field_value.default, StringProviderDefinition
-            ):
-                continue
+            if isinstance(default, StringProviderDefinition):
+                injected = True
+                resolved_val = await _resolve_provider_with_scope_async(
+                    default.provider, scope, stack, context_providers
+                )
+                kwargs[field_name] = resolved_val
+            elif isinstance(default, AbstractProvider):
+                injected = True
+                resolved_val = await _resolve_provider_with_scope_async(default, scope, stack, context_providers)
+                kwargs[field_name] = resolved_val
 
-            if field_name in kwargs:
-                if isinstance(field_value.default, AbstractProvider | StringProviderDefinition):
-                    injected = True
-                continue
-            if isinstance(field_value.default, StringProviderDefinition):
-                kwargs[field_name] = await _resolve_provider_with_scope_async(
-                    field_value.default.provider, scope=scope, stack=stack, providers=context_providers
-                )
-            else:  # AbstractProvider
-                kwargs[field_name] = await _resolve_provider_with_scope_async(
-                    field_value.default, scope=scope, stack=stack, providers=context_providers
-                )
-            injected = True
         if not injected:
             warnings.warn(
                 "Expected injection, but nothing found. Remove @inject decorator.", RuntimeWarning, stacklevel=1
             )
+
         return await func(*args, **kwargs)
-    raise RuntimeError  # pragma: no cover # for mypy, otherwise unreachable
+
+    raise RuntimeError  # pragma: no cover # to prevent mypy issue
 
 
 async def _resolve_provider_with_scope_async(
@@ -162,13 +185,20 @@ async def _add_provider_to_stack_async(
     if provider in providers:
         return
     providers.add(provider)
-    if isinstance(provider, ContextResource) and scope:
-        provider_scope = provider.get_scope()
-        if provider_scope in (ContextScopes.ANY, scope):
-            provider._register_arguments()  # noqa: SLF001
-            for parent in provider._parents:  # noqa: SLF001
-                await _add_provider_to_stack_async(parent, stack, scope, providers)
-            await stack.enter_async_context(provider.context_async(force=True))
+
+    if not (scope and isinstance(provider, ContextResource)):
+        return
+
+    provider_scope = provider.get_scope()
+
+    if provider_scope not in (ContextScopes.ANY, scope):
+        return
+    provider._register_arguments()  # noqa: SLF001
+
+    parents = provider._parents  # noqa: SLF001
+    for parent in parents:
+        await _add_provider_to_stack_async(parent, stack, scope, providers)
+    await stack.enter_async_context(provider.context_async(force=True))
 
 
 def _resolve_provider_with_scope_sync(
@@ -190,13 +220,21 @@ def _add_provider_to_stack_sync(
     if provider in providers:
         return
     providers.add(provider)
-    if isinstance(provider, ContextResource) and scope:
-        provider_scope = provider.get_scope()
-        if provider_scope in (ContextScopes.ANY, scope):
-            provider._register_arguments()  # noqa: SLF001
-            for parent in provider._parents:  # noqa: SLF001
-                _add_provider_to_stack_sync(parent, stack, scope, providers)
-            stack.enter_context(provider.context_sync(force=True))
+
+    if not (scope and isinstance(provider, ContextResource)):
+        return
+
+    provider_scope = provider.get_scope()
+    if provider_scope not in (ContextScopes.ANY, scope):
+        return
+
+    provider._register_arguments()  # noqa: SLF001
+
+    parents = provider._parents  # noqa: SLF001
+    for parent in parents:
+        _add_provider_to_stack_sync(parent, stack, scope, providers)
+
+    stack.enter_context(provider.context_sync(force=True))
 
 
 class StringProviderDefinition:
