@@ -151,7 +151,7 @@ async def test_context_resources_overriding(context_resource: providers.ContextR
     context_resource_result2 = context_resource.resolve_sync()
     assert context_resource_result is context_resource_result2 is context_resource_mock
 
-    DIContainer.reset_override()
+    DIContainer.reset_override_sync()
     with pytest.raises(RuntimeError, match="Context is not set. Use container_context"):
         await context_resource()
 

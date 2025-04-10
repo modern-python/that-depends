@@ -96,7 +96,7 @@ class BaseContainer(metaclass=BaseContainerMeta):
             await container.init_resources()
 
     @classmethod
-    def reset_override(cls) -> None:
+    def reset_override_sync(cls) -> None:
         """Reset all provider overrides."""
         for v in cls.get_providers().values():
             v.reset_override_sync()

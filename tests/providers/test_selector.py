@@ -70,7 +70,7 @@ async def test_selector_provider_overriding() -> None:
     selected_sync = DIContainer.selector.resolve_sync()
     assert selected_async == selected_sync == now
 
-    DIContainer.reset_override()
+    DIContainer.reset_override_sync()
     selector_state.selector_state = "sync_resource"
     selected = DIContainer.selector.resolve_sync()
     sync_resource = DIContainer.sync_resource.resolve_sync()

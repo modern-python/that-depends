@@ -133,7 +133,7 @@ async def test_providers_overriding() -> None:
     assert async_factory is async_factory_mock
     assert obj is object_mock
 
-    container.DIContainer.reset_override()
+    container.DIContainer.reset_override_sync()
     assert (await container.DIContainer.async_resource()) != async_resource_mock
 
 
@@ -162,7 +162,7 @@ async def test_providers_overriding_sync_resolve() -> None:
     assert singleton is singleton_mock
     assert obj is object_mock
 
-    container.DIContainer.reset_override()
+    container.DIContainer.reset_override_sync()
     assert container.DIContainer.sync_resource.resolve_sync() != sync_resource_mock
 
 
