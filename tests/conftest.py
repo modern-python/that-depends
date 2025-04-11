@@ -10,5 +10,5 @@ async def _clear_di_container() -> typing.AsyncIterator[None]:
     try:
         yield
     finally:
-        container.DIContainer.reset_override()
+        container.DIContainer.reset_override_sync()
         await container.DIContainer.tear_down()

@@ -1,14 +1,16 @@
 import abc
 import contextlib
 import inspect
+import threading
 import typing
-from contextlib import contextmanager
+from contextlib import asynccontextmanager, contextmanager
 from operator import attrgetter
 
 import typing_extensions
 from typing_extensions import override
 
 from that_depends.entities.resource_context import ResourceContext
+from that_depends.providers.mixin import SupportsTeardown
 
 
 T_co = typing.TypeVar("T_co", covariant=True)
@@ -23,10 +25,69 @@ ResourceCreatorType: typing.TypeAlias = typing.Callable[
 class AbstractProvider(typing.Generic[T_co], abc.ABC):
     """Base class for all providers."""
 
-    def __init__(self, **kwargs: typing.Any) -> None:  # noqa: ANN401
+    def __init__(self) -> None:
         """Create a new provider."""
-        super().__init__(**kwargs)
+        super().__init__()
+        self._children: set[AbstractProvider[typing.Any]] = set()
+        self._parents: set[AbstractProvider[typing.Any]] = set()
         self._override: typing.Any = None
+        self._lock = threading.Lock()
+
+    def _register(self, candidates: typing.Iterable[typing.Any]) -> None:
+        """Register current provider as child.
+
+        Args:
+            candidates: iterable of potential parent providers.
+
+        Returns:
+            None
+
+        """
+        for candidate in candidates:
+            if isinstance(candidate, AbstractProvider):
+                candidate.add_child_provider(self)
+                self._parents.add(candidate)
+
+    def _deregister(self, candidates: typing.Iterable[typing.Any]) -> None:
+        """Deregister current provider as child.
+
+        Args:
+            candidates: iterable of potential parent providers.
+
+        Returns:
+            None
+
+        """
+        for candidate in candidates:
+            if isinstance(candidate, AbstractProvider) and self in candidate._children:  # noqa: SLF001
+                candidate.remove_child_provider(self)
+                self._parents.discard(candidate)
+
+    def add_child_provider(self, provider: "AbstractProvider[typing.Any]") -> None:
+        """Add a child provider to the current provider.
+
+        Args:
+            provider: provider to add as a child.
+
+        Returns:
+            None
+
+        """
+        with self._lock:
+            self._children.add(provider)
+
+    def remove_child_provider(self, provider: "AbstractProvider[typing.Any]") -> None:
+        """Remove a child provider from the current provider.
+
+        Args:
+            provider: provider to remove as a child.
+
+        Returns:
+            None
+
+        """
+        with self._lock:
+            self._children.discard(provider)
 
     def __deepcopy__(self, *_: object, **__: object) -> typing_extensions.Self:
         """Hack for Litestar to prevent cloning object.
@@ -51,31 +112,58 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
         return AttrGetter(provider=self, attr_name=attr_name)
 
     @abc.abstractmethod
-    async def async_resolve(self) -> T_co:
+    async def resolve(self) -> T_co:
         """Resolve dependency asynchronously."""
 
     @abc.abstractmethod
-    def sync_resolve(self) -> T_co:
+    def resolve_sync(self) -> T_co:
         """Resolve dependency synchronously."""
 
     async def __call__(self) -> T_co:
         """Resolve dependency asynchronously."""
-        return await self.async_resolve()
+        return await self.resolve()
 
-    def override(self, mock: object) -> None:
+    def override_sync(
+        self, mock: object, tear_down_children: bool = False, propagate: bool = True, raise_on_async: bool = False
+    ) -> None:
         """Override the provider with a mock object.
 
         Args:
             mock: object to resolve while the provider is overridden.
+            tear_down_children: tear down child providers.
+            raise_on_async: raise if tear down requires async context.
+            propagate: propagate teardown.
 
         Returns:
             None
 
         """
         self._override = mock
+        if tear_down_children:
+            eligible_children = [child for child in self._children if isinstance(child, SupportsTeardown)]
+            for child in eligible_children:
+                child.tear_down_sync(propagate=propagate, raise_on_async=raise_on_async)
+
+    async def override(self, mock: object, tear_down_children: bool = False, propagate: bool = True) -> None:
+        """Override the provider with a mock object.
+
+        Args:
+            mock: object to resolve while the provider is overridden.
+            tear_down_children: tear down child providers.
+            propagate: propagate teardown.
+
+        Returns:
+            None
+
+        """
+        self._override = mock
+        if tear_down_children:
+            eligible_children = [child for child in self._children if isinstance(child, SupportsTeardown)]
+            for child in eligible_children:
+                await child.tear_down(propagate=propagate)
 
     @contextmanager
-    def override_context(self, mock: object) -> typing.Iterator[None]:
+    def override_context_sync(self, mock: object) -> typing.Iterator[None]:
         """Override the provider with a mock object temporarily.
 
         Args:
@@ -85,19 +173,68 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
             None
 
         """
-        self.override(mock)
+        self.override_sync(mock)
         try:
             yield
         finally:
-            self.reset_override()
+            self.reset_override_sync()
 
-    def reset_override(self) -> None:
+    @asynccontextmanager
+    async def override_context(self, mock: object) -> typing.AsyncIterator[None]:
+        """Override the provider with a mock object temporarily.
+
+        Args:
+            mock: object to resolve while the provider is overridden.
+
+        Returns:
+            None
+
+        """
+        await self.override(mock)
+        try:
+            yield
+        finally:
+            self.reset_override_sync()
+
+    def reset_override_sync(
+        self, tear_down_children: bool = False, propagate: bool = True, raise_on_async: bool = False
+    ) -> None:
         """Reset the provider to its original state.
 
         Use this is you have previously called `override` or `override_context`
         to reset the provider to its original state.
+
+        Args:
+            tear_down_children: tear down all child providers.
+            raise_on_async: raise if an async teardown is necessary.
+            propagate: propagate tear downs.
+
+        Returns:
+            None
+
         """
         self._override = None
+        if tear_down_children:
+            eligible_children = [child for child in self._children if isinstance(child, SupportsTeardown)]
+            for child in eligible_children:
+                child.tear_down_sync(propagate=propagate, raise_on_async=raise_on_async)
+
+    async def reset_override(self, tear_down_children: bool = False, propagate: bool = True) -> None:
+        """Reset the provider to its original state.
+
+        Args:
+            tear_down_children: tear down all child providers.
+            propagate: propagate tear downs.
+
+        Returns:
+            None
+
+        """
+        self._override = None
+        if tear_down_children:
+            eligible_children = [child for child in self._children if isinstance(child, SupportsTeardown)]
+            for child in eligible_children:
+                await child.tear_down(propagate=propagate)
 
     @property
     def cast(self) -> T_co:
@@ -117,6 +254,18 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
 
         """
         return typing.cast(T_co, self)
+
+    async def _tear_down_children(self) -> None:
+        """Tear down all child providers."""
+        eligible_children = [child for child in self._children if isinstance(child, SupportsTeardown)]
+        for child in eligible_children:
+            await child.tear_down()
+
+    def _tear_down_children_sync(self, propagate: bool = True, raise_on_async: bool = True) -> None:
+        """Tear down all child providers."""
+        eligible_children = [child for child in self._children if isinstance(child, SupportsTeardown)]
+        for child in eligible_children:
+            child.tear_down_sync(raise_on_async=raise_on_async, propagate=propagate)
 
 
 class AbstractResource(AbstractProvider[T_co], abc.ABC):
@@ -158,30 +307,34 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
         self._args = args
         self._kwargs = kwargs
 
+    def _register_arguments(self) -> None:
+        self._register(self._args)
+        self._register(self._kwargs.values())
+
+    def _deregister_arguments(self) -> None:
+        self._deregister(self._args)
+        self._deregister(self._kwargs.values())
+
     @abc.abstractmethod
     def _fetch_context(self) -> ResourceContext[T_co]: ...
 
     @override
-    async def async_resolve(self) -> T_co:
+    async def resolve(self) -> T_co:
         if self._override:
             return typing.cast(T_co, self._override)
 
         context = self._fetch_context()
-
-        if context.instance is not None:
-            return context.instance
 
         # lock to prevent race condition while resolving
         async with context.asyncio_lock:
             if context.instance is not None:
                 return context.instance
 
+            self._register_arguments()
+
             cm: typing.ContextManager[T_co] | typing.AsyncContextManager[T_co] = self._creator(
-                *[await x.async_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
-                **{
-                    k: await v.async_resolve() if isinstance(v, AbstractProvider) else v
-                    for k, v in self._kwargs.items()
-                },
+                *[await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
+                **{k: await v.resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
             )
 
             if isinstance(cm, typing.AsyncContextManager):
@@ -198,26 +351,26 @@ class AbstractResource(AbstractProvider[T_co], abc.ABC):
         return context.instance
 
     @override
-    def sync_resolve(self) -> T_co:
+    def resolve_sync(self) -> T_co:
         if self._override:
             return typing.cast(T_co, self._override)
 
         context = self._fetch_context()
-        if context.instance is not None:
-            return context.instance
-
-        if self._is_async:
-            msg = "AsyncResource cannot be resolved synchronously"
-            raise RuntimeError(msg)
 
         # lock to prevent race condition while resolving
         with context.threading_lock:
             if context.instance is not None:
                 return context.instance
 
+            if self._is_async:
+                msg = "AsyncResource cannot be resolved synchronously"
+                raise RuntimeError(msg)
+
+            self._register_arguments()
+
             cm = self._creator(
-                *[x.sync_resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
-                **{k: v.sync_resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
+                *[x.resolve_sync() if isinstance(x, AbstractProvider) else x for x in self._args],
+                **{k: v.resolve_sync() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
             )
             context.context_stack = contextlib.ExitStack()
             context.instance = context.context_stack.enter_context(cm)
@@ -258,13 +411,17 @@ class AttrGetter(
         return self
 
     @override
-    async def async_resolve(self) -> typing.Any:
-        resolved_provider_object = await self._provider.async_resolve()
+    async def resolve(self) -> typing.Any:
+        resolved_provider_object = await self._provider.resolve()
         attribute_path = ".".join(self._attrs)
         return _get_value_from_object_by_dotted_path(resolved_provider_object, attribute_path)
 
     @override
-    def sync_resolve(self) -> typing.Any:
-        resolved_provider_object = self._provider.sync_resolve()
+    def resolve_sync(self) -> typing.Any:
+        resolved_provider_object = self._provider.resolve_sync()
         attribute_path = ".".join(self._attrs)
         return _get_value_from_object_by_dotted_path(resolved_provider_object, attribute_path)
+
+    @override
+    def add_child_provider(self, provider: "AbstractProvider[typing.Any]") -> None:
+        self._provider.add_child_provider(provider)

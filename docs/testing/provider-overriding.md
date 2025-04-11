@@ -54,19 +54,19 @@ def main():
     pg_container = PostgresContainer(image='postgres:alpine3.19')
     pg_container.start()
     db_url = pg_container.get_connection_url()
-    
+
     """
     We override only settings, but this override will also affect the 'sqla_engine' 
     and 'some_sqla_dao' providers because the 'settings' provider is used by them!
     """
     local_testing_settings = Settings(db_url=db_url)
-    DIContainer.settings.override(local_testing_settings)
+    DIContainer.settings.override_sync(local_testing_settings)
 
     try:
         result = exec_query_example()
         assert result == (234,)
     finally:
-        DIContainer.settings.reset_override()
+        DIContainer.settings.reset_override_sync()
         pg_container.stop()
 
 
@@ -82,7 +82,7 @@ affects another provider ('_engine_' and '_some_sqla_dao_').
 
 The example above looked at overriding only one settings provider, 
 but the container also provides the ability to override 
-multiple providers at once with method ```override_providers```. 
+multiple providers at once with method ```override_providers_sync```. 
 
 The code above could remain the same except that 
 the single provider override could be replaced with the following code:
@@ -98,71 +98,12 @@ def main():
         'settings': local_testing_settings,
         # more values...
     }
-    with DIContainer.override_providers(providers_for_overriding):
+    with DIContainer.override_providers_sync(providers_for_overriding):
         try:
             result = exec_query_example()
             assert result == (234,)
         finally:
             pg_container.stop()
-```
-
-## Limitations
-If singleton attribute is used in other singleton or resource and this other provider is initialized,
-then in case of overriding of the first singleton, second one will be cached with original value.
-
-Same with resetting overriding. Here is an example.
-
-```python
-import typing
-from dataclasses import dataclass
-
-from that_depends import Provide, BaseContainer, providers, inject
-
-
-DEFAULT_REDIS_URL: typing.Final = 'url_1'
-MOCK_REDIS_URL: typing.Final = 'url_2'
-
-
-@dataclass
-class Settings:
-    redis_url: str = DEFAULT_REDIS_URL
-
-
-class Redis:
-    def __init__(self, url: str):
-        self.url = url
-
-
-class DIContainer(BaseContainer):
-    settings = providers.Singleton(Settings)
-    redis = providers.Singleton(Redis, url=settings.redis_url)
-
-
-@inject
-def func(redis: Redis = Provide[DIContainer.redis]):
-    return redis.url
-
-
-async def test_case_1():
-    DIContainer.settings.override(Settings(redis_url=MOCK_REDIS_URL))
-
-    assert func() == MOCK_REDIS_URL
-
-    DIContainer.settings.reset_override()
-    # await DIContainer.tear_down()
-
-    assert func() == DEFAULT_REDIS_URL  # ASSERTION ERROR
-
-
-async def test_case_2():
-    assert DIContainer.redis.sync_resolve().url == DEFAULT_REDIS_URL
-
-    DIContainer.settings.override(Settings(redis_url=MOCK_REDIS_URL))
-    # await DIContainer.tear_down()
-
-    redis_url = func()
-    assert redis_url == MOCK_REDIS_URL  # ASSERTION ERROR
-
 ```
 
 ---
@@ -220,11 +161,12 @@ app = Litestar(route_handlers=[router])
 ```
 
 Now we are ready to write tests with **overriding** and this will work with **any types**:
+
 ```python3
 def test_litestar_endpoint_with_overriding() -> None:
     some_service_mock = Mock(do_smth=lambda: "mock func")
 
-    with DIContainer.example_service.override_context(some_service_mock), TestClient(app=app) as client:
+    with DIContainer.example_service.override_context_sync(some_service_mock), TestClient(app=app) as client:
         response = client.get("/router/another-endpoint")
 
     assert response.status_code == 200
@@ -233,3 +175,33 @@ def test_litestar_endpoint_with_overriding() -> None:
 
 More about `Dependency` 
 in the [Litestar documentation](https://docs.litestar.dev/2/usage/dependency-injection.html#the-dependency-function).
+
+---
+
+## Overriding and tear-down
+
+If you have a provider `A` that caches the resolved value, which depends on a provider
+`B` that you wish to override you might experience the following behavior:
+
+```python
+class MyContainer(BaseContainer):
+    B = providers.Singleton(lambda: 1)
+    A = providers.Singleton(lambda x: x, B)
+
+
+a_old = await MyContainer.A()
+
+MyContainer.B.override_sync(32)  # will not reset A's cached value
+
+a_new = await MyContainer.A()
+
+assert a_old != a_new  # raises
+```
+
+This is due to the fact that `A` caches the value and doesn't get reset when you override `B`.
+
+If you wish to fix this you can tell the provider to tear-down children on override:
+
+```python
+MyContainer.B.override_sync(32, tear_down_children=True)
+```

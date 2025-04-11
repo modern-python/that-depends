@@ -6,7 +6,7 @@ from typing import overload
 from typing_extensions import override
 
 from that_depends.meta import BaseContainerMeta
-from that_depends.providers import AbstractProvider, Resource, Singleton
+from that_depends.providers import AbstractProvider, AsyncSingleton, Resource, Singleton
 from that_depends.providers.context_resources import ContextScope, ContextScopes
 
 
@@ -53,13 +53,13 @@ class BaseContainer(metaclass=BaseContainerMeta):
             if inspect.iscoroutinefunction(func):
 
                 async def _async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-                    async with cls.async_context(force=force):
+                    async with cls.context_async(force=force):
                         return await func(*args, **kwargs)  # type: ignore[no-any-return]
 
                 return typing.cast(typing.Callable[P, T], _async_wrapper)
 
             def _sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-                with cls.sync_context(force=force):
+                with cls.context_sync(force=force):
                     return func(*args, **kwargs)
 
             return _sync_wrapper
@@ -89,36 +89,17 @@ class BaseContainer(metaclass=BaseContainerMeta):
     async def init_resources(cls) -> None:
         """Initialize all resources."""
         for provider in cls.get_providers().values():
-            if isinstance(provider, Resource | Singleton):
-                await provider.async_resolve()
+            if isinstance(provider, Resource | Singleton | AsyncSingleton):
+                await provider.resolve()
 
         for container in cls.get_containers():
             await container.init_resources()
 
     @classmethod
-    async def tear_down(cls) -> None:
-        """Tear down all singleton and resource providers."""
-        for provider in reversed(cls.get_providers().values()):
-            if isinstance(provider, Resource | Singleton):
-                await provider.tear_down()
-
-        for container in cls.get_containers():
-            await container.tear_down()
-
-    @classmethod
-    def sync_tear_down(cls) -> None:
-        """Tear down all sync singleton adn resource providers."""
-        for provider in reversed(cls.get_providers().values()):
-            if isinstance(provider, Singleton):
-                provider.sync_tear_down()
-            if isinstance(provider, Resource) and not provider._is_async:  # noqa: SLF001
-                provider.sync_tear_down()
-
-    @classmethod
-    def reset_override(cls) -> None:
+    def reset_override_sync(cls) -> None:
         """Reset all provider overrides."""
         for v in cls.get_providers().values():
-            v.reset_override()
+            v.reset_override_sync()
 
     @classmethod
     def resolver(cls, item: typing.Callable[P, T]) -> typing.Callable[[], typing.Awaitable[T]]:
@@ -151,13 +132,13 @@ class BaseContainer(metaclass=BaseContainerMeta):
                 msg = f"Provider is not found, {field_name=}"
                 raise RuntimeError(msg)
 
-            kwargs[field_name] = await providers[field_name].async_resolve()
+            kwargs[field_name] = await providers[field_name].resolve()
 
         return object_to_resolve(**kwargs)
 
     @classmethod
     @contextmanager
-    def override_providers(cls, providers_for_overriding: dict[str, typing.Any]) -> typing.Iterator[None]:
+    def override_providers_sync(cls, providers_for_overriding: dict[str, typing.Any]) -> typing.Iterator[None]:
         """Override several providers with mocks simultaneously.
 
         Args:
@@ -178,11 +159,11 @@ class BaseContainer(metaclass=BaseContainerMeta):
 
         for provider_name, mock in providers_for_overriding.items():
             provider = current_providers[provider_name]
-            provider.override(mock)
+            provider.override_sync(mock)
 
         try:
             yield
         finally:
             for provider_name in providers_for_overriding:
                 provider = current_providers[provider_name]
-                provider.reset_override()
+                provider.reset_override_sync()

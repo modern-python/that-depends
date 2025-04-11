@@ -36,40 +36,40 @@ async def _tear_down() -> typing.AsyncIterator[None]:
 
 
 async def test_async_resource() -> None:
-    async_resource1 = await DIContainer.async_resource.async_resolve()
-    async_resource2 = DIContainer.async_resource.sync_resolve()
+    async_resource1 = await DIContainer.async_resource.resolve()
+    async_resource2 = DIContainer.async_resource.resolve_sync()
     assert async_resource1 is async_resource2
 
 
 async def test_async_resource_from_class() -> None:
-    async_resource1 = await DIContainer.async_resource_from_class.async_resolve()
-    async_resource2 = DIContainer.async_resource_from_class.sync_resolve()
+    async_resource1 = await DIContainer.async_resource_from_class.resolve()
+    async_resource2 = DIContainer.async_resource_from_class.resolve_sync()
     assert async_resource1 is async_resource2
 
 
 async def test_sync_resource() -> None:
-    sync_resource1 = await DIContainer.sync_resource.async_resolve()
-    sync_resource2 = await DIContainer.sync_resource.async_resolve()
+    sync_resource1 = await DIContainer.sync_resource.resolve()
+    sync_resource2 = await DIContainer.sync_resource.resolve()
     assert sync_resource1 is sync_resource2
 
 
 async def test_sync_resource_from_class() -> None:
-    sync_resource1 = await DIContainer.sync_resource_from_class.async_resolve()
-    sync_resource2 = await DIContainer.sync_resource_from_class.async_resolve()
+    sync_resource1 = await DIContainer.sync_resource_from_class.resolve()
+    sync_resource2 = await DIContainer.sync_resource_from_class.resolve()
     assert sync_resource1 is sync_resource2
 
 
 async def test_async_resource_overridden() -> None:
-    async_resource1 = await DIContainer.sync_resource.async_resolve()
+    async_resource1 = await DIContainer.sync_resource.resolve()
 
-    DIContainer.sync_resource.override("override")
+    DIContainer.sync_resource.override_sync("override")
 
-    async_resource2 = DIContainer.sync_resource.sync_resolve()
-    async_resource3 = await DIContainer.sync_resource.async_resolve()
+    async_resource2 = DIContainer.sync_resource.resolve_sync()
+    async_resource3 = await DIContainer.sync_resource.resolve()
 
-    DIContainer.sync_resource.reset_override()
+    DIContainer.sync_resource.reset_override_sync()
 
-    async_resource4 = DIContainer.sync_resource.sync_resolve()
+    async_resource4 = DIContainer.sync_resource.resolve_sync()
 
     assert async_resource2 is not async_resource1
     assert async_resource2 is async_resource3
@@ -77,16 +77,16 @@ async def test_async_resource_overridden() -> None:
 
 
 async def test_sync_resource_overridden() -> None:
-    sync_resource1 = await DIContainer.sync_resource.async_resolve()
+    sync_resource1 = await DIContainer.sync_resource.resolve()
 
-    DIContainer.sync_resource.override("override")
+    DIContainer.sync_resource.override_sync("override")
 
-    sync_resource2 = DIContainer.sync_resource.sync_resolve()
-    sync_resource3 = await DIContainer.sync_resource.async_resolve()
+    sync_resource2 = DIContainer.sync_resource.resolve_sync()
+    sync_resource3 = await DIContainer.sync_resource.resolve()
 
-    DIContainer.sync_resource.reset_override()
+    DIContainer.sync_resource.reset_override_sync()
 
-    sync_resource4 = DIContainer.sync_resource.sync_resolve()
+    sync_resource4 = DIContainer.sync_resource.resolve_sync()
 
     assert sync_resource2 is not sync_resource1
     assert sync_resource2 is sync_resource3
@@ -136,7 +136,7 @@ async def test_async_resource_asyncio_concurrency() -> None:
 
     resource = providers.Resource(create_resource)
 
-    await asyncio.gather(resource.async_resolve(), resource.async_resolve())
+    await asyncio.gather(resource.resolve(), resource.resolve())
 
     assert calls == 1
 
@@ -153,7 +153,7 @@ async def test_async_resource_async_teardown() -> None:
 
     resource = providers.Resource(_create_resource)
 
-    await resource.async_resolve()
+    await resource.resolve()
 
     await asyncio.gather(*[resource.tear_down() for _ in range(10)])
 
@@ -176,10 +176,10 @@ def test_resource_threading_concurrency() -> None:
 
     with ThreadPoolExecutor(max_workers=4) as pool:
         tasks = [
-            pool.submit(resource.sync_resolve),
-            pool.submit(resource.sync_resolve),
-            pool.submit(resource.sync_resolve),
-            pool.submit(resource.sync_resolve),
+            pool.submit(resource.resolve_sync),
+            pool.submit(resource.resolve_sync),
+            pool.submit(resource.resolve_sync),
+            pool.submit(resource.resolve_sync),
         ]
         results = [x.result() for x in as_completed(tasks)]
 
@@ -188,14 +188,14 @@ def test_resource_threading_concurrency() -> None:
 
 
 def test_sync_resource_sync_tear_down() -> None:
-    DIContainer.sync_resource.sync_resolve()
+    DIContainer.sync_resource.resolve_sync()
     assert DIContainer.sync_resource._context.instance is not None
-    DIContainer.sync_resource.sync_tear_down()
+    DIContainer.sync_resource.tear_down_sync()
     assert DIContainer.sync_resource._context.instance is None
 
 
 async def test_async_resource_sync_tear_down_raises() -> None:
-    await DIContainer.async_resource.async_resolve()
+    await DIContainer.async_resource.resolve()
     assert DIContainer.async_resource._context.instance is not None
     with pytest.raises(RuntimeError):
-        DIContainer.async_resource.sync_tear_down()
+        DIContainer.async_resource.tear_down_sync()

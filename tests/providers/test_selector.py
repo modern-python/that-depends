@@ -51,8 +51,8 @@ async def test_selector_provider_async_missing() -> None:
 
 async def test_selector_provider_sync() -> None:
     selector_state.selector_state = "sync_resource"
-    selected = DIContainer.selector.sync_resolve()
-    sync_resource = DIContainer.sync_resource.sync_resolve()
+    selected = DIContainer.selector.resolve_sync()
+    sync_resource = DIContainer.sync_resource.resolve_sync()
 
     assert selected == sync_resource
 
@@ -60,20 +60,20 @@ async def test_selector_provider_sync() -> None:
 async def test_selector_provider_sync_missing() -> None:
     selector_state.selector_state = "missing"
     with pytest.raises(KeyError, match="Key 'missing' not found in providers"):
-        DIContainer.selector.sync_resolve()
+        DIContainer.selector.resolve_sync()
 
 
 async def test_selector_provider_overriding() -> None:
     now = datetime.datetime.now(tz=datetime.timezone.utc)
-    DIContainer.selector.override(now)
+    DIContainer.selector.override_sync(now)
     selected_async = await DIContainer.selector()
-    selected_sync = DIContainer.selector.sync_resolve()
+    selected_sync = DIContainer.selector.resolve_sync()
     assert selected_async == selected_sync == now
 
-    DIContainer.reset_override()
+    DIContainer.reset_override_sync()
     selector_state.selector_state = "sync_resource"
-    selected = DIContainer.selector.sync_resolve()
-    sync_resource = DIContainer.sync_resource.sync_resolve()
+    selected = DIContainer.selector.resolve_sync()
+    sync_resource = DIContainer.sync_resource.resolve_sync()
     assert selected == sync_resource
 
 
@@ -91,23 +91,23 @@ class SettingsSelectorContainer(BaseContainer):
 
 
 async def test_selector_with_attrgetter_selector_sync() -> None:
-    assert SettingsSelectorContainer.settings.sync_resolve().mode == "one"
-    assert SettingsSelectorContainer.operator.sync_resolve() == "Provider 1"
+    assert SettingsSelectorContainer.settings.resolve_sync().mode == "one"
+    assert SettingsSelectorContainer.operator.resolve_sync() == "Provider 1"
 
-    SettingsSelectorContainer.settings.override(Settings(mode="two"))
-    assert SettingsSelectorContainer.settings.sync_resolve().mode == "two"
-    assert SettingsSelectorContainer.operator.sync_resolve() == "Provider 2"
-    SettingsSelectorContainer.settings.reset_override()
+    SettingsSelectorContainer.settings.override_sync(Settings(mode="two"))
+    assert SettingsSelectorContainer.settings.resolve_sync().mode == "two"
+    assert SettingsSelectorContainer.operator.resolve_sync() == "Provider 2"
+    SettingsSelectorContainer.settings.reset_override_sync()
 
 
 async def test_selector_with_attrgetter_selector_async() -> None:
-    assert (await SettingsSelectorContainer.settings.async_resolve()).mode == "one"
-    assert (await SettingsSelectorContainer.operator.async_resolve()) == "Provider 1"
+    assert (await SettingsSelectorContainer.settings.resolve()).mode == "one"
+    assert (await SettingsSelectorContainer.operator.resolve()) == "Provider 1"
 
-    SettingsSelectorContainer.settings.override(Settings(mode="two"))
-    assert (await SettingsSelectorContainer.settings.async_resolve()).mode == "two"
-    assert (await SettingsSelectorContainer.operator.async_resolve()) == "Provider 2"
-    SettingsSelectorContainer.settings.reset_override()
+    SettingsSelectorContainer.settings.override_sync(Settings(mode="two"))
+    assert (await SettingsSelectorContainer.settings.resolve()).mode == "two"
+    assert (await SettingsSelectorContainer.operator.resolve()) == "Provider 2"
+    SettingsSelectorContainer.settings.reset_override_sync()
 
 
 class StringSelectorContainer(BaseContainer):
@@ -119,8 +119,8 @@ class StringSelectorContainer(BaseContainer):
 
 
 async def test_selector_with_fixed_string() -> None:
-    assert StringSelectorContainer.selector.sync_resolve() == "Provider 1"
-    assert (await StringSelectorContainer.selector.async_resolve()) == "Provider 1"
+    assert StringSelectorContainer.selector.resolve_sync() == "Provider 1"
+    assert (await StringSelectorContainer.selector.resolve()) == "Provider 1"
 
 
 async def mode_one() -> str:
@@ -137,7 +137,7 @@ class StringProviderSelectorContainer(BaseContainer):
 
 
 async def test_selector_with_provider_selector_async() -> None:
-    assert (await StringProviderSelectorContainer.selector.async_resolve()) == "Provider 1"
+    assert (await StringProviderSelectorContainer.selector.resolve()) == "Provider 1"
 
 
 class InvalidSelectorContainer(BaseContainer):
@@ -152,9 +152,9 @@ async def test_selector_with_invalid_selector() -> None:
     with pytest.raises(
         TypeError, match="Invalid selector type: <class 'NoneType'>, expected str, or a provider/callable returning str"
     ):
-        InvalidSelectorContainer.selector.sync_resolve()
+        InvalidSelectorContainer.selector.resolve_sync()
 
     with pytest.raises(
         TypeError, match="Invalid selector type: <class 'NoneType'>, expected str, or a provider/callable returning str"
     ):
-        await InvalidSelectorContainer.selector.async_resolve()
+        await InvalidSelectorContainer.selector.resolve()

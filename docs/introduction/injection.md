@@ -14,7 +14,7 @@ When you want to use a provider in a function, you can mark a parameter’s **de
 my_param = Provide[MyContainer.some_provider]
 ```
 
-You then decorate the function with `@inject`. This tells the framework to look for parameters whose default values are wrapped in `Provide[...]` and resolve them automatically.
+You then decorate the function with `@inject`. This tells `that-depends` to automatically resolve providers when you call your function.
 
 ---
 
@@ -26,11 +26,10 @@ Below is a simple example demonstrating how to define a container, declare a pro
 
 ```python
 from that_depends import BaseContainer
-from that_depends.providers import Singleton, Factory
+from that_depends.providers import Singleton
 
 class MyContainer(BaseContainer):
     greeting_provider = Singleton(lambda: "Hello from MyContainer")
-    number_factory = Factory(lambda: 42)
 ```
 For more details on Containers, refer to the [Containers](ioc-container.md) documentation.
 
@@ -48,7 +47,6 @@ Here:
 
 1. We used `@inject` above `greet_user`.
 2. We declared a parameter `greeting`, whose default value is `Provide[MyContainer.greeting_provider]`.
-3. The `@inject` decorator sees `Provide[...]`, looks up `MyContainer.greeting_provider`, and **injects** its resolved value.
 
 ### 3. Call the Function
 
@@ -60,27 +58,10 @@ print(greet_user())  # "Greeting: Hello from MyContainer"
 
 ## The `@inject` Decorator in Detail
 
-### Decorator Signature
-
-```python
-@inject
-def your_function(...):
-    ...
-
-@inject(scope=ContextScope | None)
-def your_function(...):
-    ...
-```
-
-- **`scope`** (optional): A `ContextScope` indicating which scope to enter (e.g., `ContextScopes.REQUEST`, `ContextScopes.INJECT`, `ContextScopes.APP`). By default, `@inject` uses `ContextScopes.INJECT`.
-- **`@inject` with no arguments** defaults to `scope=ContextScopes.INJECT`.
-- You **cannot** use `ContextScopes.ANY` with `@inject`; attempting to do so will raise a `ValueError`.
-
-For more details regarding scopes and context management, see the [Context Resources](../providers/context-resources.md) documentation and the [Scopes](scopes.md) documentation.
 
 ### Synchronous vs Asynchronous Functions
 
-`@inject` works on both sync and async functions. For an asynchronous function, the decorator will handle async context management (via `async with`) before calling the function. For example:
+`@inject` works on both sync and async functions. Just note that injecting async providers into sync functions is not supported.
 
 ```python
 @inject
@@ -103,9 +84,7 @@ def greet_user_direct(
     return f"Greeting: {greeting}"
 ```
 
-1. Notice that although `greeting` is a `str`, `mypy` and you IDE will not complain.
-
-The framework automatically recognizes the `Provide[...]` value, resolves the provider, and passes it as the argument.
+Notice that although `greeting` is a `str`, `mypy` and you IDE will not complain.
 
 ---
 
@@ -134,9 +113,11 @@ def greet_user(greeting: str = Provide[MyContainer.greeting_provider]):
 
 When `greet_user` is called, **that-depends**:
 
-1. Enters a resource context with scope `REQUEST`.
-2. Resolves all providers that allow usage within `REQUEST` (or `ANY`).
+1. Initializes the context for all `REQUEST` (or `ANY`) scoped `args` and `kwargs`.
+2. Resolves all providers in the `args` and `kwargs` of the function.
 3. Calls your function with the resolved dependencies.
+
+For more details regarding scopes and context management, see the [Context Resources](../providers/context-resources.md) documentation and the [Scopes](scopes.md) documentation.
 
 ---
 
@@ -147,7 +128,7 @@ In tests or specialized scenarios, you may want to override a provider’s value
 ```python
 def test_greet_override():
     # Override the greeting_provider with a mock value
-    with MyContainer.override_providers({"greeting_provider": "TestHello"}):
+    with MyContainer.override_providers_sync({"greeting_provider": "TestHello"}):
         result = greet_user()
         assert result == "Greeting: TestHello"
 ```
@@ -161,7 +142,7 @@ For more details on overring providers, see the [Overriding Providers](../testin
 ## Frequently Asked Questions
 
 1. **Do I need to call `@inject` every time I reference a provider?**  
-   No—only when you want **automatic** injection of providers into function parameters. If you are resolving dependencies manually (e.g., `MyContainer.greeting_provider.sync_resolve()`), then `@inject` is not needed.
+   No—only when you want **automatic** injection of providers into function parameters. If you are resolving dependencies manually (e.g., `MyContainer.greeting_provider.resolve_sync()`), then `@inject` is not needed.
 
    2. **What if I provide a custom argument to a parameter that has a default provider?**  
       If you explicitly pass a value, that value overrides the injected default:
