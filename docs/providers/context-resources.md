@@ -207,11 +207,12 @@ async with container_context(MyContainer):
 ### Resolving resources whenever a function is called
 
 `ContextResource.context()` can also be used as a decorator:
+
 ```python
-@MyContainer.session.context  # wrap with a session-specific context
+@MyContainer._context_provider.context  # wrap with a session-specific context
 @inject
-async def insert_into_database(session=Provide[MyContainer.session]):
-    ...
+async def insert_into_database(session=Provide[MyContainer._context_provider]):
+   ...
 ```
 Each time you call `await insert_into_database()`, a new instance of `session` will be injected.
 

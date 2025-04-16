@@ -10,7 +10,7 @@ import typing_extensions
 from typing_extensions import override
 
 from that_depends.entities.resource_context import ResourceContext
-from that_depends.providers.mixin import SupportsTeardown
+from that_depends.providers.mixin import ProviderWithArguments, SupportsTeardown
 
 
 T_co = typing.TypeVar("T_co", covariant=True)
@@ -268,7 +268,7 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
             child.tear_down_sync(raise_on_async=raise_on_async, propagate=propagate)
 
 
-class AbstractResource(AbstractProvider[T_co], abc.ABC):
+class AbstractResource(ProviderWithArguments, AbstractProvider[T_co], abc.ABC):
     """Base class for Resource providers."""
 
     def __init__(
@@ -384,9 +384,20 @@ def _get_value_from_object_by_dotted_path(obj: typing.Any, path: str) -> typing.
 
 
 class AttrGetter(
+    ProviderWithArguments,
     AbstractProvider[T_co],
 ):
     """Provides an attribute after resolving the wrapped provider."""
+
+    def _register_arguments(self) -> None:
+        if isinstance(self._provider, ProviderWithArguments):
+            self._provider._register_arguments()  # noqa: SLF001
+        self._parents = self._provider._parents  # noqa: SLF001
+
+    def _deregister_arguments(self) -> None:
+        if isinstance(self._provider, ProviderWithArguments):
+            self._provider._deregister_arguments()  # noqa: SLF001
+        self._parents = self._provider._parents  # noqa: SLF001
 
     __slots__ = "_attrs", "_provider"
 

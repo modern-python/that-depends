@@ -11,6 +11,7 @@ from that_depends.container import BaseContainer
 from that_depends.meta import BaseContainerMeta
 from that_depends.providers import AbstractProvider, ContextResource
 from that_depends.providers.context_resources import ContextScope, ContextScopes
+from that_depends.providers.mixin import ProviderWithArguments
 
 
 P = typing.ParamSpec("P")
@@ -186,19 +187,20 @@ async def _add_provider_to_stack_async(
         return
     providers.add(provider)
 
-    if not (scope and isinstance(provider, ContextResource)):
+    if not scope:
         return
 
-    provider_scope = provider.get_scope()
+    if isinstance(provider, ProviderWithArguments):
+        provider._register_arguments()  # noqa: SLF001
 
-    if provider_scope not in (ContextScopes.ANY, scope):
-        return
-    provider._register_arguments()  # noqa: SLF001
+        parents = provider._parents  # noqa: SLF001
+        for parent in parents:
+            await _add_provider_to_stack_async(parent, stack, scope, providers)
 
-    parents = provider._parents  # noqa: SLF001
-    for parent in parents:
-        await _add_provider_to_stack_async(parent, stack, scope, providers)
-    await stack.enter_async_context(provider.context_async(force=True))
+    if isinstance(provider, ContextResource):
+        provider_scope = provider.get_scope()
+        if provider_scope in (ContextScopes.ANY, scope):
+            await stack.enter_async_context(provider.context_async(force=True))
 
 
 def _resolve_provider_with_scope_sync(
@@ -221,20 +223,19 @@ def _add_provider_to_stack_sync(
         return
     providers.add(provider)
 
-    if not (scope and isinstance(provider, ContextResource)):
+    if not scope:
         return
+    if isinstance(provider, ProviderWithArguments):
+        provider._register_arguments()  # noqa: SLF001
 
-    provider_scope = provider.get_scope()
-    if provider_scope not in (ContextScopes.ANY, scope):
-        return
+        parents = provider._parents  # noqa: SLF001
+        for parent in parents:
+            _add_provider_to_stack_sync(parent, stack, scope, providers)
 
-    provider._register_arguments()  # noqa: SLF001
-
-    parents = provider._parents  # noqa: SLF001
-    for parent in parents:
-        _add_provider_to_stack_sync(parent, stack, scope, providers)
-
-    stack.enter_context(provider.context_sync(force=True))
+    if isinstance(provider, ContextResource):
+        provider_scope = provider.get_scope()
+        if provider_scope in (ContextScopes.ANY, scope):
+            stack.enter_context(provider.context_sync(force=True))
 
 
 class StringProviderDefinition:

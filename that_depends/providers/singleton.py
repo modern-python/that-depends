@@ -7,14 +7,14 @@ import typing
 from typing_extensions import override
 
 from that_depends.providers.base import AbstractProvider
-from that_depends.providers.mixin import SupportsTeardown
+from that_depends.providers.mixin import ProviderWithArguments, SupportsTeardown
 
 
 T_co = typing.TypeVar("T_co", covariant=True)
 P = typing.ParamSpec("P")
 
 
-class Singleton(SupportsTeardown, AbstractProvider[T_co]):
+class Singleton(ProviderWithArguments, SupportsTeardown, AbstractProvider[T_co]):
     """A provider that creates an instance once and caches it for subsequent injections.
 
     This provider is safe to use concurrently in both threading and asyncio contexts.
@@ -122,7 +122,7 @@ class Singleton(SupportsTeardown, AbstractProvider[T_co]):
             self._tear_down_children_sync(propagate=propagate, raise_on_async=raise_on_async)
 
 
-class AsyncSingleton(SupportsTeardown, AbstractProvider[T_co]):
+class AsyncSingleton(ProviderWithArguments, SupportsTeardown, AbstractProvider[T_co]):
     """A provider that creates an instance asynchronously and caches it for subsequent injections.
 
     This provider is safe to use concurrently in asyncio contexts. On the first call

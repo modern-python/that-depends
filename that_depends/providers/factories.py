@@ -4,13 +4,14 @@ import typing
 from typing_extensions import override
 
 from that_depends.providers.base import AbstractProvider
+from that_depends.providers.mixin import ProviderWithArguments
 
 
 T_co = typing.TypeVar("T_co", covariant=True)
 P = typing.ParamSpec("P")
 
 
-class AbstractFactory(AbstractProvider[T_co], abc.ABC):
+class AbstractFactory(ProviderWithArguments, AbstractProvider[T_co], abc.ABC):
     """Base class for all factories.
 
     This class defines the interface for factories that provide
@@ -72,6 +73,13 @@ class Factory(AbstractFactory[T_co]):
 
     """
 
+    def _register_arguments(self) -> None:
+        self._register(self._args)
+        self._register(self._kwargs.values())
+
+    def _deregister_arguments(self) -> None:
+        raise NotImplementedError
+
     __slots__ = "_args", "_factory", "_kwargs", "_override"
 
     def __init__(self, factory: typing.Callable[P, T_co], *args: P.args, **kwargs: P.kwargs) -> None:
@@ -87,8 +95,7 @@ class Factory(AbstractFactory[T_co]):
         self._factory: typing.Final = factory
         self._args: typing.Final = args
         self._kwargs: typing.Final = kwargs
-        self._register(self._args)
-        self._register(self._kwargs.values())
+        self._register_arguments()
 
     @override
     async def resolve(self) -> T_co:
@@ -137,6 +144,13 @@ class AsyncFactory(AbstractFactory[T_co]):
 
     """
 
+    def _register_arguments(self) -> None:
+        self._register(self._args)
+        self._register(self._kwargs.values())
+
+    def _deregister_arguments(self) -> None:
+        raise NotImplementedError
+
     __slots__ = "_args", "_factory", "_kwargs", "_override"
 
     def __init__(self, factory: typing.Callable[P, typing.Awaitable[T_co]], *args: P.args, **kwargs: P.kwargs) -> None:
@@ -153,8 +167,7 @@ class AsyncFactory(AbstractFactory[T_co]):
         self._factory: typing.Final = factory
         self._args: typing.Final = args
         self._kwargs: typing.Final = kwargs
-        self._register(self._args)
-        self._register(self._kwargs.values())
+        self._register_arguments()
 
     @override
     async def resolve(self) -> T_co:

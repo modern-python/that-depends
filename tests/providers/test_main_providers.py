@@ -21,6 +21,13 @@ async def test_factory_providers() -> None:
     assert isinstance(async_factory, datetime.datetime)
 
 
+async def test_factories_cannot_deregister_arguments() -> None:
+    with pytest.raises(NotImplementedError):
+        DIContainer.simple_factory._deregister_arguments()
+    with pytest.raises(NotImplementedError):
+        DIContainer.async_factory._deregister_arguments()
+
+
 async def test_async_resource_provider() -> None:
     async_resource = await DIContainer.async_resource()
 

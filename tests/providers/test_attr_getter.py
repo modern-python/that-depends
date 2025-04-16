@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 
 import pytest
 
-from that_depends import providers
+from that_depends import BaseContainer, providers
 from that_depends.providers.base import _get_value_from_object_by_dotted_path
 from that_depends.providers.context_resources import container_context
 
@@ -158,3 +158,24 @@ async def test_attr_getter_with_invalid_attribute_async(
         some_async_settings_provider.nested1_attr.__another_private__  # noqa: B018
     with pytest.raises(AttributeError):
         some_async_settings_provider.nested1_attr._final_private_  # noqa: B018
+
+
+def test_attr_getter_deregister_arguments() -> None:
+    class _Item:
+        def __init__(self, v: float) -> None:
+            self.v = v
+
+    class _Container(BaseContainer):
+        parent = providers.Singleton(lambda: random.random())
+        child = providers.Singleton(_Item, parent.cast)
+
+    attr_getter = _Container.child.v
+
+    attr_getter._register_arguments()
+
+    assert attr_getter.resolve_sync() == _Container.parent.resolve_sync()
+    assert _Container.parent in attr_getter._parents
+
+    attr_getter._deregister_arguments()
+
+    assert _Container.parent not in attr_getter._parents

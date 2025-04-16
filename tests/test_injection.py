@@ -500,3 +500,41 @@ async def test_inject_scope_does_not_init_context_for_out_of_scope_dependents_sy
     with _Container.parent.context_sync(force=True):
         parent_value = _Container.parent.resolve_sync()
         assert _injected() == parent_value
+
+
+async def test_inject_scope_creates_new_context_for_parents_of_non_context_resource_async() -> None:
+    async def _creator() -> typing.AsyncIterator[float]:
+        yield random.random()
+
+    class _Factory:
+        def __init__(self, v: float) -> None:
+            self.v = v
+
+    class Container(BaseContainer):
+        _context_provider = providers.ContextResource(_creator).with_config(scope=ContextScopes.INJECT)
+        _factory_provider = providers.Factory(_Factory, _context_provider.cast)
+
+    @inject
+    async def injected(repo: _Factory = Provide[Container._factory_provider]) -> float:
+        return repo.v
+
+    assert isinstance(await injected(), float)
+
+
+def test_inject_scope_creates_new_context_for_parents_of_non_context_resource_sync() -> None:
+    def _creator() -> typing.Iterator[float]:
+        yield random.random()
+
+    class DocumentRepository:
+        def __init__(self, v: float) -> None:
+            self.v = v
+
+    class _Container(BaseContainer):
+        _context_provider = providers.ContextResource(_creator).with_config(scope=ContextScopes.INJECT)
+        _factory_provider = providers.Factory(DocumentRepository, _context_provider.cast)
+
+    @inject
+    def injected(repo: DocumentRepository = Provide[_Container._factory_provider]) -> float:
+        return repo.v
+
+    assert isinstance(injected(), float)
