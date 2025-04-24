@@ -46,7 +46,7 @@ def create_fastapi_route_class(
         scope: scope to enter before on request.
 
     Returns:
-        type[FastAPIRouteType]: A custom fastapi route class.
+        type[APIRoute]: A custom fastapi route class.
 
     """
 
