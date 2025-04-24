@@ -84,6 +84,9 @@ markdown_extensions:
       use_pygments: true
   - attr_list
   - md_in_html
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
 
 extra_css:
   - css/code.css

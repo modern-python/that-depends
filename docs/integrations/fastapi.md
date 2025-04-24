@@ -2,11 +2,11 @@
 
 ## Installation
 
-```bash
-pip install that-depends fastapi uvicorn
-```
+To use **`that-depends`** with FastAPI, you need to install the package with the `fastapi` extra. You can do this using pip:
 
-(You likely already have `fastapi` and `uvicorn` if you are building FastAPI services.)
+```bash
+pip install that-depends[fastapi]
+```
 
 ---
 
@@ -33,7 +33,75 @@ Here, `MyContainer.current_time` is a provider that, when called, creates a new 
 
 ---
 
+## Using a custom Router class
+
+You can use the `create_fastapi_route_class()` method to create custom Route class for your application:
+
+```python
+from that_depends.integrations.fastapi import create_fastapi_route_class
+
+my_route_class = create_fastapi_route_class()
+```
+
+You can then use this class in your `FastAPI` router:
+```python
+
+from fastapi import APIRouter
+
+router = APIRouter(route_class=my_route_class)
+```
+
+This will enable you to use dependency injection in your `FastAPI` endpoints:
+
+> **Note**: If you don't want to use the custom router class, you can make use of `fastapi.Depends` instead.
+
+
+=== "Router class"
+    ```python
+    from that_depends import Provide
+    
+    @router.get("/time")
+    async def get_time(current_time: datetime.datetime = Provide[MyContainer.current_time]) -> datetime.datetime:
+        return current_time
+    ```
+
+=== "Router class with string provider"
+    ```python
+    from that_depends import Provide
+    
+    @router.get("/time")
+    async def get_time(current_time: datetime.datetime = Provide["MyContainer.current_time"]) -> datetime.datetime:
+        return current_time
+    ```
+
+=== "Using fastapi.Depends"
+    ```python
+    from fastapi import Depends
+    
+    @router.get("/time")
+    async def get_time(current_time: datetime.datetime = Depends(MyContainer.current_time)) -> datetime.datetime:
+        return current_time
+    ```
+
+### Managing container context
+
+If you wish to initialize the container context you can simply pass arguments to `create_fastapi_route_class()`:
+
+```python
+my_route_class = create_fastapi_route_class(Container, global_context={"key": "value"}, scope=ContextScopes.REQUEST)
+```
+
+In the above example, all `ContextResources` in our container that are `REQUEST` scoped will be initialized
+and the global context will be set.
+
+
+
 ## Integrating with FastAPI Using DIContextMiddleware
+
+The `DIContextMiddleware` is can be used to manage context, but its features overlap with the [custom router class](#using-the-a-custom-router-class).
+The main advantage of using middleware is that you can set it up for your entire `FastAPI` application.
+
+> **Note:** If you want to use both the `DIContextMiddleware` and the custom router class, you should not pass any arguments to `create_fastapi_route_class()`.
 
 ### Setting Up the FastAPI App
 
