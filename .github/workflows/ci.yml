@@ -34,8 +34,8 @@ jobs:
           - "3.13"
     steps:
       - uses: actions/checkout@v4
-      - uses: extractions/setup-just@v2
-      - uses: astral-sh/setup-uv@v5
+      - uses: extractions/setup-just@v3
+      - uses: astral-sh/setup-uv@v6
         with:
           cache-dependency-glob: "**/pyproject.toml"
       - run: uv python install ${{ matrix.python-version }}
