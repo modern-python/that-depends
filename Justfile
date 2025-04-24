@@ -2,7 +2,7 @@ default: install lint test
 
 install:
     uv lock --upgrade
-    uv sync --only-dev --frozen
+    uv sync --all-extras --frozen
     @just hook
 
 lint:

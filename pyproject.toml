@@ -21,6 +21,11 @@ packages = [
     { include = "that_depends" },
 ]
 
+[project.optional-dependencies]
+fastapi = [
+    "fastapi",
+]
+
 [project.urls]
 repository = "https://github.com/modern-python/that-depends"
 docs = "https://that-depends.readthedocs.io"
@@ -37,7 +42,6 @@ dev = [
     "typing-extensions",
     "pre-commit",
     # integrations tests
-    "fastapi",
     "litestar",
     "faststream[nats]",
     "mkdocs>=1.6.1",
