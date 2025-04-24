@@ -84,7 +84,7 @@ def greet_user_direct(
     return f"Greeting: {greeting}"
 ```
 
-Notice that although `greeting` is a `str`, `mypy` and you IDE will not complain.
+1. Notice that although `greeting` is a `str`, `mypy` and you IDE will not complain.
 
 ---
 

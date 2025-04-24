@@ -16,9 +16,14 @@ supports the following:
 
 ## Installation
 
-```bash
-pip install that-depends
-```
+=== "pip"
+    ```bash
+    pip install that-depends
+    ```
+=== "uv"
+    ```bash
+    uv add that-depends
+    ```
 
 ---
 
@@ -53,6 +58,7 @@ await Container.provider()
 ### Inject providers in function arguments
 ```python
 from that_depends import inject, Provide
+
 @inject
 async def some_foo(value: str = Provide[Container.provider]):
     return value
