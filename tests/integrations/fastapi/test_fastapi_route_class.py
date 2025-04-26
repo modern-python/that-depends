@@ -147,7 +147,56 @@ async def test_endpoint_with_string_provider_async() -> None:
     assert response_value == client.get("/hello").json()
 
 
-def test_endpoint_with_string_provider_sync() -> None:
+async def test_endpoint_with_string_provider_sync() -> None:
+    app = FastAPI()
+
+    router = APIRouter(route_class=create_fastapi_route_class(Container, scope=ContextScopes.REQUEST))
+
+    @router.get("/hello")
+    def _injected(v_3: float = Provide["fastapi_route_class_container.provider"]) -> float:
+        return v_3
+
+    app.include_router(router)
+
+    client = TestClient(app)
+
+    response = client.get("/hello")
+
+    response_value = response.json()
+
+    assert response.status_code == HTTPStatus.OK
+    assert response_value == _FACTORY_RETURN_VALUE
+
+    assert response_value == client.get("/hello").json()
+
+
+def test_adjust_fastapi_endpoint_async() -> None:
+    async def _injected(
+        v_1: float,
+        v_3: float = Provide["fastapi_route_class_container.provider"],
+        v_2: float = Depends(Container.provider),
+    ) -> float:
+        return v_1 + v_3 + v_2  # pragma: no cover
+
+    original_signature = signature(_injected)
+    original_hints = get_type_hints(_injected)
+
+    adjusted_endpoint = _adjust_fastapi_endpoint(_injected)
+
+    adjusted_sig = signature(adjusted_endpoint)
+    adjusted_hints = get_type_hints(adjusted_endpoint)
+
+    assert len(original_hints) == len(adjusted_hints)
+    assert len(original_signature.parameters) == len(adjusted_sig.parameters)
+    assert original_hints.get("v_1") == adjusted_hints.get("v_1")
+    assert original_hints.get("v_2") == adjusted_hints.get("v_2")
+    assert original_hints.get("v_3") != adjusted_hints.get("v_3")
+    assert original_signature.parameters.get("v_1") == adjusted_sig.parameters.get("v_1")
+    assert original_signature.parameters.get("v_2") == adjusted_sig.parameters.get("v_2")
+    assert original_signature.parameters.get("v_3") != adjusted_sig.parameters.get("v_3")
+
+
+def test_adjust_fastapi_endpoint_sync() -> None:
     def _injected(
         v_1: float,
         v_3: float = Provide["fastapi_route_class_container.provider"],
