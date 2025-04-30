@@ -80,7 +80,9 @@ def inject(  # noqa: C901
                     "Expected injection, but nothing found. Remove @inject decorator.", RuntimeWarning, stacklevel=1
                 )
 
-            yield from gen(*args, **kwargs)
+            g = gen(*args, **kwargs)
+            result = yield from g  # The result is the value from the Stopiteration exception from g
+            return result
 
         return inner
 

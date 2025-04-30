@@ -688,3 +688,88 @@ async def test_simple_override_injection_into_iterator_async() -> None:
     async with _injected(override_value) as val:
         assert isinstance(val, float)
         assert val == override_value
+
+
+def test_simple_injection_into_generator_with_receive_sync() -> None:
+    class _Container(BaseContainer):
+        sync_resource = providers.Factory(lambda: random.random())
+
+    value_to_send = 5
+
+    @inject
+    def _injected_receive(initial_val: float = Provide[_Container.sync_resource]) -> typing.Generator[float, int, None]:
+        received_value: int = yield initial_val
+        yield initial_val * received_value
+
+    gen = _injected_receive()
+
+    first_yield = next(gen)
+    assert isinstance(first_yield, float)
+    assert 0 <= first_yield <= 1.0
+
+    second_yield = gen.send(value_to_send)
+    assert isinstance(second_yield, float)
+    assert abs(second_yield - (first_yield * value_to_send)) < 1e-9  # noqa: PLR2004
+
+    with pytest.raises(StopIteration):
+        next(gen)
+
+
+def test_simple_injection_into_generator_with_return_sync() -> None:
+    class _Container(BaseContainer):
+        sync_resource = providers.Factory(lambda: random.random())
+
+    multiplier = 4
+
+    @inject
+    def _injected_return(
+        val: float = Provide[_Container.sync_resource],
+    ) -> typing.Generator[float, None, str]:  # Yields float, Receives None, Returns str
+        yield val
+        return_value = f"Final result: {val * multiplier}"
+        return return_value
+
+    gen = _injected_return()
+
+    first_yield = next(gen)
+    assert isinstance(first_yield, float)
+    assert 0 <= first_yield <= 1.0
+
+    with pytest.raises(StopIteration) as excinfo:
+        next(gen)
+
+    final_result = excinfo.value.value
+    assert isinstance(final_result, str)
+    expected_return = f"Final result: {first_yield * multiplier}"
+    assert final_result == expected_return
+
+
+def test_simple_injection_into_generator_yield_once_receive_return_sync() -> None:  # Renamed test slightly
+    class _Container(BaseContainer):
+        sync_resource = providers.Factory(lambda: random.random())
+
+    send_value = 7
+    return_add = 100
+
+    @inject
+    def _injected_combined(val: float = Provide[_Container.sync_resource]) -> typing.Generator[float, int, float]:
+        received: int = yield val
+
+        final_return_value = val + received + return_add
+
+        return final_return_value
+
+    gen = _injected_combined()
+
+    y1 = next(gen)
+    assert isinstance(y1, float)
+    assert 0 <= y1 <= 1.0
+
+    with pytest.raises(StopIteration) as excinfo:
+        gen.send(send_value)
+
+    returned_value = excinfo.value.value
+    assert isinstance(returned_value, float)
+
+    expected_return = y1 + send_value + return_add
+    assert abs(returned_value - expected_return) < 1e-9  # noqa: PLR2004
