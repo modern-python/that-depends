@@ -55,10 +55,10 @@ def inject(  # noqa: C901
         return _inject_to_sync(func)
 
     def _inject_to_sync_gen(
-        gen: typing.Callable[P, typing.Generator[T, typing.Any]],
-    ) -> typing.Callable[P, typing.Generator[T, typing.Any]]:
+        gen: typing.Callable[P, typing.Generator[T, typing.Any, typing.Any]],
+    ) -> typing.Callable[P, typing.Generator[T, typing.Any, typing.Any]]:
         @functools.wraps(gen)
-        def inner(*args: P.args, **kwargs: P.kwargs) -> typing.Generator[T, typing.Generator[T, typing.Any]]:
+        def inner(*args: P.args, **kwargs: P.kwargs) -> typing.Generator[T, typing.Any, typing.Any]:
             signature = inspect.signature(gen)
             injected = False
             for i, (field_name, param) in enumerate(signature.parameters.items()):

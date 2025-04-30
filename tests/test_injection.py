@@ -103,7 +103,7 @@ def test_sync_empty_injection() -> None:
         """Do nothing."""
 
     @inject
-    def inner_gen(_: int) -> typing.Generator[int, None]:
+    def inner_gen(_: int) -> typing.Generator[int, None, None]:
         """Do nothing."""
         yield _  # pragma: no cover
 
@@ -595,7 +595,7 @@ def test_simple_injection_into_generator_sync() -> None:
         sync_resource = providers.Factory(lambda: random.random())
 
     @inject
-    def _injected(val: float = Provide["_Container.sync_resource"]) -> typing.Generator[float]:
+    def _injected(val: float = Provide["_Container.sync_resource"]) -> typing.Generator[float, None, None]:
         yield val
         yield val * 2
         yield val * 3
@@ -634,7 +634,7 @@ def test_create_context_fails_during_injection_into_generator_sync() -> None:
         sync_resource = providers.ContextResource(_sync_resource)
 
     @inject
-    def _injected(val: float = Provide[_Container.sync_resource]) -> typing.Generator[float]:
+    def _injected(val: float = Provide[_Container.sync_resource]) -> typing.Generator[float, None, None]:
         yield val  # pragma: no cover
 
     with pytest.raises(ContextProviderError):
