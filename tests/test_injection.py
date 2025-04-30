@@ -615,7 +615,7 @@ async def test_simple_injection_into_generator_async() -> None:
         async_resource = providers.AsyncFactory(_async_creator)
 
     @inject
-    async def _injected(val: float = Provide["_Container.async_resource"]) -> typing.AsyncGenerator[float]:
+    async def _injected(val: float = Provide["_Container.async_resource"]) -> typing.AsyncGenerator[float, None]:
         yield val
         yield val * 2
         yield val * _max_multiplier
