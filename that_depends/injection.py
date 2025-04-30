@@ -47,10 +47,42 @@ def inject(  # noqa: C901
     ) -> typing.Callable[P, T]:
         if inspect.isasyncgenfunction(func):
             return typing.cast(typing.Callable[P, T], _inject_to_async_gen(func))
+        if inspect.isgeneratorfunction(func):
+            return typing.cast(typing.Callable[P, T], _inject_to_sync_gen(func))
         if inspect.iscoroutinefunction(func):
             return typing.cast(typing.Callable[P, T], _inject_to_async(func))
 
         return _inject_to_sync(func)
+
+    def _inject_to_sync_gen(
+        gen: typing.Callable[P, typing.Generator[T, typing.Any]],
+    ) -> typing.Callable[P, typing.Generator[T, typing.Any]]:
+        @functools.wraps(gen)
+        def inner(*args: P.args, **kwargs: P.kwargs) -> typing.Generator[T, typing.Generator[T, typing.Any]]:
+            signature = inspect.signature(gen)
+            injected = False
+            for i, (field_name, param) in enumerate(signature.parameters.items()):
+                default = param.default
+                if i < len(args) or field_name in kwargs:
+                    if isinstance(default, (AbstractProvider, StringProviderDefinition)):
+                        injected = True
+                    continue
+
+                if isinstance(default, StringProviderDefinition):
+                    injected = True
+                    kwargs[field_name] = _resolve_provider_with_scope_sync(default.provider, scope, None, set())
+                elif isinstance(default, AbstractProvider):
+                    injected = True
+                    kwargs[field_name] = _resolve_provider_with_scope_sync(default, scope, None, set())
+
+            if not injected:
+                warnings.warn(
+                    "Expected injection, but nothing found. Remove @inject decorator.", RuntimeWarning, stacklevel=1
+                )
+
+            yield from gen(*args, **kwargs)
+
+        return inner
 
     def _inject_to_async_gen(
         gen: typing.Callable[P, typing.AsyncGenerator[T, typing.Any]],
@@ -68,10 +100,10 @@ def inject(  # noqa: C901
 
                 if isinstance(default, StringProviderDefinition):
                     injected = True
-                    kwargs[field_name] = await _resolve_provider_with_scope_async(default.provider, None, None, set())
+                    kwargs[field_name] = await _resolve_provider_with_scope_async(default.provider, scope, None, set())
                 elif isinstance(default, AbstractProvider):
                     injected = True
-                    kwargs[field_name] = await _resolve_provider_with_scope_async(default, None, None, set())
+                    kwargs[field_name] = await _resolve_provider_with_scope_async(default, scope, None, set())
 
             if not injected:
                 warnings.warn(
@@ -243,25 +275,28 @@ async def _add_provider_to_stack_async(
 
     if not scope:
         return
-
     if isinstance(provider, ProviderWithArguments):
         provider._register_arguments()  # noqa: SLF001
 
         parents = provider._parents  # noqa: SLF001
         for parent in parents:
             await _add_provider_to_stack_async(parent, stack, scope, providers)
-    if stack is None:
-        raise ContextProviderError
     if isinstance(provider, ContextResource):
         provider_scope = provider.get_scope()
         if provider_scope in (ContextScopes.ANY, scope):
+            if stack is None:
+                msg = (
+                    f"No stack exists, cannot initialize context for {provider} using scope {scope}.\n"
+                    f"Note: @inject cannot initialize context for ContextResources when wrapping a generator."
+                )
+                raise ContextProviderError(msg)
             await stack.enter_async_context(provider.context_async(force=True))
 
 
 def _resolve_provider_with_scope_sync(
     provider: AbstractProvider[T],
     scope: ContextScope | None,
-    stack: ExitStack,
+    stack: ExitStack | None,
     providers: set[AbstractProvider[typing.Any]],
 ) -> T:
     _add_provider_to_stack_sync(provider, stack, scope, providers)
@@ -270,7 +305,7 @@ def _resolve_provider_with_scope_sync(
 
 def _add_provider_to_stack_sync(
     provider: AbstractProvider[T],
-    stack: ExitStack,
+    stack: ExitStack | None,
     scope: ContextScope | None,
     providers: set[AbstractProvider[typing.Any]],
 ) -> None:
@@ -290,6 +325,12 @@ def _add_provider_to_stack_sync(
     if isinstance(provider, ContextResource):
         provider_scope = provider.get_scope()
         if provider_scope in (ContextScopes.ANY, scope):
+            if stack is None:
+                msg = (
+                    f"No stack exists, cannot initialize context for {provider} using scope {scope}.\n"
+                    f"Note: @inject cannot initialize context for ContextResources when wrapping a generator."
+                )
+                raise ContextProviderError(msg)
             stack.enter_context(provider.context_sync(force=True))
 
 
