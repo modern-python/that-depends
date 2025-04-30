@@ -3,13 +3,14 @@ import datetime
 import random
 import typing
 import warnings
+from contextlib import asynccontextmanager, contextmanager
 from unittest.mock import Mock
 
 import pytest
 
 from tests import container
 from that_depends import BaseContainer, ContextScopes, Provide, inject, providers
-from that_depends.injection import StringProviderDefinition
+from that_depends.injection import ContextProviderError, StringProviderDefinition
 
 
 @pytest.fixture(name="fixture_one")
@@ -59,10 +60,18 @@ async def test_empty_injection() -> None:
     async def inner(_: int) -> None:
         """Do nothing."""
 
+    @inject
+    async def inner_gen(_: int) -> typing.AsyncGenerator[int, None]:
+        """Do nothing."""
+        yield _  # pragma: no cover
+
     warnings.filterwarnings("error")
 
     with pytest.raises(RuntimeWarning, match="Expected injection, but nothing found. Remove @inject decorator."):
         await inner(1)
+
+    with pytest.raises(RuntimeWarning, match="Expected injection, but nothing found. Remove @inject decorator."):
+        await anext(inner_gen(1))
 
 
 @inject
@@ -93,10 +102,18 @@ def test_sync_empty_injection() -> None:
     def inner(_: int) -> None:
         """Do nothing."""
 
+    @inject
+    def inner_gen(_: int) -> typing.Generator[int, None]:
+        """Do nothing."""
+        yield _  # pragma: no cover
+
     warnings.filterwarnings("error")
 
     with pytest.raises(RuntimeWarning, match="Expected injection, but nothing found. Remove @inject decorator."):
         inner(1)
+
+    with pytest.raises(RuntimeWarning, match="Expected injection, but nothing found. Remove @inject decorator."):
+        next(inner_gen(1))
 
 
 def test_type_check() -> None:
@@ -538,3 +555,136 @@ def test_inject_scope_creates_new_context_for_parents_of_non_context_resource_sy
         return repo.v
 
     assert isinstance(injected(), float)
+
+
+def test_simple_injection_into_iterator_sync() -> None:
+    class _Container(BaseContainer):
+        sync_resource = providers.Factory(lambda: random.random())
+
+    @contextmanager
+    @inject
+    def _injected(val: float = Provide[_Container.sync_resource]) -> typing.Iterator[float]:
+        yield val
+
+    with _injected() as val:
+        assert isinstance(val, float)
+        assert 0 <= val <= 1
+
+
+async def test_simple_injection_into_iterator_async() -> None:
+    async def _async_creator() -> float:
+        return random.random()
+
+    class _Container(BaseContainer):
+        async_resource = providers.AsyncFactory(_async_creator)
+
+    @asynccontextmanager
+    @inject
+    async def _injected(val: float = Provide[_Container.async_resource]) -> typing.AsyncIterator[float]:
+        yield val
+
+    async with _injected() as val:
+        assert isinstance(val, float)
+        assert 0 <= val <= 1
+
+
+def test_simple_injection_into_generator_sync() -> None:
+    _max_multiplier = 3
+
+    class _Container(BaseContainer):
+        sync_resource = providers.Factory(lambda: random.random())
+
+    @inject
+    def _injected(val: float = Provide["_Container.sync_resource"]) -> typing.Generator[float]:
+        yield val
+        yield val * 2
+        yield val * 3
+
+    for val in _injected():
+        assert isinstance(val, float)
+        assert 0 <= val <= _max_multiplier
+
+
+async def test_simple_injection_into_generator_async() -> None:
+    _max_multiplier = 3
+
+    async def _async_creator() -> float:
+        return random.random()
+
+    class _Container(BaseContainer):
+        async_resource = providers.AsyncFactory(_async_creator)
+
+    @inject
+    async def _injected(val: float = Provide["_Container.async_resource"]) -> typing.AsyncGenerator[float]:
+        yield val
+        yield val * 2
+        yield val * _max_multiplier
+
+    async for val in _injected():
+        assert isinstance(val, float)
+        assert 0 <= val <= _max_multiplier
+
+
+def test_create_context_fails_during_injection_into_generator_sync() -> None:
+    def _sync_resource() -> typing.Iterator[float]:
+        yield random.random()  # pragma: no cover
+
+    class _Container(BaseContainer):
+        default_scope = ContextScopes.INJECT
+        sync_resource = providers.ContextResource(_sync_resource)
+
+    @inject
+    def _injected(val: float = Provide[_Container.sync_resource]) -> typing.Generator[float]:
+        yield val  # pragma: no cover
+
+    with pytest.raises(ContextProviderError):
+        next(_injected())
+
+
+async def test_create_context_fails_during_injection_into_generator_async() -> None:
+    async def _async_resource() -> typing.AsyncIterator[float]:
+        yield random.random()  # pragma: no cover
+
+    class _Container(BaseContainer):
+        default_scope = ContextScopes.INJECT
+        sync_resource = providers.ContextResource(_async_resource)
+
+    @inject
+    async def _injected(val: float = Provide[_Container.sync_resource]) -> typing.AsyncGenerator[float, None]:
+        yield val  # pragma: no cover
+
+    with pytest.raises(ContextProviderError):
+        await anext(_injected())
+
+
+def test_simple_override_injection_into_iterator_sync() -> None:
+    class _Container(BaseContainer):
+        sync_resource = providers.Factory(lambda: random.random())
+
+    @contextmanager
+    @inject
+    def _injected(val: float = Provide[_Container.sync_resource]) -> typing.Iterator[float]:
+        yield val
+
+    override_value = 10.0
+    with _injected(val=override_value) as val:
+        assert isinstance(val, float)
+        assert val == override_value
+
+
+async def test_simple_override_injection_into_iterator_async() -> None:
+    async def _async_creator() -> float:
+        return random.random()  # pragma: no cover
+
+    class _Container(BaseContainer):
+        async_resource = providers.AsyncFactory(_async_creator)
+
+    @asynccontextmanager
+    @inject
+    async def _injected(val: float = Provide[_Container.async_resource]) -> typing.AsyncIterator[float]:
+        yield val
+
+    override_value = 10.0
+    async with _injected(override_value) as val:
+        assert isinstance(val, float)
+        assert val == override_value
