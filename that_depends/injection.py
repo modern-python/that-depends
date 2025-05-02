@@ -81,7 +81,7 @@ def inject(  # noqa: C901
                 )
 
             g = gen(*args, **kwargs)
-            result = yield from g  # The result is the value from the Stopiteration exception from g
+            result = yield from g
             return result
 
         return inner
