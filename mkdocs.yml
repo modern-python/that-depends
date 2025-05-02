@@ -7,11 +7,12 @@ nav:
   - Introduction:
       - Containers: introduction/ioc-container.md
       - Dependency Injection: introduction/injection.md
-      - Scopes: introduction/scopes.md
+      - Generator Injection: introduction/generator-injection.md
       - String Injection: introduction/string-injection.md
-      - Multiple Containers: introduction/multiple-containers.md
-      - Application Settings: introduction/application-settings.md
+      - Scopes: introduction/scopes.md
       - Tear-down: introduction/tear-down.md
+      - Multiple Containers: introduction/multiple-containers.md
+
   - Providers:
       - Collections: providers/collections.md
       - Context-Resources: providers/context-resources.md
