@@ -9,7 +9,7 @@ from unittest.mock import Mock
 import pytest
 
 from tests import container
-from that_depends import BaseContainer, ContextScopes, Provide, inject, providers
+from that_depends import BaseContainer, ContextScopes, Provide, container_context, inject, providers
 from that_depends.injection import ContextProviderError, StringProviderDefinition
 
 
@@ -807,3 +807,41 @@ async def test_injection_into_generator_with_context_resource_dependency_raises_
 
     with pytest.raises(ContextProviderError):
         await anext(_injected())
+
+
+def test_injection_into_generator_with_context_resource_different_scope_sync() -> None:
+    def _sync_resource() -> typing.Iterator[float]:
+        yield random.random()  # pragma: no cover
+
+    class _Container(BaseContainer):
+        default_scope = ContextScopes.REQUEST
+        sync_resource = providers.ContextResource(_sync_resource)
+        dependent = providers.Factory(lambda x: x, sync_resource.cast)
+
+    @inject
+    def _injected(val: float = Provide[_Container.dependent]) -> typing.Generator[float, None, None]:
+        yield val  # pragma: no cover
+
+    with _Container.sync_resource.context_sync(force=True):
+        return_value = next(_injected())
+    assert isinstance(return_value, float)
+    assert 0 <= return_value <= 1
+
+
+async def test_injection_into_generator_with_context_resource_different_scope_async() -> None:
+    async def _async_resource() -> typing.AsyncIterator[float]:
+        yield random.random()  # pragma: no cover
+
+    class _Container(BaseContainer):
+        default_scope = ContextScopes.REQUEST
+        sync_resource = providers.ContextResource(_async_resource)
+
+    @inject(scope=ContextScopes.APP)
+    async def _injected(val: float = Provide[_Container.sync_resource]) -> typing.AsyncGenerator[float, None]:
+        yield val  # pragma: no cover
+
+    async with container_context(scope=ContextScopes.REQUEST):
+        return_value = await anext(_injected())
+
+    assert isinstance(return_value, float)
+    assert 0 <= return_value <= 1
