@@ -3,13 +3,14 @@ import datetime
 import random
 import typing
 import warnings
+from contextlib import asynccontextmanager, contextmanager
 from unittest.mock import Mock
 
 import pytest
 
 from tests import container
-from that_depends import BaseContainer, ContextScopes, Provide, inject, providers
-from that_depends.injection import StringProviderDefinition
+from that_depends import BaseContainer, ContextScopes, Provide, container_context, inject, providers
+from that_depends.injection import ContextProviderError, StringProviderDefinition
 
 
 @pytest.fixture(name="fixture_one")
@@ -59,10 +60,18 @@ async def test_empty_injection() -> None:
     async def inner(_: int) -> None:
         """Do nothing."""
 
+    @inject
+    async def inner_gen(_: int) -> typing.AsyncGenerator[int, None]:
+        """Do nothing."""
+        yield _  # pragma: no cover
+
     warnings.filterwarnings("error")
 
     with pytest.raises(RuntimeWarning, match="Expected injection, but nothing found. Remove @inject decorator."):
         await inner(1)
+
+    with pytest.raises(RuntimeWarning, match="Expected injection, but nothing found. Remove @inject decorator."):
+        await anext(inner_gen(1))
 
 
 @inject
@@ -93,10 +102,18 @@ def test_sync_empty_injection() -> None:
     def inner(_: int) -> None:
         """Do nothing."""
 
+    @inject
+    def inner_gen(_: int) -> typing.Generator[int, None, None]:
+        """Do nothing."""
+        yield _  # pragma: no cover
+
     warnings.filterwarnings("error")
 
     with pytest.raises(RuntimeWarning, match="Expected injection, but nothing found. Remove @inject decorator."):
         inner(1)
+
+    with pytest.raises(RuntimeWarning, match="Expected injection, but nothing found. Remove @inject decorator."):
+        next(inner_gen(1))
 
 
 def test_type_check() -> None:
@@ -538,3 +555,293 @@ def test_inject_scope_creates_new_context_for_parents_of_non_context_resource_sy
         return repo.v
 
     assert isinstance(injected(), float)
+
+
+def test_simple_injection_into_iterator_sync() -> None:
+    class _Container(BaseContainer):
+        sync_resource = providers.Factory(lambda: random.random())
+
+    @contextmanager
+    @inject
+    def _injected(val: float = Provide[_Container.sync_resource]) -> typing.Iterator[float]:
+        yield val
+
+    with _injected() as val:
+        assert isinstance(val, float)
+        assert 0 <= val <= 1
+
+
+async def test_simple_injection_into_iterator_async() -> None:
+    async def _async_creator() -> float:
+        return random.random()
+
+    class _Container(BaseContainer):
+        async_resource = providers.AsyncFactory(_async_creator)
+
+    @asynccontextmanager
+    @inject
+    async def _injected(val: float = Provide[_Container.async_resource]) -> typing.AsyncIterator[float]:
+        yield val
+
+    async with _injected() as val:
+        assert isinstance(val, float)
+        assert 0 <= val <= 1
+
+
+def test_simple_injection_into_generator_sync() -> None:
+    _max_multiplier = 3
+
+    class _Container(BaseContainer):
+        sync_resource = providers.Factory(lambda: random.random())
+
+    @inject
+    def _injected(val: float = Provide["_Container.sync_resource"]) -> typing.Generator[float, None, None]:
+        yield val
+        yield val * 2
+        yield val * 3
+
+    for val in _injected():
+        assert isinstance(val, float)
+        assert 0 <= val <= _max_multiplier
+
+
+async def test_simple_injection_into_generator_async() -> None:
+    _max_multiplier = 3
+
+    async def _async_creator() -> float:
+        return random.random()
+
+    class _Container(BaseContainer):
+        async_resource = providers.AsyncFactory(_async_creator)
+
+    @inject
+    async def _injected(val: float = Provide["_Container.async_resource"]) -> typing.AsyncGenerator[float, None]:
+        yield val
+        yield val * 2
+        yield val * _max_multiplier
+
+    async for val in _injected():
+        assert isinstance(val, float)
+        assert 0 <= val <= _max_multiplier
+
+
+def test_create_context_fails_during_injection_into_generator_sync() -> None:
+    def _sync_resource() -> typing.Iterator[float]:
+        yield random.random()  # pragma: no cover
+
+    class _Container(BaseContainer):
+        default_scope = ContextScopes.INJECT
+        sync_resource = providers.ContextResource(_sync_resource)
+
+    @inject
+    def _injected(val: float = Provide[_Container.sync_resource]) -> typing.Generator[float, None, None]:
+        yield val  # pragma: no cover
+
+    with pytest.raises(ContextProviderError):
+        next(_injected())
+
+
+async def test_create_context_fails_during_injection_into_generator_async() -> None:
+    async def _async_resource() -> typing.AsyncIterator[float]:
+        yield random.random()  # pragma: no cover
+
+    class _Container(BaseContainer):
+        default_scope = ContextScopes.INJECT
+        sync_resource = providers.ContextResource(_async_resource)
+
+    @inject
+    async def _injected(val: float = Provide[_Container.sync_resource]) -> typing.AsyncGenerator[float, None]:
+        yield val  # pragma: no cover
+
+    with pytest.raises(ContextProviderError):
+        await anext(_injected())
+
+
+def test_simple_override_injection_into_iterator_sync() -> None:
+    class _Container(BaseContainer):
+        sync_resource = providers.Factory(lambda: random.random())
+
+    @contextmanager
+    @inject
+    def _injected(val: float = Provide[_Container.sync_resource]) -> typing.Iterator[float]:
+        yield val
+
+    override_value = 10.0
+    with _injected(val=override_value) as val:
+        assert isinstance(val, float)
+        assert val == override_value
+
+
+async def test_simple_override_injection_into_iterator_async() -> None:
+    async def _async_creator() -> float:
+        return random.random()  # pragma: no cover
+
+    class _Container(BaseContainer):
+        async_resource = providers.AsyncFactory(_async_creator)
+
+    @asynccontextmanager
+    @inject
+    async def _injected(val: float = Provide[_Container.async_resource]) -> typing.AsyncIterator[float]:
+        yield val
+
+    override_value = 10.0
+    async with _injected(override_value) as val:
+        assert isinstance(val, float)
+        assert val == override_value
+
+
+def test_simple_injection_into_generator_with_receive_sync() -> None:
+    class _Container(BaseContainer):
+        sync_resource = providers.Factory(lambda: random.random())
+
+    value_to_send = 5
+
+    @inject
+    def _injected_receive(initial_val: float = Provide[_Container.sync_resource]) -> typing.Generator[float, int, None]:
+        received_value: int = yield initial_val
+        yield initial_val * received_value
+
+    gen = _injected_receive()
+
+    first_yield = next(gen)
+    assert isinstance(first_yield, float)
+    assert 0 <= first_yield <= 1.0
+
+    second_yield = gen.send(value_to_send)
+    assert isinstance(second_yield, float)
+    assert abs(second_yield - (first_yield * value_to_send)) < 1e-9  # noqa: PLR2004
+
+    with pytest.raises(StopIteration):
+        next(gen)
+
+
+def test_simple_injection_into_generator_with_return_sync() -> None:
+    class _Container(BaseContainer):
+        sync_resource = providers.Factory(lambda: random.random())
+
+    multiplier = 4
+
+    @inject
+    def _injected_return(
+        val: float = Provide[_Container.sync_resource],
+    ) -> typing.Generator[float, None, str]:  # Yields float, Receives None, Returns str
+        yield val
+        return_value = f"Final result: {val * multiplier}"
+        return return_value
+
+    gen = _injected_return()
+
+    first_yield = next(gen)
+    assert isinstance(first_yield, float)
+    assert 0 <= first_yield <= 1.0
+
+    with pytest.raises(StopIteration) as excinfo:
+        next(gen)
+
+    final_result = excinfo.value.value
+    assert isinstance(final_result, str)
+    expected_return = f"Final result: {first_yield * multiplier}"
+    assert final_result == expected_return
+
+
+def test_simple_injection_into_generator_yield_once_receive_return_sync() -> None:  # Renamed test slightly
+    class _Container(BaseContainer):
+        sync_resource = providers.Factory(lambda: random.random())
+
+    send_value = 7
+    return_add = 100
+
+    @inject
+    def _injected_combined(val: float = Provide[_Container.sync_resource]) -> typing.Generator[float, int, float]:
+        received: int = yield val
+
+        final_return_value = val + received + return_add
+
+        return final_return_value
+
+    gen = _injected_combined()
+
+    y1 = next(gen)
+    assert isinstance(y1, float)
+    assert 0 <= y1 <= 1.0
+
+    with pytest.raises(StopIteration) as excinfo:
+        gen.send(send_value)
+
+    returned_value = excinfo.value.value
+    assert isinstance(returned_value, float)
+
+    expected_return = y1 + send_value + return_add
+    assert abs(returned_value - expected_return) < 1e-9  # noqa: PLR2004
+
+
+def test_injection_into_generator_with_context_resource_dependency_raises_sync() -> None:
+    def _sync_resource() -> typing.Iterator[float]:
+        yield random.random()  # pragma: no cover
+
+    class _Container(BaseContainer):
+        default_scope = ContextScopes.INJECT
+        sync_resource = providers.ContextResource(_sync_resource)
+        dependent = providers.Factory(lambda x: x, sync_resource.cast)
+
+    @inject
+    def _injected(val: float = Provide[_Container.dependent]) -> typing.Generator[float, None, None]:
+        yield val  # pragma: no cover
+
+    with pytest.raises(ContextProviderError):
+        next(_injected())
+
+
+async def test_injection_into_generator_with_context_resource_dependency_raises_async() -> None:
+    async def _async_resource() -> typing.AsyncIterator[float]:
+        yield random.random()  # pragma: no cover
+
+    class _Container(BaseContainer):
+        default_scope = ContextScopes.INJECT
+        sync_resource = providers.ContextResource(_async_resource)
+        dependent = providers.Factory(lambda x: x, sync_resource.cast)
+
+    @inject
+    async def _injected(val: float = Provide[_Container.dependent]) -> typing.AsyncGenerator[float, None]:
+        yield val  # pragma: no cover
+
+    with pytest.raises(ContextProviderError):
+        await anext(_injected())
+
+
+def test_injection_into_generator_with_context_resource_different_scope_sync() -> None:
+    def _sync_resource() -> typing.Iterator[float]:
+        yield random.random()  # pragma: no cover
+
+    class _Container(BaseContainer):
+        default_scope = ContextScopes.REQUEST
+        sync_resource = providers.ContextResource(_sync_resource)
+        dependent = providers.Factory(lambda x: x, sync_resource.cast)
+
+    @inject
+    def _injected(val: float = Provide[_Container.dependent]) -> typing.Generator[float, None, None]:
+        yield val  # pragma: no cover
+
+    with _Container.sync_resource.context_sync(force=True):
+        return_value = next(_injected())
+    assert isinstance(return_value, float)
+    assert 0 <= return_value <= 1
+
+
+async def test_injection_into_generator_with_context_resource_different_scope_async() -> None:
+    async def _async_resource() -> typing.AsyncIterator[float]:
+        yield random.random()  # pragma: no cover
+
+    class _Container(BaseContainer):
+        default_scope = ContextScopes.REQUEST
+        sync_resource = providers.ContextResource(_async_resource)
+
+    @inject(scope=ContextScopes.APP)
+    async def _injected(val: float = Provide[_Container.sync_resource]) -> typing.AsyncGenerator[float, None]:
+        yield val  # pragma: no cover
+
+    async with container_context(scope=ContextScopes.REQUEST):
+        return_value = await anext(_injected())
+
+    assert isinstance(return_value, float)
+    assert 0 <= return_value <= 1

@@ -98,7 +98,7 @@ and the global context will be set.
 
 ## Integrating with FastAPI Using DIContextMiddleware
 
-The `DIContextMiddleware` is can be used to manage context, but its features overlap with the [custom router class](#using-the-a-custom-router-class).
+The `DIContextMiddleware` can be used to manage context, but its features overlap with the [custom router class](#using-a-custom-router-class).
 The main advantage of using middleware is that you can set it up for your entire `FastAPI` application.
 
 > **Note:** If you want to use both the `DIContextMiddleware` and the custom router class, you should not pass any arguments to `create_fastapi_route_class()`.
