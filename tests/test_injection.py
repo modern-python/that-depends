@@ -773,3 +773,37 @@ def test_simple_injection_into_generator_yield_once_receive_return_sync() -> Non
 
     expected_return = y1 + send_value + return_add
     assert abs(returned_value - expected_return) < 1e-9  # noqa: PLR2004
+
+
+def test_injection_into_generator_with_context_resource_dependency_raises_sync() -> None:
+    def _sync_resource() -> typing.Iterator[float]:
+        yield random.random()  # pragma: no cover
+
+    class _Container(BaseContainer):
+        default_scope = ContextScopes.INJECT
+        sync_resource = providers.ContextResource(_sync_resource)
+        dependent = providers.Factory(lambda x: x, sync_resource.cast)
+
+    @inject
+    def _injected(val: float = Provide[_Container.dependent]) -> typing.Generator[float, None, None]:
+        yield val  # pragma: no cover
+
+    with pytest.raises(ContextProviderError):
+        next(_injected())
+
+
+async def test_injection_into_generator_with_context_resource_dependency_raises_async() -> None:
+    async def _async_resource() -> typing.AsyncIterator[float]:
+        yield random.random()  # pragma: no cover
+
+    class _Container(BaseContainer):
+        default_scope = ContextScopes.INJECT
+        sync_resource = providers.ContextResource(_async_resource)
+        dependent = providers.Factory(lambda x: x, sync_resource.cast)
+
+    @inject
+    async def _injected(val: float = Provide[_Container.dependent]) -> typing.AsyncGenerator[float, None]:
+        yield val  # pragma: no cover
+
+    with pytest.raises(ContextProviderError):
+        await anext(_injected())
