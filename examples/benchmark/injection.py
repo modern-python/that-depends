@@ -41,4 +41,4 @@ def _bench(n_iterations: int) -> float:
 if __name__ == "__main__":
     for n in [10000, 100000, 1000000]:
         duration = _bench(n)
-        logger.info(f"Injected {n} times in {duration:.2f} seconds")  # noqa: G004
+        logger.info(f"Injected {n} times in {duration:.4f} seconds")  # noqa: G004
