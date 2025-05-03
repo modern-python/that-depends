@@ -25,7 +25,7 @@ You can use the `@inject` decorator to inject dependencies into generator functi
         yield value
     ```
 
-=== "async iterator"
+=== "async context manager"
 
     ```python
     @contextlib.asynccontextmanager
@@ -34,7 +34,7 @@ You can use the `@inject` decorator to inject dependencies into generator functi
         yield value
     ```
 
-=== "sync iterator"
+=== "sync context manager"
 
     ```python
     @contextlib.contextmanager
