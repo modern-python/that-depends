@@ -845,3 +845,136 @@ async def test_injection_into_generator_with_context_resource_different_scope_as
 
     assert isinstance(return_value, float)
     assert 0 <= return_value <= 1
+
+
+def test_injection_by_type_sync() -> None:
+    class _Container(BaseContainer):
+        sync_resource = providers.Factory(lambda: random.random()).bind(float)
+
+    @inject(container=_Container)
+    def _injected_1(val: float = Provide()) -> float:
+        return val
+
+    @_Container.inject
+    def _injected_2(val: float = Provide()) -> float:
+        return val
+
+    assert isinstance(_injected_1(), float)
+    assert isinstance(_injected_2(), float)
+
+
+async def test_injection_by_type_async() -> None:
+    class _Container(BaseContainer):
+        sync_resource = providers.Factory(lambda: random.random()).bind(float)
+
+    @inject(container=_Container)
+    async def _injected_1(val: float = Provide()) -> float:
+        return val
+
+    @_Container.inject
+    async def _injected_2(val: float = Provide()) -> float:
+        return val
+
+    assert isinstance(await _injected_1(), float)
+    assert isinstance(await _injected_2(), float)
+
+
+async def test_injection_by_type_async_generator() -> None:
+    class _Container(BaseContainer):
+        sync_resource = providers.Factory(lambda: random.random()).bind(float)
+
+    @inject(container=_Container)
+    async def _injected_1(val: float = Provide()) -> typing.AsyncGenerator[float, None]:
+        yield val
+
+    @_Container.inject
+    async def _injected_2(val: float = Provide()) -> typing.AsyncGenerator[float, None]:
+        yield val
+
+    assert isinstance(await anext(_injected_1()), float)
+    assert isinstance(await anext(_injected_2()), float)
+
+
+def test_injection_by_type_sync_generator() -> None:
+    class _Container(BaseContainer):
+        sync_resource = providers.Factory(lambda: random.random()).bind(float)
+
+    @inject(container=_Container)
+    def _injected_1(val: float = Provide()) -> typing.Generator[float, None, None]:
+        yield val
+
+    @_Container.inject
+    def _injected_2(val: float = Provide()) -> typing.Generator[float, None, None]:
+        yield val
+
+    assert isinstance(next(_injected_1()), float)
+    assert isinstance(next(_injected_2()), float)
+
+
+def test_inject_by_type_fails_with_no_container_sync() -> None:
+    @inject
+    def _injected_1(val: float = Provide()) -> float:
+        return val  # pragma: no cover
+
+    @inject
+    def _injected_2(val: float = Provide()) -> typing.Generator[float, None, None]:
+        yield val  # pragma: no cover
+
+    with pytest.raises(RuntimeError):
+        _injected_1()
+
+    with pytest.raises(RuntimeError):
+        next(_injected_2())
+
+
+async def test_inject_by_type_fails_with_no_container_async() -> None:
+    @inject
+    async def _injected_1(val: float = Provide()) -> float:
+        return val  # pragma: no cover
+
+    @inject
+    async def _injected_2(val: float = Provide()) -> typing.AsyncGenerator[float, None]:
+        yield val  # pragma: no cover
+
+    with pytest.raises(RuntimeError):
+        await _injected_1()
+
+    with pytest.raises(RuntimeError):
+        await anext(_injected_2())
+
+
+def test_inject_by_type_fails_if_type_is_not_bound_sync() -> None:
+    class _Container(BaseContainer):
+        sync_resource = providers.Factory(lambda: random.random()).bind(float)
+
+    @_Container.inject
+    def _injected_1(val: int = Provide()) -> float:
+        return val  # pragma: no cover
+
+    @inject(container=_Container)
+    def _injected_2(val: int = Provide()) -> typing.Generator[float, None, None]:
+        yield val  # pragma: no cover
+
+    with pytest.raises(RuntimeError):
+        _injected_1()
+
+    with pytest.raises(RuntimeError):
+        next(_injected_2())
+
+
+async def test_inject_by_type_fails_if_type_is_not_bound_async() -> None:
+    class _Container(BaseContainer):
+        sync_resource = providers.Factory(lambda: random.random()).bind(float)
+
+    @_Container.inject
+    async def _injected_1(val: int = Provide()) -> float:
+        return val  # pragma: no cover
+
+    @inject(container=_Container)
+    async def _injected_2(val: int = Provide()) -> typing.AsyncGenerator[float, None]:
+        yield val  # pragma: no cover
+
+    with pytest.raises(RuntimeError):
+        await _injected_1()
+    with pytest.raises(RuntimeError):
+        await anext(_injected_2())
