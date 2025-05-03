@@ -31,7 +31,13 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
         self._children: set[AbstractProvider[typing.Any]] = set()
         self._parents: set[AbstractProvider[typing.Any]] = set()
         self._override: typing.Any = None
+        self._bindings: set[type] = set()
         self._lock = threading.Lock()
+
+    def bind(self, *types: type) -> typing_extensions.Self:
+        """Bind the provider to a set of types."""
+        self._bindings = set(types)
+        return self
 
     def _register(self, candidates: typing.Iterable[typing.Any]) -> None:
         """Register current provider as child.

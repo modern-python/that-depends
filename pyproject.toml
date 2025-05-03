@@ -71,6 +71,8 @@ extend-exclude = [
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
+    "PLR0915", # too many statements
+    "C901", # too complex
     "D100", # ignore missing module docstrings.
     "D105", # ignore missing docstrings in magic methods.
     "S101", # allow asserts
