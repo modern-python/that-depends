@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import functools
 import inspect
 import re
@@ -22,6 +23,10 @@ class ContextProviderError(Exception):
 P = typing.ParamSpec("P")
 T = typing.TypeVar("T")
 _STRING_PROVIDER_PATTERN = re.compile(r"^([^.]+)\.([^.]+)(?:\.(.+))?$")
+_INJECTION_WARNING_MESSAGE: typing.Final[str] = "Expected injection, but nothing found. Remove @inject decorator."
+_PROVIDE_MESSAGE: typing.Final[str] = (
+    "Use @Container.inject or @inject(container=Container) if you wish to use Provide()"
+)
 
 
 @typing.overload
@@ -36,7 +41,7 @@ def inject(
 ) -> typing.Callable[[typing.Callable[P, T]], typing.Callable[P, T]]: ...
 
 
-def inject(
+def inject(  # noqa: C901
     func: typing.Callable[P, T] | None = None,
     scope: ContextScope | None = ContextScopes.INJECT,
     container: BaseContainerMeta | None = None,
@@ -74,36 +79,10 @@ def inject(
         @functools.wraps(gen)
         def inner(*args: P.args, **kwargs: P.kwargs) -> typing.Generator[T, typing.Any, typing.Any]:
             signature = inspect.signature(gen)
-            injected = False
-            for i, (field_name, param) in enumerate(signature.parameters.items()):
-                default = param.default
-                if i < len(args) or field_name in kwargs:
-                    if isinstance(default, (AbstractProvider, StringProviderDefinition)):
-                        injected = True
-                    continue
-
-                if isinstance(default, StringProviderDefinition):
-                    injected = True
-                    kwargs[field_name] = _resolve_provider_with_scope_sync(default.provider, scope, None, set())
-                elif isinstance(default, AbstractProvider):
-                    injected = True
-                    kwargs[field_name] = _resolve_provider_with_scope_sync(default, scope, None, set())
-                elif isinstance(default, _Provide):
-                    injected = True
-                    if container is None:
-                        msg = "Use @Container.inject or @inject(container=Container) if you wish to use Provide()"
-                        raise RuntimeError(msg)
-                    try:
-                        provider = container.get_provider_for_type(signature.parameters[field_name].annotation)
-                    except TypeNotBoundError as e:
-                        msg = f"Type {signature.parameters[field_name].annotation} is not bound to a provider."
-                        raise RuntimeError(msg) from e
-                    kwargs[field_name] = _resolve_provider_with_scope_sync(provider, scope, None, set())
+            injected, kwargs = _resolve_arguments_sync(signature, scope, container, None, *args, **kwargs)  # type: ignore[assignment]
 
             if not injected:
-                warnings.warn(
-                    "Expected injection, but nothing found. Remove @inject decorator.", RuntimeWarning, stacklevel=1
-                )
+                warnings.warn(_INJECTION_WARNING_MESSAGE, RuntimeWarning, stacklevel=1)
 
             g = gen(*args, **kwargs)
             result = yield from g
@@ -117,37 +96,11 @@ def inject(
         @functools.wraps(gen)
         async def inner(*args: P.args, **kwargs: P.kwargs) -> typing.AsyncGenerator[T, typing.Any]:
             signature = inspect.signature(gen)
-            injected = False
-            for i, (field_name, param) in enumerate(signature.parameters.items()):
-                default = param.default
-                if i < len(args) or field_name in kwargs:
-                    if isinstance(default, (AbstractProvider, StringProviderDefinition)):
-                        injected = True
-                    continue
 
-                if isinstance(default, StringProviderDefinition):
-                    injected = True
-                    kwargs[field_name] = await _resolve_provider_with_scope_async(default.provider, scope, None, set())
-                elif isinstance(default, AbstractProvider):
-                    injected = True
-                    kwargs[field_name] = await _resolve_provider_with_scope_async(default, scope, None, set())
-
-                elif isinstance(default, _Provide):
-                    injected = True
-                    if container is None:
-                        msg = "Use @Container.inject or @inject(container=Container) if you wish to use Provide()"
-                        raise RuntimeError(msg)
-                    try:
-                        provider = container.get_provider_for_type(signature.parameters[field_name].annotation)
-                    except TypeNotBoundError as e:
-                        msg = f"Type {signature.parameters[field_name].annotation} is not bound to a provider."
-                        raise RuntimeError(msg) from e
-                    kwargs[field_name] = await _resolve_provider_with_scope_async(provider, scope, None, set())
+            injected, kwargs = await _resolve_arguments_async(signature, scope, container, None, *args, **kwargs)  # type: ignore[assignment]
 
             if not injected:
-                warnings.warn(
-                    "Expected injection, but nothing found. Remove @inject decorator.", RuntimeWarning, stacklevel=1
-                )
+                warnings.warn(_INJECTION_WARNING_MESSAGE, RuntimeWarning, stacklevel=1)
 
             async for item in gen(*args, **kwargs):
                 yield item
@@ -181,6 +134,85 @@ _SYNC_SIGNATURE_CACHE: dict[typing.Callable[..., typing.Any], inspect.Signature]
 _THREADING_LOCK = threading.Lock()
 
 
+async def _resolve_arguments_async(
+    signature: inspect.Signature,
+    scope: ContextScope | None,
+    container: BaseContainerMeta | None,
+    stack: AsyncExitStack | None,
+    *args: typing.Any,  # noqa: ANN401
+    **kwargs: typing.Any,  # noqa: ANN401
+) -> tuple[bool, dict[str, typing.Any]]:
+    injected = False
+    context_providers: set[AbstractProvider[typing.Any]] = set()
+    params = list(signature.parameters.items())
+
+    for i, (field_name, param) in enumerate(params):
+        default = param.default
+
+        if i < len(args) or field_name in kwargs:
+            if isinstance(default, (AbstractProvider, StringProviderDefinition)):
+                injected = True
+            continue
+
+        if isinstance(default, StringProviderDefinition):
+            injected = True
+            resolved_val = await _resolve_provider_with_scope_async(default.provider, scope, stack, context_providers)
+            kwargs[field_name] = resolved_val
+        elif isinstance(default, AbstractProvider):
+            injected = True
+            resolved_val = await _resolve_provider_with_scope_async(default, scope, stack, context_providers)
+            kwargs[field_name] = resolved_val
+
+        elif isinstance(default, _Provide):
+            injected = True
+            if container is None:
+                raise RuntimeError(_PROVIDE_MESSAGE)
+            try:
+                provider = container.get_provider_for_type(signature.parameters[field_name].annotation)
+            except TypeNotBoundError as e:
+                msg = f"Type {signature.parameters[field_name].annotation} is not bound to a provider."
+                raise RuntimeError(msg) from e
+            kwargs[field_name] = await _resolve_provider_with_scope_async(provider, scope, stack, context_providers)
+    return injected, kwargs
+
+
+def _resolve_arguments_sync(
+    signature: inspect.Signature,
+    scope: ContextScope | None,
+    container: BaseContainerMeta | None,
+    stack: contextlib.ExitStack | None,
+    *args: typing.Any,  # noqa: ANN401
+    **kwargs: typing.Any,  # noqa: ANN401
+) -> tuple[bool, dict[str, typing.Any]]:
+    injected = False
+    context_providers: set[AbstractProvider[typing.Any]] = set()
+    for i, (field_name, param) in enumerate(signature.parameters.items()):
+        default = param.default
+        if i < len(args) or field_name in kwargs:
+            if isinstance(default, (AbstractProvider, StringProviderDefinition, _Provide)):
+                injected = True
+            continue
+
+        if isinstance(default, StringProviderDefinition):
+            injected = True
+            kwargs[field_name] = _resolve_provider_with_scope_sync(default.provider, scope, stack, context_providers)
+        elif isinstance(default, AbstractProvider):
+            injected = True
+            kwargs[field_name] = _resolve_provider_with_scope_sync(default, scope, stack, context_providers)
+        elif isinstance(default, _Provide):
+            injected = True
+            if container is None:
+                raise RuntimeError(_PROVIDE_MESSAGE)
+            try:
+                provider = container.get_provider_for_type(signature.parameters[field_name].annotation)
+            except TypeNotBoundError as e:
+                msg = f"Type {signature.parameters[field_name].annotation} is not bound to a provider."
+                raise RuntimeError(msg) from e
+            kwargs[field_name] = _resolve_provider_with_scope_sync(provider, scope, stack, context_providers)
+
+    return injected, kwargs
+
+
 def _resolve_sync(
     func: typing.Callable[P, T],
     scope: ContextScope | None,
@@ -193,42 +225,11 @@ def _resolve_sync(
             _SYNC_SIGNATURE_CACHE[func] = inspect.signature(func)
     signature = _SYNC_SIGNATURE_CACHE[func]
 
-    injected = False
-    context_providers: set[AbstractProvider[typing.Any]] = set()
-
     with ExitStack() as stack:
-        for i, (field_name, param) in enumerate(signature.parameters.items()):
-            default = param.default
-
-            if i < len(args) or field_name in kwargs:
-                if isinstance(default, (AbstractProvider, StringProviderDefinition, _Provide)):
-                    injected = True
-                continue
-
-            if isinstance(default, StringProviderDefinition):
-                injected = True
-                kwargs[field_name] = _resolve_provider_with_scope_sync(
-                    default.provider, scope, stack, context_providers
-                )
-            elif isinstance(default, AbstractProvider):
-                injected = True
-                kwargs[field_name] = _resolve_provider_with_scope_sync(default, scope, stack, context_providers)
-            elif isinstance(default, _Provide):
-                injected = True
-                if container is None:
-                    msg = "Use @Container.inject or @inject(container=Container) if you wish to use Provide()"
-                    raise RuntimeError(msg)
-                try:
-                    provider = container.get_provider_for_type(signature.parameters[field_name].annotation)
-                except TypeNotBoundError as e:
-                    msg = f"Type {signature.parameters[field_name].annotation} is not bound to a provider."
-                    raise RuntimeError(msg) from e
-                kwargs[field_name] = _resolve_provider_with_scope_sync(provider, scope, stack, context_providers)
+        injected, kwargs = _resolve_arguments_sync(signature, scope, container, stack, *args, **kwargs)  # type: ignore[assignment]
 
         if not injected:
-            warnings.warn(
-                "Expected injection, but nothing found. Remove @inject decorator.", RuntimeWarning, stacklevel=1
-            )
+            warnings.warn(_INJECTION_WARNING_MESSAGE, RuntimeWarning, stacklevel=1)
 
         return func(*args, **kwargs)
 
@@ -252,47 +253,10 @@ async def _resolve_async(
             _SIGNATURE_CACHE[func] = inspect.signature(func)
     signature = _SIGNATURE_CACHE[func]
 
-    injected = False
-    context_providers: set[AbstractProvider[typing.Any]] = set()
-
     async with AsyncExitStack() as stack:
-        params = list(signature.parameters.items())
-
-        for i, (field_name, param) in enumerate(params):
-            default = param.default
-
-            if i < len(args) or field_name in kwargs:
-                if isinstance(default, (AbstractProvider, StringProviderDefinition)):
-                    injected = True
-                continue
-
-            if isinstance(default, StringProviderDefinition):
-                injected = True
-                resolved_val = await _resolve_provider_with_scope_async(
-                    default.provider, scope, stack, context_providers
-                )
-                kwargs[field_name] = resolved_val
-            elif isinstance(default, AbstractProvider):
-                injected = True
-                resolved_val = await _resolve_provider_with_scope_async(default, scope, stack, context_providers)
-                kwargs[field_name] = resolved_val
-
-            elif isinstance(default, _Provide):
-                injected = True
-                if container is None:
-                    msg = "Use @Container.inject or @inject(container=Container) if you wish to use Provide()"
-                    raise RuntimeError(msg)
-                try:
-                    provider = container.get_provider_for_type(signature.parameters[field_name].annotation)
-                except TypeNotBoundError as e:
-                    msg = f"Type {signature.parameters[field_name].annotation} is not bound to a provider."
-                    raise RuntimeError(msg) from e
-                kwargs[field_name] = await _resolve_provider_with_scope_async(provider, scope, stack, context_providers)
-
+        injected, kwargs = await _resolve_arguments_async(signature, scope, container, stack, *args, **kwargs)  # type: ignore[assignment]
         if not injected:
-            warnings.warn(
-                "Expected injection, but nothing found. Remove @inject decorator.", RuntimeWarning, stacklevel=1
-            )
+            warnings.warn(_INJECTION_WARNING_MESSAGE, RuntimeWarning, stacklevel=1)
 
         return await func(*args, **kwargs)
 
