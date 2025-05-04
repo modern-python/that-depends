@@ -978,3 +978,39 @@ async def test_inject_by_type_fails_if_type_is_not_bound_async() -> None:
         await _injected_1()
     with pytest.raises(RuntimeError):
         await anext(_injected_2())
+
+
+def test_contravariant_injection_by_type_sync() -> None:
+    class A: ...
+
+    class B(A): ...
+
+    class _Container(BaseContainer):
+        sync_resource = providers.Factory(lambda: B()).bind(A, covariant=True)
+
+    @inject(container=_Container)
+    def _injected(val_a: A = Provide(), val_b: B = Provide()) -> tuple[A, B]:
+        return val_a, val_b
+
+    val_a, val_b = _injected()
+
+    assert isinstance(val_a, A)
+    assert isinstance(val_b, B)
+
+
+async def test_contravariant_injection_by_type_async() -> None:
+    class A: ...
+
+    class B(A): ...
+
+    class _Container(BaseContainer):
+        sync_resource = providers.Factory(lambda: B()).bind(A, covariant=True)
+
+    @inject(container=_Container)
+    async def _injected(val_a: A = Provide(), val_b: B = Provide()) -> tuple[A, B]:
+        return val_a, val_b
+
+    val_a, val_b = await _injected()
+
+    assert isinstance(val_a, A)
+    assert isinstance(val_b, B)

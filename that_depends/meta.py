@@ -153,7 +153,7 @@ class BaseContainerMeta(SupportsContext[None], abc.ABCMeta):
         for container in cls.get_containers():
             await container.tear_down()
 
-    def get_provider_for_type(cls, t: T) -> AbstractProvider[T]:
+    def get_provider_for_type(cls, t: type[T]) -> AbstractProvider[T]:
         """Get a provider for a given type.
 
         Args:
@@ -164,7 +164,11 @@ class BaseContainerMeta(SupportsContext[None], abc.ABCMeta):
 
         """
         for provider in cls.get_providers().values():
-            if t in provider._bindings:  # noqa: SLF001
+            if provider._has_covariant_bindings:  # noqa: SLF001
+                for bind in provider._bindings:  # noqa: SLF001
+                    if issubclass(t, bind):
+                        return provider
+            elif t in provider._bindings:  # noqa: SLF001
                 return provider
         msg = f"Type {t} is not bound to any provider in container {cls.name()}"
         raise TypeNotBoundError(msg)
