@@ -40,6 +40,8 @@ class Container(BaseContainer):
 
 ## Contravariant binding
 
+Per default injection will be invariant to the bound types.
+
 If you wish to enable contravariance for your bound types you can do so by setting
 `#!python contravariant=True` in the `bind` method:
 
