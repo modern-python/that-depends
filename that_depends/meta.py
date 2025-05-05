@@ -164,9 +164,9 @@ class BaseContainerMeta(SupportsContext[None], abc.ABCMeta):
 
         """
         for provider in cls.get_providers().values():
-            if provider._has_covariant_bindings:  # noqa: SLF001
+            if provider._has_contravariant_bindings:  # noqa: SLF001
                 for bind in provider._bindings:  # noqa: SLF001
-                    if issubclass(t, bind):
+                    if issubclass(bind, t):
                         return provider
             elif t in provider._bindings:  # noqa: SLF001
                 return provider

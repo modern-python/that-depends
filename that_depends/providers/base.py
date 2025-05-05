@@ -32,13 +32,13 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
         self._parents: set[AbstractProvider[typing.Any]] = set()
         self._override: typing.Any = None
         self._bindings: set[type] = set()
-        self._has_covariant_bindings: bool = False
+        self._has_contravariant_bindings: bool = False
         self._lock = threading.Lock()
 
-    def bind(self, *types: type, covariant: bool = False) -> typing_extensions.Self:
+    def bind(self, *types: type, contravariant: bool = False) -> typing_extensions.Self:
         """Bind the provider to a set of types."""
         self._bindings = set(types)
-        self._has_covariant_bindings = covariant
+        self._has_contravariant_bindings = contravariant
         return self
 
     def _register(self, candidates: typing.Iterable[typing.Any]) -> None:

@@ -986,7 +986,7 @@ def test_contravariant_injection_by_type_sync() -> None:
     class B(A): ...
 
     class _Container(BaseContainer):
-        sync_resource = providers.Factory(lambda: B()).bind(A, covariant=True)
+        sync_resource = providers.Factory(lambda: B()).bind(B, contravariant=True)
 
     @inject(container=_Container)
     def _injected(val_a: A = Provide(), val_b: B = Provide()) -> tuple[A, B]:
@@ -1004,7 +1004,7 @@ async def test_contravariant_injection_by_type_async() -> None:
     class B(A): ...
 
     class _Container(BaseContainer):
-        sync_resource = providers.Factory(lambda: B()).bind(A, covariant=True)
+        sync_resource = providers.Factory(lambda: B()).bind(B, contravariant=True)
 
     @inject(container=_Container)
     async def _injected(val_a: A = Provide(), val_b: B = Provide()) -> tuple[A, B]:
@@ -1014,3 +1014,27 @@ async def test_contravariant_injection_by_type_async() -> None:
 
     assert isinstance(val_a, A)
     assert isinstance(val_b, B)
+
+
+def test_type_injection_fails_without_bind_sync() -> None:
+    class _Container(BaseContainer):
+        sync_resource = providers.Factory(lambda: random.random())
+
+    @inject(container=_Container)
+    def _injected(val: float = Provide()) -> float:
+        return val  # pragma: no cover
+
+    with pytest.raises(RuntimeError):
+        _injected()
+
+
+async def test_type_injection_fails_without_bind_async() -> None:
+    class _Container(BaseContainer):
+        sync_resource = providers.Factory(lambda: random.random())
+
+    @inject(container=_Container)
+    async def _injected(val: float = Provide()) -> float:
+        return val  # pragma: no cover
+
+    with pytest.raises(RuntimeError):
+        await _injected()
