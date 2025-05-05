@@ -1,8 +1,13 @@
+import logging
 import random
 import time
 import typing
 
 from that_depends import BaseContainer, ContextScopes, Provide, inject, providers
+
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def _iterator(x: float) -> typing.Iterator[float]:
@@ -36,3 +41,4 @@ def _bench(n_iterations: int) -> float:
 if __name__ == "__main__":
     for n in [10000, 100000, 1000000]:
         duration = _bench(n)
+        logger.info(f"Injected {n} times in {duration:.4f} seconds")  # noqa: G004

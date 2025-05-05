@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import functools
 import inspect
 import re
@@ -8,6 +9,7 @@ import warnings
 from contextlib import AsyncExitStack, ExitStack
 
 from that_depends.container import BaseContainer
+from that_depends.exceptions import TypeNotBoundError
 from that_depends.meta import BaseContainerMeta
 from that_depends.providers import AbstractProvider, ContextResource
 from that_depends.providers.context_resources import ContextScope, ContextScopes
@@ -21,6 +23,10 @@ class ContextProviderError(Exception):
 P = typing.ParamSpec("P")
 T = typing.TypeVar("T")
 _STRING_PROVIDER_PATTERN = re.compile(r"^([^.]+)\.([^.]+)(?:\.(.+))?$")
+_INJECTION_WARNING_MESSAGE: typing.Final[str] = "Expected injection, but nothing found. Remove @inject decorator."
+_PROVIDE_MESSAGE: typing.Final[str] = (
+    "Use @Container.inject or @inject(container=Container) if you wish to use Provide()"
+)
 
 
 @typing.overload
@@ -31,13 +37,26 @@ def inject(func: typing.Callable[P, T]) -> typing.Callable[P, T]: ...
 def inject(
     *,
     scope: ContextScope | None = ContextScopes.INJECT,
+    container: BaseContainerMeta | None = None,
 ) -> typing.Callable[[typing.Callable[P, T]], typing.Callable[P, T]]: ...
 
 
 def inject(  # noqa: C901
-    func: typing.Callable[P, T] | None = None, scope: ContextScope | None = ContextScopes.INJECT
+    func: typing.Callable[P, T] | None = None,
+    scope: ContextScope | None = ContextScopes.INJECT,
+    container: BaseContainerMeta | None = None,
 ) -> typing.Callable[P, T] | typing.Callable[[typing.Callable[P, T]], typing.Callable[P, T]]:
-    """Inject dependencies into a function."""
+    """Mark a function for dependency injection.
+
+    Args:
+        func: function or generator function to be wrapped.
+        scope: scope to initialize ContextResources for.
+        container: container from which to resolve dependencies marked with `Provide()`.
+
+    Returns:
+        wrapped function.
+
+    """
     if scope == ContextScopes.ANY:
         msg = f"{scope} is not allowed in inject decorator."
         raise ValueError(msg)
@@ -60,25 +79,10 @@ def inject(  # noqa: C901
         @functools.wraps(gen)
         def inner(*args: P.args, **kwargs: P.kwargs) -> typing.Generator[T, typing.Any, typing.Any]:
             signature = inspect.signature(gen)
-            injected = False
-            for i, (field_name, param) in enumerate(signature.parameters.items()):
-                default = param.default
-                if i < len(args) or field_name in kwargs:
-                    if isinstance(default, (AbstractProvider, StringProviderDefinition)):
-                        injected = True
-                    continue
-
-                if isinstance(default, StringProviderDefinition):
-                    injected = True
-                    kwargs[field_name] = _resolve_provider_with_scope_sync(default.provider, scope, None, set())
-                elif isinstance(default, AbstractProvider):
-                    injected = True
-                    kwargs[field_name] = _resolve_provider_with_scope_sync(default, scope, None, set())
+            injected, kwargs = _resolve_arguments_sync(signature, scope, container, None, *args, **kwargs)  # type: ignore[assignment]
 
             if not injected:
-                warnings.warn(
-                    "Expected injection, but nothing found. Remove @inject decorator.", RuntimeWarning, stacklevel=1
-                )
+                warnings.warn(_INJECTION_WARNING_MESSAGE, RuntimeWarning, stacklevel=1)
 
             g = gen(*args, **kwargs)
             result = yield from g
@@ -92,25 +96,11 @@ def inject(  # noqa: C901
         @functools.wraps(gen)
         async def inner(*args: P.args, **kwargs: P.kwargs) -> typing.AsyncGenerator[T, typing.Any]:
             signature = inspect.signature(gen)
-            injected = False
-            for i, (field_name, param) in enumerate(signature.parameters.items()):
-                default = param.default
-                if i < len(args) or field_name in kwargs:
-                    if isinstance(default, (AbstractProvider, StringProviderDefinition)):
-                        injected = True
-                    continue
 
-                if isinstance(default, StringProviderDefinition):
-                    injected = True
-                    kwargs[field_name] = await _resolve_provider_with_scope_async(default.provider, scope, None, set())
-                elif isinstance(default, AbstractProvider):
-                    injected = True
-                    kwargs[field_name] = await _resolve_provider_with_scope_async(default, scope, None, set())
+            injected, kwargs = await _resolve_arguments_async(signature, scope, container, None, *args, **kwargs)  # type: ignore[assignment]
 
             if not injected:
-                warnings.warn(
-                    "Expected injection, but nothing found. Remove @inject decorator.", RuntimeWarning, stacklevel=1
-                )
+                warnings.warn(_INJECTION_WARNING_MESSAGE, RuntimeWarning, stacklevel=1)
 
             async for item in gen(*args, **kwargs):
                 yield item
@@ -122,7 +112,7 @@ def inject(  # noqa: C901
     ) -> typing.Callable[P, typing.Coroutine[typing.Any, typing.Any, T]]:
         @functools.wraps(func)
         async def inner(*args: P.args, **kwargs: P.kwargs) -> T:
-            return await _resolve_async(func, scope, *args, **kwargs)
+            return await _resolve_async(func, scope, container, *args, **kwargs)
 
         return inner
 
@@ -131,23 +121,102 @@ def inject(  # noqa: C901
     ) -> typing.Callable[P, T]:
         @functools.wraps(func)
         def inner(*args: P.args, **kwargs: P.kwargs) -> T:
-            return _resolve_sync(func, scope, *args, **kwargs)
+            return _resolve_sync(func, scope, container, *args, **kwargs)
 
         return inner
 
-    if func:
-        return _inject(func)
-
-    return _inject
+    if func is None:
+        return _inject
+    return _inject(func)
 
 
 _SYNC_SIGNATURE_CACHE: dict[typing.Callable[..., typing.Any], inspect.Signature] = {}
 _THREADING_LOCK = threading.Lock()
 
 
+async def _resolve_arguments_async(
+    signature: inspect.Signature,
+    scope: ContextScope | None,
+    container: BaseContainerMeta | None,
+    stack: AsyncExitStack | None,
+    *args: typing.Any,  # noqa: ANN401
+    **kwargs: typing.Any,  # noqa: ANN401
+) -> tuple[bool, dict[str, typing.Any]]:
+    injected = False
+    context_providers: set[AbstractProvider[typing.Any]] = set()
+    params = list(signature.parameters.items())
+
+    for i, (field_name, param) in enumerate(params):
+        default = param.default
+
+        if i < len(args) or field_name in kwargs:
+            if isinstance(default, (AbstractProvider, StringProviderDefinition)):
+                injected = True
+            continue
+
+        if isinstance(default, StringProviderDefinition):
+            injected = True
+            resolved_val = await _resolve_provider_with_scope_async(default.provider, scope, stack, context_providers)
+            kwargs[field_name] = resolved_val
+        elif isinstance(default, AbstractProvider):
+            injected = True
+            resolved_val = await _resolve_provider_with_scope_async(default, scope, stack, context_providers)
+            kwargs[field_name] = resolved_val
+
+        elif isinstance(default, _Provide):
+            injected = True
+            if container is None:
+                raise RuntimeError(_PROVIDE_MESSAGE)
+            try:
+                provider = container.get_provider_for_type(signature.parameters[field_name].annotation)
+            except TypeNotBoundError as e:
+                msg = f"Type {signature.parameters[field_name].annotation} is not bound to a provider."
+                raise RuntimeError(msg) from e
+            kwargs[field_name] = await _resolve_provider_with_scope_async(provider, scope, stack, context_providers)
+    return injected, kwargs
+
+
+def _resolve_arguments_sync(
+    signature: inspect.Signature,
+    scope: ContextScope | None,
+    container: BaseContainerMeta | None,
+    stack: contextlib.ExitStack | None,
+    *args: typing.Any,  # noqa: ANN401
+    **kwargs: typing.Any,  # noqa: ANN401
+) -> tuple[bool, dict[str, typing.Any]]:
+    injected = False
+    context_providers: set[AbstractProvider[typing.Any]] = set()
+    for i, (field_name, param) in enumerate(signature.parameters.items()):
+        default = param.default
+        if i < len(args) or field_name in kwargs:
+            if isinstance(default, (AbstractProvider, StringProviderDefinition, _Provide)):
+                injected = True
+            continue
+
+        if isinstance(default, StringProviderDefinition):
+            injected = True
+            kwargs[field_name] = _resolve_provider_with_scope_sync(default.provider, scope, stack, context_providers)
+        elif isinstance(default, AbstractProvider):
+            injected = True
+            kwargs[field_name] = _resolve_provider_with_scope_sync(default, scope, stack, context_providers)
+        elif isinstance(default, _Provide):
+            injected = True
+            if container is None:
+                raise RuntimeError(_PROVIDE_MESSAGE)
+            try:
+                provider = container.get_provider_for_type(signature.parameters[field_name].annotation)
+            except TypeNotBoundError as e:
+                msg = f"Type {signature.parameters[field_name].annotation} is not bound to a provider."
+                raise RuntimeError(msg) from e
+            kwargs[field_name] = _resolve_provider_with_scope_sync(provider, scope, stack, context_providers)
+
+    return injected, kwargs
+
+
 def _resolve_sync(
     func: typing.Callable[P, T],
     scope: ContextScope | None,
+    container: BaseContainerMeta | None = None,
     *args: P.args,
     **kwargs: P.kwargs,
 ) -> T:
@@ -156,31 +225,11 @@ def _resolve_sync(
             _SYNC_SIGNATURE_CACHE[func] = inspect.signature(func)
     signature = _SYNC_SIGNATURE_CACHE[func]
 
-    injected = False
-    context_providers: set[AbstractProvider[typing.Any]] = set()
-
     with ExitStack() as stack:
-        for i, (field_name, param) in enumerate(signature.parameters.items()):
-            default = param.default
-
-            if i < len(args) or field_name in kwargs:
-                if isinstance(default, (AbstractProvider, StringProviderDefinition)):
-                    injected = True
-                continue
-
-            if isinstance(default, StringProviderDefinition):
-                injected = True
-                kwargs[field_name] = _resolve_provider_with_scope_sync(
-                    default.provider, scope, stack, context_providers
-                )
-            elif isinstance(default, AbstractProvider):
-                injected = True
-                kwargs[field_name] = _resolve_provider_with_scope_sync(default, scope, stack, context_providers)
+        injected, kwargs = _resolve_arguments_sync(signature, scope, container, stack, *args, **kwargs)  # type: ignore[assignment]
 
         if not injected:
-            warnings.warn(
-                "Expected injection, but nothing found. Remove @inject decorator.", RuntimeWarning, stacklevel=1
-            )
+            warnings.warn(_INJECTION_WARNING_MESSAGE, RuntimeWarning, stacklevel=1)
 
         return func(*args, **kwargs)
 
@@ -195,6 +244,7 @@ _ASYNCIO_LOCK = asyncio.Lock()
 async def _resolve_async(
     func: typing.Callable[P, typing.Coroutine[typing.Any, typing.Any, T]],
     scope: ContextScope | None,
+    container: BaseContainerMeta | None = None,
     *args: P.args,
     **kwargs: P.kwargs,
 ) -> T:
@@ -203,35 +253,10 @@ async def _resolve_async(
             _SIGNATURE_CACHE[func] = inspect.signature(func)
     signature = _SIGNATURE_CACHE[func]
 
-    injected = False
-    context_providers: set[AbstractProvider[typing.Any]] = set()
-
     async with AsyncExitStack() as stack:
-        params = list(signature.parameters.items())
-
-        for i, (field_name, param) in enumerate(params):
-            default = param.default
-
-            if i < len(args) or field_name in kwargs:
-                if isinstance(default, (AbstractProvider, StringProviderDefinition)):
-                    injected = True
-                continue
-
-            if isinstance(default, StringProviderDefinition):
-                injected = True
-                resolved_val = await _resolve_provider_with_scope_async(
-                    default.provider, scope, stack, context_providers
-                )
-                kwargs[field_name] = resolved_val
-            elif isinstance(default, AbstractProvider):
-                injected = True
-                resolved_val = await _resolve_provider_with_scope_async(default, scope, stack, context_providers)
-                kwargs[field_name] = resolved_val
-
+        injected, kwargs = await _resolve_arguments_async(signature, scope, container, stack, *args, **kwargs)  # type: ignore[assignment]
         if not injected:
-            warnings.warn(
-                "Expected injection, but nothing found. Remove @inject decorator.", RuntimeWarning, stacklevel=1
-            )
+            warnings.warn(_INJECTION_WARNING_MESSAGE, RuntimeWarning, stacklevel=1)
 
         return await func(*args, **kwargs)
 
@@ -384,14 +409,15 @@ class StringProviderDefinition:
         return self._get_provider_by_name()
 
 
-class ClassGetItemMeta(type):
-    """Metaclass to support Provide[provider] syntax."""
-
-    def __getitem__(cls, provider: AbstractProvider[T] | str) -> T | typing.Any:  # noqa: ANN401
+class _Provide:
+    def __getitem__(self, provider: AbstractProvider[T] | str) -> T | typing.Any:  # noqa: ANN401
         if isinstance(provider, str):
             return StringProviderDefinition(provider)  # will be resolved later
         return typing.cast(T, provider)
 
+    def __call__(self) -> typing.Any:  # noqa: ANN401
+        """Marker for automatic dependency injection."""
+        return self
 
-class Provide(metaclass=ClassGetItemMeta):
-    """Marker to dependency injection."""
+
+Provide: typing.Final[_Provide] = _Provide()

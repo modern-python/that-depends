@@ -8,6 +8,7 @@ nav:
       - Containers: introduction/ioc-container.md
       - Dependency Injection: introduction/injection.md
       - Generator Injection: introduction/generator-injection.md
+      - Type-based Injection: introduction/type-based-injection.md
       - String Injection: introduction/string-injection.md
       - Scopes: introduction/scopes.md
       - Tear-down: introduction/tear-down.md

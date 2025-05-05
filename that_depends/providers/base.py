@@ -31,7 +31,26 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
         self._children: set[AbstractProvider[typing.Any]] = set()
         self._parents: set[AbstractProvider[typing.Any]] = set()
         self._override: typing.Any = None
+        self._bindings: set[type] = set()
+        self._has_contravariant_bindings: bool = False
         self._lock = threading.Lock()
+
+    def bind(self, *types: type, contravariant: bool = False) -> typing_extensions.Self:
+        """Bind the provider to a set of types.
+
+        Calling this method multiple times will overwrite the previous bindings.
+
+        Args:
+            *types (type): types the provider can provide.
+            contravariant: whether provider can provider contravariant types.
+
+        Returns:
+            The current provider instance.
+
+        """
+        self._bindings = set(types)
+        self._has_contravariant_bindings = contravariant
+        return self
 
     def _register(self, candidates: typing.Iterable[typing.Any]) -> None:
         """Register current provider as child.

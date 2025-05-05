@@ -71,6 +71,7 @@ extend-exclude = [
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
+    "B008", # Do not perform function call `Provide` in argument defaults
     "D100", # ignore missing module docstrings.
     "D105", # ignore missing docstrings in magic methods.
     "S101", # allow asserts
