@@ -9,7 +9,7 @@ from unittest.mock import Mock
 import pytest
 
 from tests import container
-from that_depends import BaseContainer, ContextScopes, Provide, container_context, inject, providers
+from that_depends import BaseContainer, ContextScopes, Provide, container_context, get_current_scope, inject, providers
 from that_depends.injection import ContextProviderError, StringProviderDefinition
 
 
@@ -1038,3 +1038,54 @@ async def test_type_injection_fails_without_bind_async() -> None:
 
     with pytest.raises(RuntimeError):
         await _injected()
+
+
+def test_inject_with_enter_scope_enters_scope_sync() -> None:
+    def _sync_creator() -> typing.Iterator[float]:
+        yield random.random()
+
+    class _Container(BaseContainer):
+        resource = providers.ContextResource(_sync_creator).with_config(scope=ContextScopes.INJECT)
+
+    @inject(enter_scope=True)
+    def _injected(val: float = Provide[_Container.resource]) -> float:
+        assert get_current_scope() is ContextScopes.INJECT
+        return val
+
+    assert isinstance(_injected(), float)
+
+
+async def test_inject_with_enter_scope_enters_scope_async() -> None:
+    async def _async_creator() -> typing.AsyncIterator[float]:
+        yield random.random()
+
+    class _Container(BaseContainer):
+        resource = providers.ContextResource(_async_creator).with_config(scope=ContextScopes.INJECT)
+
+    @inject(enter_scope=True)
+    async def _injected(val: float = Provide[_Container.resource]) -> float:
+        assert get_current_scope() is ContextScopes.INJECT
+        return val
+
+    assert isinstance(await _injected(), float)
+
+
+def test_inject_with_none_scope_and_enter_scope_raises() -> None:
+    with pytest.raises(ValueError, match="enter_scope cannot be used with scope=None."):
+        inject(scope=None, enter_scope=True)
+
+
+def test_enter_scope_raises_with_generator_sync() -> None:
+    with pytest.raises(ValueError, match="enter_scope cannot be used with generator functions."):
+
+        @inject(enter_scope=True)
+        def _injected(val: float = Provide["C.a"]) -> typing.Generator[float, None, None]:
+            yield val  # pragma: no cover
+
+
+async def test_enter_scope_raises_with_generator_async() -> None:
+    with pytest.raises(ValueError, match="enter_scope cannot be used with async generator functions."):
+
+        @inject(enter_scope=True)
+        async def _injected(val: float = Provide["C.a"]) -> typing.AsyncGenerator[float, None]:
+            yield val  # pragma: no cover
