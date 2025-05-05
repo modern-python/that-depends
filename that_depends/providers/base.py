@@ -36,7 +36,18 @@ class AbstractProvider(typing.Generic[T_co], abc.ABC):
         self._lock = threading.Lock()
 
     def bind(self, *types: type, contravariant: bool = False) -> typing_extensions.Self:
-        """Bind the provider to a set of types."""
+        """Bind the provider to a set of types.
+
+        Calling this method multiple times will overwrite the previous bindings.
+
+        Args:
+            *types (type): types the provider can provide.
+            contravariant: whether provider can provider contravariant types.
+
+        Returns:
+            The current provider instance.
+
+        """
         self._bindings = set(types)
         self._has_contravariant_bindings = contravariant
         return self
