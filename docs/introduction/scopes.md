@@ -213,8 +213,6 @@ def injected(v: int = Provide[Container.provider]) -> int:
 1. This will resolve since this resource has been initialized when you entered the `INJECT` scope.
 
 
-
-
 ## Implementing custom scopes
 
 If the default scopes don’t fit your needs, you can define custom scopes by creating a `ContextScope` object:
