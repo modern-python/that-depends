@@ -1,5 +1,3 @@
-from that_depends import ContextScopes
-
 # Named Scopes
 
 Named scopes allow you to define the lifecycle of a `ContextResource`. 
