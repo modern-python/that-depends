@@ -1,3 +1,5 @@
+from that_depends import ContextScopes
+
 # Named Scopes
 
 Named scopes allow you to define the lifecycle of a `ContextResource`. 
@@ -144,7 +146,7 @@ def foo(...):
 ```
 
 The `@inject` wrapper will enter a new context for each injected provider that matches the specified scope.
-However, it will not enter the scope!
+However, it will not enter the scope by default!
 
 Here is a simple example:
 ```python hl_lines="5 10"
@@ -188,32 +190,32 @@ injected()
 2. Context for `Container.provider` is initialized and will exit when the function returns.
 3. This assertion will pass since the context for this provider is still the same.
 
-If you want to enter a scope for the duration of the function you can use the following pattern:
-```python hl_lines="4 10"
+This implementation might seem complex at first glance, but it providers the following advantages:
+
+- Only context for `ContextResource` providers you need is initialized. This improves performance.
+- It discourages explicit resolution via `.resolve()` or `.resolve_sync()` in the function body.
+This pattern should be avoided since defining providers in function parameters allows for overriding by just passing an argument 
+instead of having to override the provider.
+
+### Entering a scope with `@inject`
+If you want to enter a scope for the duration of the function you can set `enter_scope=True` when using `@inject`:  
+```python hl_lines="4 9"
 class Container(BaseContainer):
     default_scope = ContextScopes.INJECT
     provider = providers.ContextResource(iterator).with_config(scope=ContextScopes.INJECT)
     another_provider = providers.ContextResource(iterator).with_config(scope=ContextScopes.INJECT)
 
-@container_context(scope=ContextScopes.INJECT)
-@inject(scope=None) # (3)!
-def injected(v: int = Provide[Container.provider]) -> int: # (2)!
+@inject(scope=ContextScopes.INJECT, enter_scope=True)
+def injected(v: int = Provide[Container.provider]) -> int:
     assert get_current_scope() == ContextScopes.INJECT
     Container.another_provider.resolve_sync() # (1)!
     return v
 ```
 
 1. This will resolve since this resource has been initialized when you entered the `INJECT` scope.
-2. `Container.provider` was resolved successfully since the `INJECT` scope was entered before the function was called.
-3. `scope=None` means that the `@inject` wrapper will ignore scopes. It will not resolve `None`-scoped ContextResources!
 
 
-This implementation is complex but it providers the following advantages:
 
-- Only context for `ContextResources` you need is initialized. This improves performance.
-- It discourages explicit resolution via `.resolve()` or `.resolve_sync()` in the function body.
-This pattern should be avoided since defining providers in function parameters allows for overriding by just passing an argument 
-instead of having to override the provider.
 
 ## Implementing custom scopes
 
