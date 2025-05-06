@@ -12,7 +12,7 @@ from that_depends.container import BaseContainer
 from that_depends.exceptions import TypeNotBoundError
 from that_depends.meta import BaseContainerMeta
 from that_depends.providers import AbstractProvider, ContextResource
-from that_depends.providers.context_resources import ContextScope, ContextScopes
+from that_depends.providers.context_resources import ContextScope, ContextScopes, container_context
 from that_depends.providers.mixin import ProviderWithArguments
 
 
@@ -38,6 +38,7 @@ def inject(
     *,
     scope: ContextScope | None = ContextScopes.INJECT,
     container: BaseContainerMeta | None = None,
+    enter_scope: bool = False,
 ) -> typing.Callable[[typing.Callable[P, T]], typing.Callable[P, T]]: ...
 
 
@@ -45,6 +46,7 @@ def inject(  # noqa: C901
     func: typing.Callable[P, T] | None = None,
     scope: ContextScope | None = ContextScopes.INJECT,
     container: BaseContainerMeta | None = None,
+    enter_scope: bool = False,
 ) -> typing.Callable[P, T] | typing.Callable[[typing.Callable[P, T]], typing.Callable[P, T]]:
     """Mark a function for dependency injection.
 
@@ -52,6 +54,7 @@ def inject(  # noqa: C901
         func: function or generator function to be wrapped.
         scope: scope to initialize ContextResources for.
         container: container from which to resolve dependencies marked with `Provide()`.
+        enter_scope: enter the provided scope.
 
     Returns:
         wrapped function.
@@ -60,13 +63,22 @@ def inject(  # noqa: C901
     if scope == ContextScopes.ANY:
         msg = f"{scope} is not allowed in inject decorator."
         raise ValueError(msg)
+    if scope is None and enter_scope:
+        msg = "enter_scope cannot be used with scope=None."
+        raise ValueError(msg)
 
     def _inject(
         func: typing.Callable[P, T],
     ) -> typing.Callable[P, T]:
         if inspect.isasyncgenfunction(func):
+            if enter_scope:
+                msg = "enter_scope cannot be used with async generator functions."
+                raise ValueError(msg)
             return typing.cast(typing.Callable[P, T], _inject_to_async_gen(func))
         if inspect.isgeneratorfunction(func):
+            if enter_scope:
+                msg = "enter_scope cannot be used with generator functions."
+                raise ValueError(msg)
             return typing.cast(typing.Callable[P, T], _inject_to_sync_gen(func))
         if inspect.iscoroutinefunction(func):
             return typing.cast(typing.Callable[P, T], _inject_to_async(func))
@@ -112,7 +124,11 @@ def inject(  # noqa: C901
     ) -> typing.Callable[P, typing.Coroutine[typing.Any, typing.Any, T]]:
         @functools.wraps(func)
         async def inner(*args: P.args, **kwargs: P.kwargs) -> T:
-            return await _resolve_async(func, scope, container, *args, **kwargs)
+            if enter_scope:
+                async with container_context(scope=scope):
+                    return await _resolve_async(func, None, container, *args, **kwargs)
+            else:
+                return await _resolve_async(func, scope, container, *args, **kwargs)
 
         return inner
 
@@ -121,7 +137,11 @@ def inject(  # noqa: C901
     ) -> typing.Callable[P, T]:
         @functools.wraps(func)
         def inner(*args: P.args, **kwargs: P.kwargs) -> T:
-            return _resolve_sync(func, scope, container, *args, **kwargs)
+            if enter_scope:
+                with container_context(scope=scope):
+                    return _resolve_sync(func, None, container, *args, **kwargs)
+            else:
+                return _resolve_sync(func, scope, container, *args, **kwargs)
 
         return inner
 
