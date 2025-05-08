@@ -195,17 +195,21 @@ class BaseContainerMeta(SupportsContext[None], abc.ABCMeta):
         cls,
         *,
         scope: ContextScope | None = ContextScopes.INJECT,
+        enter_scope: bool = False,
     ) -> typing.Callable[[typing.Callable[P, T]], typing.Callable[P, T]]: ...
 
     def inject(
-        cls, func: typing.Callable[P, T] | None = None, scope: ContextScope | None = ContextScopes.INJECT
+        cls,
+        func: typing.Callable[P, T] | None = None,
+        scope: ContextScope | None = ContextScopes.INJECT,
+        enter_scope: bool = False,
     ) -> typing.Callable[P, T] | typing.Callable[[typing.Callable[P, T]], typing.Callable[P, T]]:
-        """Inject dependencies into a function.
+        """Inject dependencies from this container into a function.
 
         If your function does not use `Provide()` for dependency markers, consider using `@inject` instead.
         """
         return (
-            that_depends.inject(scope=scope, container=cls)
+            that_depends.inject(scope=scope, container=cls, enter_scope=enter_scope)
             if func is None
-            else that_depends.inject(scope=scope, container=cls)(func)
+            else that_depends.inject(scope=scope, container=cls, enter_scope=enter_scope)(func)
         )

@@ -1040,6 +1040,36 @@ async def test_type_injection_fails_without_bind_async() -> None:
         await _injected()
 
 
+def test_inject_with_enter_scope_enters_scope_using_container_sync() -> None:
+    def _sync_creator() -> typing.Iterator[float]:
+        yield random.random()
+
+    class _Container(BaseContainer):
+        resource = providers.ContextResource(_sync_creator).with_config(scope=ContextScopes.INJECT)
+
+    @_Container.inject(enter_scope=True)
+    def _injected(val: float = Provide[_Container.resource]) -> float:
+        assert get_current_scope() is ContextScopes.INJECT
+        return val
+
+    assert isinstance(_injected(), float)
+
+
+async def test_inject_with_enter_scope_enters_scope_using_container_async() -> None:
+    async def _async_creator() -> typing.AsyncIterator[float]:
+        yield random.random()
+
+    class _Container(BaseContainer):
+        resource = providers.ContextResource(_async_creator).with_config(scope=ContextScopes.INJECT)
+
+    @_Container.inject(enter_scope=True)
+    async def _injected(val: float = Provide[_Container.resource]) -> float:
+        assert get_current_scope() is ContextScopes.INJECT
+        return val
+
+    assert isinstance(await _injected(), float)
+
+
 def test_inject_with_enter_scope_enters_scope_sync() -> None:
     def _sync_creator() -> typing.Iterator[float]:
         yield random.random()
