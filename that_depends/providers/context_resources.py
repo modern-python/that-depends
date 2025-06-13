@@ -301,7 +301,7 @@ class ContextResource(
                 @wraps(func)
                 async def _async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
                     async with self.context_async(force=force):
-                        return await func(*args, **kwargs)  # type: ignore[no-any-return, misc]
+                        return await func(*args, **kwargs)  # type: ignore[no-any-return]
 
                 return typing.cast(typing.Callable[P, T], _async_wrapper)
 
