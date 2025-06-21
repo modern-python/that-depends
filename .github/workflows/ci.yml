@@ -41,7 +41,7 @@ jobs:
       - run: uv python install ${{ matrix.python-version }}
       - run: just install
       - run: just test . --cov=. --cov-report xml
-      - uses: codecov/codecov-action@v4.0.1
+      - uses: codecov/codecov-action@v5.4.3
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
