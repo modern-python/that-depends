@@ -1107,3 +1107,9 @@ def test_fetch_context_item_by_type() -> None:
 def test_fetch_context_item_raises() -> None:
     with pytest.raises(KeyError):
         fetch_context_item("s", raise_on_not_found=True)
+
+
+def test_context_scope_hash() -> None:
+    assert ContextScope("TEST") == ContextScope("TEST")
+    assert hash(ContextScope("YES")) != hash(ContextScope("NO"))
+    assert hash(ContextScope("HMM")) == hash(ContextScope("HMM"))

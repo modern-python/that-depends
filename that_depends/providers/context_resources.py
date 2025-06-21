@@ -61,6 +61,10 @@ class ContextScope:
         return False
 
     @override
+    def __hash__(self) -> int:
+        return hash(self.name)
+
+    @override
     def __repr__(self) -> str:
         return f"{self.name!r}"
 
@@ -491,11 +495,11 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
         else:
             self._initial_context = self._global_context or {}
         if self._reset_resource_context:
-            from that_depends.meta import BaseContainerMeta
+            from that_depends.meta import BaseContainerMeta  # noqa: PLC0415
 
             self._add_providers_from_containers(BaseContainerMeta.get_instances().values(), self._scope)
         for item in self._context_items:
-            from that_depends.container import BaseContainer
+            from that_depends.container import BaseContainer  # noqa: PLC0415
 
             if isinstance(item, type) and issubclass(item, BaseContainer):
                 self._add_providers_from_containers([item], self._scope)

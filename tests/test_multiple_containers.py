@@ -40,7 +40,7 @@ async def test_overwriting_container_warns(recwarn: None) -> None:  # noqa:ARG00
     class _A(BaseContainer):
         pass
 
-    with pytest.warns(UserWarning):
+    with pytest.warns(UserWarning, match="Overwriting container '_A'"):
 
         class _A(BaseContainer):  # type: ignore[no-redef]
             pass
@@ -53,7 +53,7 @@ async def test_overwriting_container_with_alias_warns(recwarn: None) -> None:  #
     class _A(BaseContainer):
         alias = "a"
 
-    with pytest.warns(UserWarning):
+    with pytest.warns(UserWarning, match="Overwriting container 'a'"):
 
         class _A(BaseContainer):  # type: ignore[no-redef]
             alias = "a"

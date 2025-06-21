@@ -82,6 +82,7 @@ ignore = [
     "S311", # Standard pseudo-random generators are not suitable for cryptographic purposes
     "COM812", # flake8-commas "Trailing comma missing"
     "ISC001", # flake8-implicit-str-concat
+    "PT028", # Test function has default argument
 ]
 isort.lines-after-imports = 2
 isort.no-lines-before = ["standard-library", "local-folder"]
