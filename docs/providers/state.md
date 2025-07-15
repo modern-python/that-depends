@@ -19,15 +19,15 @@ class Container(BaseContainer):
 === "async"
     ```python
     
-    with Container.state.init(42):
-        print(await Container.state.resolve()) # 42
+    with Container.my_state.init(42):
+        print(await Container.my_state.resolve()) # 42
     
     ```
 
 === "sync"
     ```python
-    with Container.state.init(42):
-        print(Container.state.resolve_sync()) # 42
+    with Container.my_state.init(42):
+        print(Container.my_state.resolve_sync()) # 42
 
     ```
 
@@ -39,11 +39,11 @@ class Container(BaseContainer):
 The `State` provider will always resolve the last initialize value.
 
 ```python
-with Container.state.init(1):
-    print(Container.state.resolve_sync())  # 1
+with Container.my_state.init(1):
+    print(Container.my_state.resolve_sync())  # 1
 
-    with Container.state.init(2):
-        print(Container.state.resolve_sync())  # 2
+    with Container.my_state.init(2):
+        print(Container.my_state.resolve_sync())  # 2
 
-    print(Container.state.resolve_sync())  # 1
+    print(Container.my_state.resolve_sync())  # 1
 ```
