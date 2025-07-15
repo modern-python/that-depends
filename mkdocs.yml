@@ -22,6 +22,8 @@ nav:
       - Resources: providers/resources.md
       - Selector: providers/selector.md
       - Singletons: providers/singleton.md
+      - State: providers/state.md
+
   - Integrations:
       - FastAPI: integrations/fastapi.md
       - FastStream: integrations/faststream.md
