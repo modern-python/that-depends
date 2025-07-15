@@ -20,17 +20,17 @@ _STATE_UNSET_ERROR_MESSAGE: typing.Final[str] = (
 
 
 class State(AbstractProvider[T]):
-    """Provides a state that can be resolved with an optional callback."""
+    """Provides a value that can be passed into the provider at runtime."""
 
     def __init__(self) -> None:
-        """Initialize the State provider with an optional callback."""
+        """Create a state provider."""
         super().__init__()
 
         self._state: ContextVar[T | Unset] = ContextVar(f"STATE_{uuid.uuid4()}", default=UNSET)
 
     @contextmanager
     def init(self, state: T) -> typing.Iterator[T]:
-        """Initialize the state provider.
+        """Set the state provider's value.
 
         Args:
             state: value to store.

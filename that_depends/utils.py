@@ -5,7 +5,7 @@ T = TypeVar("T")
 
 
 class _Singleton(type):
-    _instances: ClassVar = {}
+    _instances: ClassVar[dict[type, Any]] = {}
 
     def __call__(cls, *args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
         if cls not in cls._instances:
