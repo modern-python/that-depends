@@ -1,3 +1,4 @@
+import typing
 from types import TracebackType
 from typing import Any, Optional
 
@@ -52,6 +53,6 @@ class DIContextMiddleware(BaseMiddleware):
             await self._context.__aexit__(exc_type, exc_val, exc_tb)
         return None
 
-    def __call__(self) -> "DIContextMiddleware":
+    def __call__(self, *args: typing.Any, **kwargs: typing.Any) -> "DIContextMiddleware":  # noqa: ARG002, ANN401
         """Create an instance of DIContextMiddleware."""
         return DIContextMiddleware(*self._context_items, scope=self._scope, global_context=self._global_context)
