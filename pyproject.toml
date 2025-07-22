@@ -25,6 +25,9 @@ packages = [
 fastapi = [
     "fastapi",
 ]
+faststream = [
+    "faststream"
+]
 
 [project.urls]
 repository = "https://github.com/modern-python/that-depends"
