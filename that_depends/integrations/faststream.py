@@ -22,9 +22,9 @@ class DIContextMiddleware(BaseMiddleware):
         """Initialize the container context middleware.
 
         Args:
-            *context_items (Sequence[SupportsContext[Any]]): Context items to initialize.
+            *context_items (SupportsContext[Any]): Context items to initialize.
             global_context (dict[str, Any] | Unset): Global context to initialize the container.
-            scope: (ContextScope | Unset): Context scope to initialize the container.
+            scope (ContextScope | Unset): Context scope to initialize the container.
 
         """
         super().__init__()
