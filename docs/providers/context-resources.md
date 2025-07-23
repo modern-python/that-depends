@@ -131,7 +131,7 @@ with container_context(global_context={"key": 4}):
 
 To resolve a `ContextResource`, you must first initialize a new context for that resource.
 ```python
-async with container_context(MyContainer):  # this will make all containers initialize a new context
+async with container_context(MyContainer):  # this will initialize a new context for MyContainer
     await MyContainer.async_resource.resolve()  # "async resource"
     MyContainer.sync_resource.resolve_sync()          # "sync resource"
 ```
