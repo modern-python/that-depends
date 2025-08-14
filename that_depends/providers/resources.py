@@ -33,7 +33,7 @@ class Resource(SupportsTeardown, AbstractResource[T_co]):
             async_resource = Resource(create_async_resource)
 
         async def main():
-            async_resource_instance = await MyContainer.async_resource.async_resolve()
+            async_resource_instance = await MyContainer.async_resource.resolve()
             await MyContainer.async_resource.tear_down()
         ```
 

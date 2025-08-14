@@ -18,7 +18,7 @@ class Object(AbstractProvider[T_co]):
     Example:
         ```python
         provider = Object(1)
-        result = provider.sync_resolve()
+        result = provider.resolve_sync()
         print(result)  # 1
         ```
 
