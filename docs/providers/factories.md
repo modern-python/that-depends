@@ -20,7 +20,8 @@ class DIContainer(BaseContainer):
 ```
 
 ## AsyncFactory
-- Async function is required.
+- Allows both sync and async creators.
+- Can only be resolved asynchronously, even if the creator is sync.
 ```python
 import datetime
 
@@ -35,6 +36,7 @@ class DIContainer(BaseContainer):
     async_factory = providers.AsyncFactory(async_factory)
 ```
 
+> Note: If you have a class that has dependencies which need to be resolved asynchronously, you can use `AsyncFactory` to create instances of that class. The factory will handle the async resolution of dependencies.
 
 
 ## Retrieving provider as a Callable
