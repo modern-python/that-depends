@@ -169,7 +169,7 @@ class AsyncFactory(AbstractFactory[T_co]):
         """Initialize an AsyncFactory instance.
 
         Args:
-            factory (Callable[P, T_co | Awaitable[T_co]]): Async function that returns the resource.
+            factory (Callable[P, T_co | Awaitable[T_co]]): Function that returns the resource (sync or async).
             *args: Arguments to pass to the factory function.
             **kwargs: Keyword arguments to pass to the factory
 
