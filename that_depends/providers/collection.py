@@ -80,12 +80,12 @@ class Dict(AbstractProvider[dict[str, T_co]]):
         dict_provider = Dict(key1=provider1, key2=provider2)
 
         # Synchronous resolution
-        resolved_dict = dict_provider.sync_resolve()
+        resolved_dict = dict_provider.resolve_sync()
         print(resolved_dict)  # Output: {"key1": 1, "key2": 2}
 
         # Asynchronous resolution
         import asyncio
-        resolved_dict_async = asyncio.run(dict_provider.async_resolve())
+        resolved_dict_async = asyncio.run(dict_provider.resolve())
         print(resolved_dict_async)  # Output: {"key1": 1, "key2": 2}
         ```
 

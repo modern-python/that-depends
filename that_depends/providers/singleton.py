@@ -18,7 +18,7 @@ class Singleton(ProviderWithArguments, SupportsTeardown, AbstractProvider[T_co])
     """A provider that creates an instance once and caches it for subsequent injections.
 
     This provider is safe to use concurrently in both threading and asyncio contexts.
-    On the first call to either ``sync_resolve()`` or ``async_resolve()``, the instance
+    On the first call to either ``resolve()`` or ``resolve_sync()``, the instance
     is created by calling the provided factory. All future calls return the cached instance.
 
     Example:
@@ -27,8 +27,8 @@ class Singleton(ProviderWithArguments, SupportsTeardown, AbstractProvider[T_co])
             return 0.5
 
         singleton = Singleton(my_factory)
-        value1 = singleton.sync_resolve()
-        value2 = singleton.sync_resolve()
+        value1 = singleton.resolve_sync()
+        value2 = singleton.resolve_sync()
         assert value1 == value2
         ```
 
@@ -101,7 +101,7 @@ class Singleton(ProviderWithArguments, SupportsTeardown, AbstractProvider[T_co])
     async def tear_down(self, propagate: bool = True) -> None:
         """Reset the cached instance.
 
-        After calling this method, the next async_resolve call will recreate the instance.
+        After calling this method, the next resolve() call will recreate the instance.
         """
         if self._instance is not None:
             self._instance = None
@@ -126,7 +126,7 @@ class AsyncSingleton(ProviderWithArguments, SupportsTeardown, AbstractProvider[T
     """A provider that creates an instance asynchronously and caches it for subsequent injections.
 
     This provider is safe to use concurrently in asyncio contexts. On the first call
-    to ``async_resolve()``, the instance is created by awaiting the provided factory.
+    to ``resolve()``, the instance is created by awaiting the provided factory.
     All subsequent calls return the cached instance.
 
     Example:
@@ -135,8 +135,8 @@ class AsyncSingleton(ProviderWithArguments, SupportsTeardown, AbstractProvider[T
             return 0.5
 
         async_singleton = AsyncSingleton(my_async_factory)
-        value1 = await async_singleton.async_resolve()
-        value2 = await async_singleton.async_resolve()
+        value1 = await async_singleton.resolve()
+        value2 = await async_singleton.resolve()
         assert value1 == value2
         ```
 
@@ -202,7 +202,7 @@ class AsyncSingleton(ProviderWithArguments, SupportsTeardown, AbstractProvider[T
     async def tear_down(self, propagate: bool = True) -> None:
         """Reset the cached instance.
 
-        After calling this method, the next call to ``async_resolve()`` will recreate the instance.
+        After calling this method, the next call to ``resolve()`` will recreate the instance.
         """
         if self._instance is not None:
             self._instance = None
@@ -214,7 +214,7 @@ class AsyncSingleton(ProviderWithArguments, SupportsTeardown, AbstractProvider[T
     def tear_down_sync(self, propagate: bool = True, raise_on_async: bool = True) -> None:
         """Reset the cached instance.
 
-        After calling this method, the next call to ``sync_resolve()`` will recreate the instance.
+        After calling this method, the next call to ``resolve_sync()`` will recreate the instance.
         """
         if self._instance is not None:
             self._instance = None

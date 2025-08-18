@@ -1,5 +1,7 @@
 import abc
+import inspect
 import typing
+from typing import overload
 
 from typing_extensions import override
 
@@ -153,11 +155,21 @@ class AsyncFactory(AbstractFactory[T_co]):
 
     __slots__ = "_args", "_factory", "_kwargs", "_override"
 
-    def __init__(self, factory: typing.Callable[P, typing.Awaitable[T_co]], *args: P.args, **kwargs: P.kwargs) -> None:
+    @overload
+    def __init__(
+        self, factory: typing.Callable[P, typing.Awaitable[T_co]], *args: P.args, **kwargs: P.kwargs
+    ) -> None: ...
+
+    @overload
+    def __init__(self, factory: typing.Callable[P, T_co], *args: P.args, **kwargs: P.kwargs) -> None: ...
+
+    def __init__(
+        self, factory: typing.Callable[P, T_co | typing.Awaitable[T_co]], *args: P.args, **kwargs: P.kwargs
+    ) -> None:
         """Initialize an AsyncFactory instance.
 
         Args:
-            factory (Callable[P, Awaitable[T_co]]): Async function that returns the resource.
+            factory (Callable[P, T_co | Awaitable[T_co]]): Function that returns the resource (sync or async).
             *args: Arguments to pass to the factory function.
             **kwargs: Keyword arguments to pass to the factory
 
@@ -174,10 +186,17 @@ class AsyncFactory(AbstractFactory[T_co]):
         if self._override:
             return typing.cast(T_co, self._override)
 
-        return await self._factory(
-            *[await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args],  # type: ignore[arg-type]
-            **{k: await v.resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},  # type: ignore[arg-type]
+        args = [await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args]
+        kwargs = {k: await v.resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()}
+
+        result = self._factory(
+            *args,  # type:ignore[arg-type]
+            **kwargs,  # type:ignore[arg-type]
         )
+
+        if inspect.isawaitable(result):
+            return await result
+        return result
 
     @override
     def resolve_sync(self) -> typing.NoReturn:

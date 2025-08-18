@@ -29,7 +29,7 @@ class Selector(AbstractProvider[T_co]):
         )
 
         # Synchronously resolve the selected provider
-        service = selector_instance.sync_resolve()
+        service = selector_instance.resolve_sync()
         ```
 
     """
@@ -59,7 +59,7 @@ class Selector(AbstractProvider[T_co]):
             )
 
             # The "remote" provider will be selected
-            selected_service = my_selector_instance.sync_resolve()
+            selected_service = my_selector_instance.resolve_sync()
             ```
 
         """
