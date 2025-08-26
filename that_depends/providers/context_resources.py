@@ -612,6 +612,10 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
             ```
 
         """
+        if inspect.isasyncgenfunction(func) or inspect.isgeneratorfunction(func):
+            msg = "@container_context cannot be used to wrap generators."
+            raise UserWarning(msg)
+
         if inspect.iscoroutinefunction(func):
 
             @wraps(func)
