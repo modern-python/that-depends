@@ -142,3 +142,15 @@ with container_context(scope=ContextScopes.REQUEST):
 Since no context initialization was needed, the generator will work as expected.
 
 1. Scope provided to `@inject` no longer matches scope of the `sync_provider`
+
+
+### Container Context
+
+Similarly to above, the `@container_context` also does **not** support generators:
+
+```python
+@container_context(Container)
+async def my_generator() -> typing.AsyncIterator[None]:
+    yield
+```
+The above code will raise a `UserWarning`.
