@@ -1113,3 +1113,19 @@ def test_context_scope_hash() -> None:
     assert ContextScope("TEST") == ContextScope("TEST")
     assert hash(ContextScope("YES")) != hash(ContextScope("NO"))
     assert hash(ContextScope("HMM")) == hash(ContextScope("HMM"))
+
+
+async def test_container_context_cannot_wrap_async_generator() -> None:
+    with pytest.raises(UserWarning):
+
+        @container_context(global_context={"key": "val"})
+        async def async_generator() -> typing.AsyncIterator[None]:
+            yield  # pragma: no cover
+
+
+def test_container_context_cannot_wrap_sync_generator() -> None:
+    with pytest.raises(UserWarning):
+
+        @container_context(global_context={"key": "val"})
+        def sync_generator() -> typing.Iterator[None]:
+            yield  # pragma: no cover
