@@ -106,7 +106,7 @@ T = typing.TypeVar("T")
 CT = typing.TypeVar("CT")
 
 
-class SupportsContext(typing.Generic[CT], abc.ABC):
+class SupportsContext(abc.ABC, typing.Generic[CT]):
     """Interface for resources that support context initialization.
 
     This interface defines methods to create synchronous and asynchronous

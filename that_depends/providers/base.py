@@ -22,7 +22,7 @@ ResourceCreatorType: typing.TypeAlias = typing.Callable[
 ]
 
 
-class AbstractProvider(typing.Generic[T_co], abc.ABC):
+class AbstractProvider(abc.ABC, typing.Generic[T_co]):
     """Base class for all providers."""
 
     def __init__(self) -> None:

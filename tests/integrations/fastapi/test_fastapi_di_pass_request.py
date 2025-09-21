@@ -26,12 +26,13 @@ class DIContainer(BaseContainer):
 @app.get("/")
 async def read_root(
     context_request: typing.Annotated[
-        container.DependentFactory,
+        container.DependentFactory,  # incorrect type but available for backwards compatibility
         fastapi.Depends(DIContainer.context_request),
     ],
     request: fastapi.Request,
 ) -> None:
-    assert request is context_request
+    assert isinstance(request, fastapi.Request)
+    assert request == context_request
 
 
 client = TestClient(app)

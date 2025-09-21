@@ -120,7 +120,7 @@ async def test_resource_with_empty_list() -> None:
 
 
 async def test_resource_unsupported_creator() -> None:
-    with pytest.raises(TypeError, match="Unsupported resource type"):
+    with pytest.raises(TypeError, match=r"Unsupported resource type"):
         providers.Resource(None)  # type: ignore[arg-type]
 
 

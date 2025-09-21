@@ -32,7 +32,7 @@ async def test_list_provider() -> None:
 
 
 def test_list_failed_sync_resolve() -> None:
-    with pytest.raises(RuntimeError, match="AsyncResource cannot be resolved synchronously"):
+    with pytest.raises(RuntimeError, match=r"AsyncResource cannot be resolved synchronously"):
         DIContainer.sequence.resolve_sync()
 
 

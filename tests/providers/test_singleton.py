@@ -159,7 +159,7 @@ async def test_async_singleton_asyncio_concurrency() -> None:
 
 
 async def test_async_singleton_sync_resolve_failure() -> None:
-    with pytest.raises(RuntimeError, match="AsyncSingleton cannot be resolved in an sync context."):
+    with pytest.raises(RuntimeError, match=r"AsyncSingleton cannot be resolved in an sync context."):
         DIContainer.singleton_async.resolve_sync()
 
 

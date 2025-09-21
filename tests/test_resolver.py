@@ -25,5 +25,5 @@ async def test_dependency_resolver() -> None:
 
 async def test_dependency_resolver_failed() -> None:
     resolver = DIContainer.resolver(WrongFactory)
-    with pytest.raises(RuntimeError, match="Provider is not found, field_name='not_existing_name'"):
+    with pytest.raises(RuntimeError, match=r"Provider is not found, field_name='not_existing_name'"):
         await resolver()

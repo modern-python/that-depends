@@ -88,10 +88,10 @@ def async_context_resource() -> providers.ContextResource[str]:
 async def test_context_resource_without_context_init(
     context_resource: providers.ContextResource[str],
 ) -> None:
-    with pytest.raises(RuntimeError, match="Context is not set. Use container_context"):
+    with pytest.raises(RuntimeError, match=r"Context is not set. Use container_context"):
         await context_resource.resolve()
 
-    with pytest.raises(RuntimeError, match="Context is not set. Use container_context"):
+    with pytest.raises(RuntimeError, match=r"Context is not set. Use container_context"):
         context_resource.resolve_sync()
 
 
@@ -111,7 +111,7 @@ def test_sync_context_resource(sync_context_resource: providers.ContextResource[
 
 async def test_async_context_resource_in_sync_context(async_context_resource: providers.ContextResource[str]) -> None:
     with (
-        pytest.raises(RuntimeError, match="Context is not set. Use container_context"),
+        pytest.raises(RuntimeError, match=r"Context is not set. Use container_context"),
         container_context(async_context_resource),
     ):
         await async_context_resource()
@@ -149,10 +149,10 @@ async def test_context_resources_overriding(context_resource: providers.ContextR
 
     context_resource_result = await context_resource()
     context_resource_result2 = context_resource.resolve_sync()
-    assert context_resource_result is context_resource_result2 is context_resource_mock
+    assert context_resource_result is context_resource_result2 is context_resource_mock  # type:ignore[comparison-overlap]
 
     DIContainer.reset_override_sync()
-    with pytest.raises(RuntimeError, match="Context is not set. Use container_context"):
+    with pytest.raises(RuntimeError, match=r"Context is not set. Use container_context"):
         await context_resource()
 
 
@@ -178,9 +178,9 @@ async def test_context_resource_with_dynamic_resource() -> None:
 
 
 async def test_early_exit_of_container_context() -> None:
-    with pytest.raises(RuntimeError, match="No context token set for global vars, use __enter__ or __aenter__ first."):
+    with pytest.raises(RuntimeError, match=r"No context token set for global vars, use __enter__ or __aenter__ first."):
         await container_context(global_context={"a": "a"}).__aexit__(None, None, None)
-    with pytest.raises(RuntimeError, match="No context token set for global vars, use __enter__ or __aenter__ first."):
+    with pytest.raises(RuntimeError, match=r"No context token set for global vars, use __enter__ or __aenter__ first."):
         container_context(global_context={"a": "a"}).__exit__(None, None, None)
 
 

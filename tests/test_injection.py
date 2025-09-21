@@ -67,10 +67,10 @@ async def test_empty_injection() -> None:
 
     warnings.filterwarnings("error")
 
-    with pytest.raises(RuntimeWarning, match="Expected injection, but nothing found. Remove @inject decorator."):
+    with pytest.raises(RuntimeWarning, match=r"Expected injection, but nothing found. Remove @inject decorator."):
         await inner(1)
 
-    with pytest.raises(RuntimeWarning, match="Expected injection, but nothing found. Remove @inject decorator."):
+    with pytest.raises(RuntimeWarning, match=r"Expected injection, but nothing found. Remove @inject decorator."):
         await anext(inner_gen(1))
 
 
@@ -109,10 +109,10 @@ def test_sync_empty_injection() -> None:
 
     warnings.filterwarnings("error")
 
-    with pytest.raises(RuntimeWarning, match="Expected injection, but nothing found. Remove @inject decorator."):
+    with pytest.raises(RuntimeWarning, match=r"Expected injection, but nothing found. Remove @inject decorator."):
         inner(1)
 
-    with pytest.raises(RuntimeWarning, match="Expected injection, but nothing found. Remove @inject decorator."):
+    with pytest.raises(RuntimeWarning, match=r"Expected injection, but nothing found. Remove @inject decorator."):
         next(inner_gen(1))
 
 
@@ -1101,12 +1101,12 @@ async def test_inject_with_enter_scope_enters_scope_async() -> None:
 
 
 def test_inject_with_none_scope_and_enter_scope_raises() -> None:
-    with pytest.raises(ValueError, match="enter_scope cannot be used with scope=None."):
+    with pytest.raises(ValueError, match=r"enter_scope cannot be used with scope=None."):
         inject(scope=None, enter_scope=True)
 
 
 def test_enter_scope_raises_with_generator_sync() -> None:
-    with pytest.raises(ValueError, match="enter_scope cannot be used with generator functions."):
+    with pytest.raises(ValueError, match=r"enter_scope cannot be used with generator functions."):
 
         @inject(enter_scope=True)
         def _injected(val: float = Provide["C.a"]) -> typing.Generator[float, None, None]:
@@ -1114,7 +1114,7 @@ def test_enter_scope_raises_with_generator_sync() -> None:
 
 
 async def test_enter_scope_raises_with_generator_async() -> None:
-    with pytest.raises(ValueError, match="enter_scope cannot be used with async generator functions."):
+    with pytest.raises(ValueError, match=r"enter_scope cannot be used with async generator functions."):
 
         @inject(enter_scope=True)
         async def _injected(val: float = Provide["C.a"]) -> typing.AsyncGenerator[float, None]:
