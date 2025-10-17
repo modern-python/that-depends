@@ -43,7 +43,7 @@ class _ContainerMetaDict(dict[str, typing.Any]):
             super().__setitem__(key, value)
 
 
-class BaseContainerMeta(SupportsContext[None], abc.ABCMeta):
+class BaseContainerMeta(abc.ABCMeta, SupportsContext[None]):
     """Metaclass for BaseContainer."""
 
     @override

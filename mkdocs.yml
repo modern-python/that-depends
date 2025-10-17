@@ -23,6 +23,8 @@ nav:
       - Selector: providers/selector.md
       - Singletons: providers/singleton.md
       - State: providers/state.md
+  - Experimental Features:
+      - Lazy Provider: experimental/lazy.md
 
   - Integrations:
       - FastAPI: integrations/fastapi.md

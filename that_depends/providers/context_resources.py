@@ -1,4 +1,3 @@
-import abc
 import asyncio
 import contextlib
 import inspect
@@ -106,7 +105,7 @@ T = typing.TypeVar("T")
 CT = typing.TypeVar("CT")
 
 
-class SupportsContext(abc.ABC, typing.Generic[CT]):
+class SupportsContext(typing.Generic[CT]):
     """Interface for resources that support context initialization.
 
     This interface defines methods to create synchronous and asynchronous
