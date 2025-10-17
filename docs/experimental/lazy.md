@@ -13,7 +13,7 @@ multiple containers.
     ```python
     from that_depends.experimental import LazyProvider
     
-    lazy_p = LazyProvider("full.import.string.including.attributes")
+    lazy_p = LazyProvider("my.module.attribute.path")
     ```
 === "Separate module and provider"
     ```python
