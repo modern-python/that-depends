@@ -24,7 +24,7 @@ fastapi = [
     "fastapi",
 ]
 faststream = [
-    "faststream<0.6.0"
+    "faststream"
 ]
 
 [project.urls]

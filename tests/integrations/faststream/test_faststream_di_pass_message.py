@@ -1,7 +1,7 @@
 import typing
 
 from faststream import BaseMiddleware, Context, Depends
-from faststream.broker.message import StreamMessage
+from faststream.message import StreamMessage
 from faststream.nats import NatsBroker, TestNatsBroker
 from faststream.nats.message import NatsMessage
 
@@ -18,7 +18,7 @@ class ContextMiddleware(BaseMiddleware):
             return await call_next(msg)
 
 
-broker = NatsBroker(middlewares=(ContextMiddleware,), validate=False)
+broker = NatsBroker(middlewares=(ContextMiddleware,))
 
 TEST_SUBJECT = "test"
 
