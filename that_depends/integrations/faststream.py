@@ -13,7 +13,7 @@ from that_depends.utils import UNSET, Unset, is_set
 
 _FASTSTREAM_MODULE_NAME: Final[str] = "faststream"
 _FASTSTREAM_VERSION: Final[str] = version(_FASTSTREAM_MODULE_NAME)
-if Version(_FASTSTREAM_VERSION) >= Version("0.6.0"):
+if Version(_FASTSTREAM_VERSION) >= Version("0.6.0"):  # pragma: no cover
     from faststream import BaseMiddleware, ContextRepo
 
     class DIContextMiddleware(BaseMiddleware):
@@ -83,7 +83,7 @@ if Version(_FASTSTREAM_VERSION) >= Version("0.6.0"):
                 scope=self._scope,
                 global_context=self._global_context,
             )
-else:
+else:  # pragma: no cover
     from faststream import BaseMiddleware
 
     @deprecated("Will be removed with faststream v1")

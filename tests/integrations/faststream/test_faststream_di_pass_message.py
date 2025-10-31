@@ -9,9 +9,9 @@ from that_depends import BaseContainer, container_context, fetch_context_item, p
 from that_depends.integrations.faststream import _FASTSTREAM_VERSION
 
 
-if Version(_FASTSTREAM_VERSION) >= Version("0.6.0"):
+if Version(_FASTSTREAM_VERSION) >= Version("0.6.0"):  # pragma: no cover
     from faststream.message import StreamMessage
-else:
+else:  # pragma: no cover
     from faststream.broker.message import StreamMessage  # type: ignore[import-not-found, no-redef]
 
 
@@ -25,7 +25,11 @@ class ContextMiddleware(BaseMiddleware):
             return await call_next(msg)
 
 
-broker = NatsBroker(middlewares=(ContextMiddleware,))
+if Version(_FASTSTREAM_VERSION) >= Version("0.6.0"):  # pragma: no cover
+    broker = NatsBroker(middlewares=(ContextMiddleware,))
+
+else:  # pragma: no cover
+    broker = NatsBroker(middlewares=(ContextMiddleware,), validate=False)  # type: ignore[call-arg]
 
 TEST_SUBJECT = "test"
 

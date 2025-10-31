@@ -34,8 +34,8 @@ jobs:
           - "3.13"
           - "3.14"
         faststream-version:
-          - "0.5.48"
-          - "0.6.2"
+          - "<0.6.0"
+          - ">=0.6.0"
     steps:
       - uses: actions/checkout@v5
       - uses: extractions/setup-just@v3
@@ -44,7 +44,7 @@ jobs:
           cache-dependency-glob: "**/pyproject.toml"
       - run: uv python install ${{ matrix.python-version }}
       - run: just install
-      - run: uv run --with faststream==${{ matrix.faststream-version }} pytest . --cov=. --cov-report xml
+      - run: uv run --with "faststream${{ matrix.faststream-version }}" pytest . --cov=. --cov-report xml
       - uses: codecov/codecov-action@v5.4.3
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
