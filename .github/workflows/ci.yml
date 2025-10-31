@@ -44,8 +44,7 @@ jobs:
           cache-dependency-glob: "**/pyproject.toml"
       - run: uv python install ${{ matrix.python-version }}
       - run: just install
-      - run: uv pip install "faststream==${{ matrix.faststream-version }}"
-      - run: pytest . --cov=. --cov-report xml
+      - run: uv run --with faststream==${{ matrix.faststream-version }} pytest . --cov=. --cov-report xml
       - uses: codecov/codecov-action@v5.4.3
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

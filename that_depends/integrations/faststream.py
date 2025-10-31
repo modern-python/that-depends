@@ -4,7 +4,7 @@ from types import TracebackType
 from typing import Any, Final, Optional
 
 from packaging.version import Version
-from typing_extensions import override
+from typing_extensions import deprecated, override
 
 from that_depends import container_context
 from that_depends.providers.context_resources import ContextScope, SupportsContext
@@ -87,6 +87,7 @@ if Version(_FASTSTREAM_VERSION) >= Version("0.6.0"):
 else:
     from faststream import BaseMiddleware
 
+    @deprecated("Will be removed with faststream v1")
     class DIContextMiddleware(BaseMiddleware):  # type: ignore[no-redef]
         """Initializes the container context for faststream brokers."""
 
