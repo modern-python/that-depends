@@ -31,8 +31,8 @@ if Version(_FASTSTREAM_VERSION) >= Version("0.6.0"):
 
             Args:
                 *context_items (SupportsContext[Any]): Context items to initialize.
-                msg (Any): Message object (for faststream v0.6+ compatibility).
-                context (ContextRepo): Context repository (for faststream v0.6+ compatibility).
+                msg (Any): Message object.
+                context (ContextRepo): Context repository.
                 global_context (dict[str, Any] | Unset): Global context to initialize the container.
                 scope (ContextScope | Unset): Context scope to initialize the container.
 
@@ -67,14 +67,13 @@ if Version(_FASTSTREAM_VERSION) >= Version("0.6.0"):
             """Create an instance of DIContextMiddleware.
 
             Args:
-                msg (Any): Message object (for faststream v0.6+ compatibility).
-                **kwargs: Additional keyword arguments (context for v0.6+).
+                msg (Any): Message object.
+                **kwargs: Additional keyword arguments.
 
             Returns:
                 DIContextMiddleware: A new instance of DIContextMiddleware.
 
             """
-            # Extract context if present (v0.6+)
             context = kwargs.get("context")
 
             return DIContextMiddleware(
@@ -134,7 +133,3 @@ else:
         def __call__(self, *args: typing.Any, **kwargs: typing.Any) -> "DIContextMiddleware":  # noqa: ARG002, ANN401
             """Create an instance of DIContextMiddleware."""
             return DIContextMiddleware(*self._context_items, scope=self._scope, global_context=self._global_context)
-
-
-if __name__ == "__main__":
-    pass

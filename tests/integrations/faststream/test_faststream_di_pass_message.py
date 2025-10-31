@@ -1,11 +1,18 @@
 import typing
 
 from faststream import BaseMiddleware, Context, Depends
-from faststream.message import StreamMessage
 from faststream.nats import NatsBroker, TestNatsBroker
 from faststream.nats.message import NatsMessage
+from packaging.version import Version
 
 from that_depends import BaseContainer, container_context, fetch_context_item, providers
+from that_depends.integrations.faststream import _FASTSTREAM_VERSION
+
+
+if Version(_FASTSTREAM_VERSION) >= Version("0.6.0"):
+    from faststream.message import StreamMessage
+else:
+    from faststream.broker.message import StreamMessage  # type: ignore[import-not-found, no-redef]
 
 
 class ContextMiddleware(BaseMiddleware):
