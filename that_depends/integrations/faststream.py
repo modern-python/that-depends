@@ -74,14 +74,7 @@ if Version(_FASTSTREAM_VERSION) >= Version("0.6.0"):  # pragma: no cover
                 DIContextMiddleware: A new instance of DIContextMiddleware.
 
             """
-            # Explicitly extract and validate 'context'
-            context = None
-            if "context" in kwargs:
-                context = kwargs.pop("context")
-                if context is not None and not isinstance(context, ContextRepo):
-                    raise TypeError(f"'context' must be of type ContextRepo or None, got {type(context).__name__}")
-            if kwargs:
-                raise TypeError(f"Unexpected keyword arguments: {', '.join(kwargs.keys())}")
+            context = kwargs.get("context")
 
             return DIContextMiddleware(
                 *self._context_items,
