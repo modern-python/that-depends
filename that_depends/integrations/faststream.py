@@ -15,6 +15,7 @@ _FASTSTREAM_MODULE_NAME: Final[str] = "faststream"
 _FASTSTREAM_VERSION: Final[str] = version(_FASTSTREAM_MODULE_NAME)
 if Version(_FASTSTREAM_VERSION) >= Version("0.6.0"):  # pragma: no cover
     from faststream import BaseMiddleware, ContextRepo
+    from faststream._internal.types import AnyMsg
 
     class DIContextMiddleware(BaseMiddleware):
         """Initializes the container context for faststream brokers."""
@@ -22,7 +23,7 @@ if Version(_FASTSTREAM_VERSION) >= Version("0.6.0"):  # pragma: no cover
         def __init__(
             self,
             *context_items: SupportsContext[Any],
-            msg: Any = None,  # noqa: ANN401
+            msg: AnyMsg | None = None,
             context: Optional["ContextRepo"] = None,
             global_context: dict[str, Any] | Unset = UNSET,
             scope: ContextScope | Unset = UNSET,
