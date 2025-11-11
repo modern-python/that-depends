@@ -7,6 +7,7 @@
 [![GitHub stars](https://img.shields.io/github/stars/modern-python/that-depends)](https://github.com/modern-python/that-depends/stargazers)
 [![libs.tech recommends](https://libs.tech/project/773446541/badge.svg)](https://libs.tech/project/773446541/that-depends)
 [![llms.txt](https://img.shields.io/badge/llms.txt-green)](https://that-depends.readthedocs.io/llms.txt)
+
 Dependency injection framework for Python.
 
 It is production-ready and gives you the following:
