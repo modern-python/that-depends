@@ -67,3 +67,9 @@ await some_foo() # "async resource"
 ```
 
 See the [injection documentation](introduction/injection.md) for more information.
+
+## llms.txt
+
+`that-depends` provides a [llms.txt](https://that-depends.readthedocs.io/llms.txt) file.
+
+You can find documentation on how to use it [here](https://llmstxt.org/).

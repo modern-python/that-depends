@@ -96,6 +96,43 @@ markdown_extensions:
 
 extra_css:
   - css/code.css
+plugins:
+  - llmstxt:
+      full_output: llms-full.txt
+      markdown_description: "A simple dependency injection framework for Python."
+      sections:
+        Quickstart:
+          - index.md: How to install and basic usage example
+        Containers:
+          - introduction/ioc-container.md: Defining the DI Container
+          - introduction/multiple-containers.md: Using multiple DI Containers
+        Injecting Dependencies:
+          - introduction/injection.md: Default way to inject dependencies
+          - introduction/generator-injection.md: Injecting dependencies into generators
+          - introduction/type-based-injection.md: Injecting dependencies by bound type
+          - introduction/string-injection.md: Injecting dependencies by providing a reference to a Provider by string
+        Simple Providers:
+          - providers/singleton.md: The Singleton and AsyncSingleton provider
+          - providers/factories.md: The Factory and AsyncFactory provider
+          - providers/object.md: The Object provider
+          - providers/resources.md: The Resource and AsyncResource provider
+          - introduction/tear-down.md: Handling tear down for Singletons and Resources
+        Context Providers:
+          - providers/context-resources.md: The ContextResource provider
+          - introduction/scopes.md: Handling scopes with ContextResources
+          - providers/state.md: The State provider
+        Providers that interact with other providers:
+          - providers/collections.md: The Dict and List provider
+          - providers/selector.md: The Selector provider
+        Integrations with other Frameworks:
+          - integrations/fastapi.md: Integration with FastApi
+          - integrations/faststream.md: Integration with FastStream
+          - integrations/litestar.md: Integration with LiteStar
+        Testing:
+          - testing/fixture.md: Usage with fixtures
+          - testing/provider-overriding.md: Overriding providers
+        Experimental features:
+          - experimental/lazy.md: The Lazy provider
 
 extra:
   social:

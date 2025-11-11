@@ -42,11 +42,11 @@ dev = [
     "mypy",
     "typing-extensions",
     "pre-commit",
-    # integrations tests
     "litestar",
     "faststream[nats]",
     "mkdocs>=1.6.1",
     "pytest-randomly",
+    "mkdocs-llmstxt>=0.4.0",
 ]
 
 [build-system]
