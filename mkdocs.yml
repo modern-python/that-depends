@@ -99,7 +99,7 @@ extra_css:
 plugins:
   - llmstxt:
       full_output: llms-full.txt
-      markdown_description: "A simple dependency injection framework for python."
+      markdown_description: "A simple dependency injection framework for Python."
       sections:
         Quickstart:
           - index.md: How to install and basic usage example
