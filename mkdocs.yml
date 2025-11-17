@@ -1,5 +1,6 @@
 site_name: that-depends
 repo_url: https://github.com/modern-python/that-depends
+site_url: https://that-depends.readthedocs.io/
 docs_dir: docs
 edit_uri: edit/main/docs/
 nav:
