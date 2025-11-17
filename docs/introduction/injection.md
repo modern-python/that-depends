@@ -100,7 +100,7 @@ This is to avoid accidentally decorating a function that doesn’t actually requ
 
 ## Specifying a Scope
 
-By default, `@inject` enters the scope `ContextScopes.INJECT`. If you want to override that, do:
+By default, `@inject` uses the `ContextScopes.INJECT` scope. If you want to override that, do:
 
 ```python
 from that_depends import inject

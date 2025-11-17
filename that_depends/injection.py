@@ -94,7 +94,7 @@ def inject(  # noqa: C901
             injected, kwargs = _resolve_arguments_sync(signature, scope, container, None, *args, **kwargs)  # type: ignore[assignment]
 
             if not injected:
-                warnings.warn(_INJECTION_WARNING_MESSAGE, RuntimeWarning, stacklevel=1)
+                warnings.warn(_INJECTION_WARNING_MESSAGE, RuntimeWarning, stacklevel=2)
 
             g = gen(*args, **kwargs)
             result = yield from g
@@ -249,7 +249,7 @@ def _resolve_sync(
         injected, kwargs = _resolve_arguments_sync(signature, scope, container, stack, *args, **kwargs)  # type: ignore[assignment]
 
         if not injected:
-            warnings.warn(_INJECTION_WARNING_MESSAGE, RuntimeWarning, stacklevel=1)
+            warnings.warn(_INJECTION_WARNING_MESSAGE, RuntimeWarning, stacklevel=3)
 
         return func(*args, **kwargs)
 
