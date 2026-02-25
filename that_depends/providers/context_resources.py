@@ -481,7 +481,7 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
         self._scope_token: Token[ContextScope | None] | None = None
 
     def _resolve_initial_conditions(self) -> None:
-        self._scope = self._scope if self._scope else get_current_scope()
+        self._scope = self._scope or get_current_scope()
         if self._preserve_global_context and self._global_context:
             if context := _get_container_context():
                 self._initial_context = {**context, **self._global_context}

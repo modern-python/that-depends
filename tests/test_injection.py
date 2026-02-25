@@ -559,7 +559,7 @@ def test_inject_scope_creates_new_context_for_parents_of_non_context_resource_sy
 
 def test_simple_injection_into_iterator_sync() -> None:
     class _Container(BaseContainer):
-        sync_resource = providers.Factory(lambda: random.random())
+        sync_resource = providers.Factory(random.random)
 
     @contextmanager
     @inject
@@ -592,7 +592,7 @@ def test_simple_injection_into_generator_sync() -> None:
     _max_multiplier = 3
 
     class _Container(BaseContainer):
-        sync_resource = providers.Factory(lambda: random.random())
+        sync_resource = providers.Factory(random.random)
 
     @inject
     def _injected(val: float = Provide["_Container.sync_resource"]) -> typing.Generator[float, None, None]:
@@ -659,7 +659,7 @@ async def test_create_context_fails_during_injection_into_generator_async() -> N
 
 def test_simple_override_injection_into_iterator_sync() -> None:
     class _Container(BaseContainer):
-        sync_resource = providers.Factory(lambda: random.random())
+        sync_resource = providers.Factory(random.random)
 
     @contextmanager
     @inject
@@ -692,7 +692,7 @@ async def test_simple_override_injection_into_iterator_async() -> None:
 
 def test_simple_injection_into_generator_with_receive_sync() -> None:
     class _Container(BaseContainer):
-        sync_resource = providers.Factory(lambda: random.random())
+        sync_resource = providers.Factory(random.random)
 
     value_to_send = 5
 
@@ -717,7 +717,7 @@ def test_simple_injection_into_generator_with_receive_sync() -> None:
 
 def test_simple_injection_into_generator_with_return_sync() -> None:
     class _Container(BaseContainer):
-        sync_resource = providers.Factory(lambda: random.random())
+        sync_resource = providers.Factory(random.random)
 
     multiplier = 4
 
@@ -746,7 +746,7 @@ def test_simple_injection_into_generator_with_return_sync() -> None:
 
 def test_simple_injection_into_generator_yield_once_receive_return_sync() -> None:  # Renamed test slightly
     class _Container(BaseContainer):
-        sync_resource = providers.Factory(lambda: random.random())
+        sync_resource = providers.Factory(random.random)
 
     send_value = 7
     return_add = 100
@@ -849,7 +849,7 @@ async def test_injection_into_generator_with_context_resource_different_scope_as
 
 def test_injection_by_type_sync() -> None:
     class _Container(BaseContainer):
-        sync_resource = providers.Factory(lambda: random.random()).bind(float)
+        sync_resource = providers.Factory(random.random).bind(float)
 
     @inject(container=_Container)
     def _injected_1(val: float = Provide()) -> float:
@@ -865,7 +865,7 @@ def test_injection_by_type_sync() -> None:
 
 async def test_injection_by_type_async() -> None:
     class _Container(BaseContainer):
-        sync_resource = providers.Factory(lambda: random.random()).bind(float)
+        sync_resource = providers.Factory(random.random).bind(float)
 
     @inject(container=_Container)
     async def _injected_1(val: float = Provide()) -> float:
@@ -881,7 +881,7 @@ async def test_injection_by_type_async() -> None:
 
 async def test_injection_by_type_async_generator() -> None:
     class _Container(BaseContainer):
-        sync_resource = providers.Factory(lambda: random.random()).bind(float)
+        sync_resource = providers.Factory(random.random).bind(float)
 
     @inject(container=_Container)
     async def _injected_1(val: float = Provide()) -> typing.AsyncGenerator[float, None]:
@@ -897,7 +897,7 @@ async def test_injection_by_type_async_generator() -> None:
 
 def test_injection_by_type_sync_generator() -> None:
     class _Container(BaseContainer):
-        sync_resource = providers.Factory(lambda: random.random()).bind(float)
+        sync_resource = providers.Factory(random.random).bind(float)
 
     @inject(container=_Container)
     def _injected_1(val: float = Provide()) -> typing.Generator[float, None, None]:
@@ -945,7 +945,7 @@ async def test_inject_by_type_fails_with_no_container_async() -> None:
 
 def test_inject_by_type_fails_if_type_is_not_bound_sync() -> None:
     class _Container(BaseContainer):
-        sync_resource = providers.Factory(lambda: random.random()).bind(float)
+        sync_resource = providers.Factory(random.random).bind(float)
 
     @_Container.inject
     def _injected_1(val: int = Provide()) -> float:
@@ -964,7 +964,7 @@ def test_inject_by_type_fails_if_type_is_not_bound_sync() -> None:
 
 async def test_inject_by_type_fails_if_type_is_not_bound_async() -> None:
     class _Container(BaseContainer):
-        sync_resource = providers.Factory(lambda: random.random()).bind(float)
+        sync_resource = providers.Factory(random.random).bind(float)
 
     @_Container.inject
     async def _injected_1(val: int = Provide()) -> float:
@@ -986,7 +986,7 @@ def test_contravariant_injection_by_type_sync() -> None:
     class B(A): ...
 
     class _Container(BaseContainer):
-        sync_resource = providers.Factory(lambda: B()).bind(B, contravariant=True)
+        sync_resource = providers.Factory(B).bind(B, contravariant=True)
 
     @inject(container=_Container)
     def _injected(val_a: A = Provide(), val_b: B = Provide()) -> tuple[A, B]:
@@ -1004,7 +1004,7 @@ async def test_contravariant_injection_by_type_async() -> None:
     class B(A): ...
 
     class _Container(BaseContainer):
-        sync_resource = providers.Factory(lambda: B()).bind(B, contravariant=True)
+        sync_resource = providers.Factory(B).bind(B, contravariant=True)
 
     @inject(container=_Container)
     async def _injected(val_a: A = Provide(), val_b: B = Provide()) -> tuple[A, B]:
@@ -1018,7 +1018,7 @@ async def test_contravariant_injection_by_type_async() -> None:
 
 def test_type_injection_fails_without_bind_sync() -> None:
     class _Container(BaseContainer):
-        sync_resource = providers.Factory(lambda: random.random())
+        sync_resource = providers.Factory(random.random)
 
     @inject(container=_Container)
     def _injected(val: float = Provide()) -> float:
@@ -1030,7 +1030,7 @@ def test_type_injection_fails_without_bind_sync() -> None:
 
 async def test_type_injection_fails_without_bind_async() -> None:
     class _Container(BaseContainer):
-        sync_resource = providers.Factory(lambda: random.random())
+        sync_resource = providers.Factory(random.random)
 
     @inject(container=_Container)
     async def _injected(val: float = Provide()) -> float:

@@ -39,7 +39,7 @@ class Container2(BaseContainer):
     obj_2 = providers.Object(2)
     async_context_provider = providers.ContextResource(_async_creator)
     sync_context_provider = providers.ContextResource(_sync_creator)
-    singleton_provider = providers.Singleton(lambda: random.random())
+    singleton_provider = providers.Singleton(random.random)
 
 
 async def test_lazy_provider_resolution_async() -> None:

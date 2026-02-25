@@ -15,7 +15,7 @@ def _iterator(x: float) -> typing.Iterator[float]:
 
 
 class _Container(BaseContainer):
-    grandparent = providers.Singleton(lambda: random.random())
+    grandparent = providers.Singleton(random.random)
     parent = providers.Factory(lambda x: x, grandparent.cast)
     item = providers.ContextResource(_iterator, parent.cast).with_config(scope=ContextScopes.REQUEST)
 

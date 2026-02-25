@@ -34,7 +34,7 @@ async def test_container_tear_down() -> None:
 
 async def test_container_sync_tear_down_propagation() -> None:
     class _DependentContainer(BaseContainer):
-        singleton = providers.Singleton(lambda: random.random())
+        singleton = providers.Singleton(random.random)
         resource = providers.Resource(_sync_resource)
 
     DIContainer.connect_containers(_DependentContainer)
@@ -60,7 +60,7 @@ async def test_container_tear_down_propagation() -> None:
     class _DependentContainer(BaseContainer):
         async_singleton = providers.AsyncSingleton(_async_singleton)
         async_resource = providers.Resource(_async_resource)
-        sync_singleton = providers.Singleton(lambda: random.random())
+        sync_singleton = providers.Singleton(random.random)
         sync_resource = providers.Resource(_sync_resource)
 
     DIContainer.connect_containers(_DependentContainer)

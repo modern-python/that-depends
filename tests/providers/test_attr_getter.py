@@ -166,7 +166,7 @@ def test_attr_getter_deregister_arguments() -> None:
             self.v = v
 
     class _Container(BaseContainer):
-        parent = providers.Singleton(lambda: random.random())
+        parent = providers.Singleton(random.random)
         child = providers.Singleton(_Item, parent.cast)
 
     attr_getter = _Container.child.v
