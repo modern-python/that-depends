@@ -433,13 +433,19 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
     synchronous and asynchronous scenarios.
     """
 
-    ___slots__ = (
-        "_providers",
-        "_context_stack",
+    __slots__ = (
         "_containers",
-        "_initial_context",
+        "_context_items",
+        "_context_providers",
+        "_context_stack",
         "_context_token",
+        "_global_context",
+        "_initial_context",
+        "_preserve_global_context",
+        "_providers",
+        "_reset_resource_context",
         "_scope",
+        "_scope_token",
     )
 
     def __init__(
