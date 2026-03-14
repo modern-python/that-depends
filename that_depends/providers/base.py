@@ -306,7 +306,9 @@ class AbstractResource(ProviderWithArguments, AbstractProvider[T_co], abc.ABC):
 
         """
         super().__init__()
-        self._creator: typing.Any
+        self._creator: (
+            typing.Callable[P, typing.ContextManager[T_co]] | typing.Callable[P, typing.AsyncContextManager[T_co]]
+        )
 
         if inspect.isasyncgenfunction(creator):
             self._is_async = True
@@ -352,8 +354,8 @@ class AbstractResource(ProviderWithArguments, AbstractProvider[T_co], abc.ABC):
             self._register_arguments()
 
             cm: typing.ContextManager[T_co] | typing.AsyncContextManager[T_co] = self._creator(
-                *[await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
-                **{k: await v.resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
+                *[await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args],  # type:ignore[arg-type]
+                **{k: await v.resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},  # type:ignore[arg-type]
             )
 
             if isinstance(cm, typing.AsyncContextManager):
@@ -388,11 +390,11 @@ class AbstractResource(ProviderWithArguments, AbstractProvider[T_co], abc.ABC):
             self._register_arguments()
 
             cm = self._creator(
-                *[x.resolve_sync() if isinstance(x, AbstractProvider) else x for x in self._args],
-                **{k: v.resolve_sync() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
+                *[x.resolve_sync() if isinstance(x, AbstractProvider) else x for x in self._args],  # type:ignore[arg-type]
+                **{k: v.resolve_sync() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},  # type:ignore[arg-type]
             )
             context.context_stack = contextlib.ExitStack()
-            context.instance = context.context_stack.enter_context(cm)
+            context.instance = context.context_stack.enter_context(cm)  # type:ignore[arg-type]
 
             return context.instance
 
