@@ -5,7 +5,13 @@ from typing import overload
 
 from typing_extensions import override
 
-from that_depends.providers.base import AbstractProvider
+from that_depends.providers.base import (
+    AbstractProvider,
+    _resolve_arguments,
+    _resolve_arguments_sync,
+    _resolve_keyword_arguments,
+    _resolve_keyword_arguments_sync,
+)
 from that_depends.providers.mixin import ProviderWithArguments
 
 
@@ -76,13 +82,23 @@ class Factory(AbstractFactory[T_co]):
     """
 
     def _register_arguments(self) -> None:
+        if not self._mark_arguments_registered():
+            return
         self._register(self._args)
         self._register(self._kwargs.values())
 
     def _deregister_arguments(self) -> None:
         raise NotImplementedError
 
-    __slots__ = "_args", "_factory", "_kwargs", "_override"
+    __slots__ = (
+        "_args",
+        "_args_are_providers",
+        "_factory",
+        "_kwargs",
+        "_kwargs_are_providers",
+        "_kwargs_items",
+        "_override",
+    )
 
     def __init__(self, factory: typing.Callable[P, T_co], *args: P.args, **kwargs: P.kwargs) -> None:
         """Initialize a Factory instance.
@@ -97,6 +113,11 @@ class Factory(AbstractFactory[T_co]):
         self._factory: typing.Final = factory
         self._args: typing.Final = args
         self._kwargs: typing.Final = kwargs
+        self._args_are_providers: typing.Final = tuple(isinstance(arg, AbstractProvider) for arg in args)
+        self._kwargs_items: typing.Final = tuple(kwargs.items())
+        self._kwargs_are_providers: typing.Final = tuple(
+            isinstance(value, AbstractProvider) for _, value in self._kwargs_items
+        )
         self._register_arguments()
 
     @override
@@ -105,12 +126,8 @@ class Factory(AbstractFactory[T_co]):
             return typing.cast(T_co, self._override)
 
         return self._factory(
-            *[  # type: ignore[arg-type]
-                await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args
-            ],
-            **{  # type: ignore[arg-type]
-                k: await v.resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()
-            },
+            *await _resolve_arguments(self._args, self._args_are_providers),
+            **await _resolve_keyword_arguments(self._kwargs_items, self._kwargs_are_providers),
         )
 
     @override
@@ -119,12 +136,8 @@ class Factory(AbstractFactory[T_co]):
             return typing.cast(T_co, self._override)
 
         return self._factory(
-            *[  # type: ignore[arg-type]
-                x.resolve_sync() if isinstance(x, AbstractProvider) else x for x in self._args
-            ],
-            **{  # type: ignore[arg-type]
-                k: v.resolve_sync() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()
-            },
+            *_resolve_arguments_sync(self._args, self._args_are_providers),
+            **_resolve_keyword_arguments_sync(self._kwargs_items, self._kwargs_are_providers),
         )
 
 
@@ -147,13 +160,23 @@ class AsyncFactory(AbstractFactory[T_co]):
     """
 
     def _register_arguments(self) -> None:
+        if not self._mark_arguments_registered():
+            return
         self._register(self._args)
         self._register(self._kwargs.values())
 
     def _deregister_arguments(self) -> None:
         raise NotImplementedError
 
-    __slots__ = "_args", "_factory", "_kwargs", "_override"
+    __slots__ = (
+        "_args",
+        "_args_are_providers",
+        "_factory",
+        "_kwargs",
+        "_kwargs_are_providers",
+        "_kwargs_items",
+        "_override",
+    )
 
     @overload
     def __init__(
@@ -179,6 +202,11 @@ class AsyncFactory(AbstractFactory[T_co]):
         self._factory: typing.Final = factory
         self._args: typing.Final = args
         self._kwargs: typing.Final = kwargs
+        self._args_are_providers: typing.Final = tuple(isinstance(arg, AbstractProvider) for arg in args)
+        self._kwargs_items: typing.Final = tuple(kwargs.items())
+        self._kwargs_are_providers: typing.Final = tuple(
+            isinstance(value, AbstractProvider) for _, value in self._kwargs_items
+        )
         self._register_arguments()
 
     @override
@@ -186,12 +214,12 @@ class AsyncFactory(AbstractFactory[T_co]):
         if self._override:
             return typing.cast(T_co, self._override)
 
-        args = [await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args]
-        kwargs = {k: await v.resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()}
+        args = await _resolve_arguments(self._args, self._args_are_providers)
+        kwargs = await _resolve_keyword_arguments(self._kwargs_items, self._kwargs_are_providers)
 
         result = self._factory(
-            *args,  # type:ignore[arg-type]
-            **kwargs,  # type:ignore[arg-type]
+            *args,
+            **kwargs,
         )
 
         if inspect.isawaitable(result):

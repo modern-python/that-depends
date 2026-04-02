@@ -1,19 +1,18 @@
-import asyncio
-import contextlib
 import functools
 import inspect
 import re
-import threading
 import typing
 import warnings
-from contextlib import AsyncExitStack, ExitStack
+from contextlib import AsyncExitStack
+from types import TracebackType
+
+from typing_extensions import Self
 
 from that_depends.container import BaseContainer
 from that_depends.exceptions import TypeNotBoundError
 from that_depends.meta import BaseContainerMeta
 from that_depends.providers import AbstractProvider, ContextResource
 from that_depends.providers.context_resources import ContextScope, ContextScopes, container_context
-from that_depends.providers.mixin import ProviderWithArguments
 
 
 class ContextProviderError(Exception):
@@ -27,6 +26,91 @@ _INJECTION_WARNING_MESSAGE: typing.Final[str] = "Expected injection, but nothing
 _PROVIDE_MESSAGE: typing.Final[str] = (
     "Use @Container.inject or @inject(container=Container) if you wish to use Provide()"
 )
+_INJECT_DIRECT_PROVIDER: typing.Final = 1
+_INJECT_STRING_PROVIDER: typing.Final = 2
+_INJECT_TYPED_PROVIDER: typing.Final = 3
+
+
+class _InjectionParameter(typing.NamedTuple):
+    argument_index: int
+    field_name: str
+    kind: int
+    dependency: typing.Any
+
+
+class _DirectInjectionParameter(typing.NamedTuple):
+    argument_index: int
+    field_name: str
+    provider: AbstractProvider[typing.Any]
+    scope_init_order: tuple[AbstractProvider[typing.Any], ...]
+
+
+class _InjectionPlan(typing.NamedTuple):
+    direct_parameters: tuple[_DirectInjectionParameter, ...]
+    dynamic_parameters: tuple[_InjectionParameter, ...]
+
+
+class _SyncInjectionStack:
+    __slots__ = ("_exit_states",)
+
+    def __init__(self) -> None:
+        self._exit_states: list[_SupportsClose] = []
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> typing.Literal[False]:
+        _ = exc_type, exc_value, traceback
+        while self._exit_states:
+            self._exit_states.pop().close()
+        return False
+
+    def enter_context(self, context_manager: typing.ContextManager[T]) -> T:
+        value = context_manager.__enter__()
+        self._exit_states.append(_ContextManagerExitState(context_manager))
+        return value
+
+    def push_exit_state(self, exit_state: "_SupportsClose") -> None:
+        self._exit_states.append(exit_state)
+
+
+class _SupportsClose(typing.Protocol):
+    def close(self) -> None: ...
+
+
+class _ContextManagerExitState:
+    __slots__ = ("_context_manager",)
+
+    def __init__(self, context_manager: typing.ContextManager[typing.Any]) -> None:
+        self._context_manager = context_manager
+
+    def close(self) -> None:
+        self._context_manager.__exit__(None, None, None)
+
+
+@functools.cache
+def _build_injection_plan(func: typing.Callable[..., typing.Any]) -> _InjectionPlan:
+    direct_parameters: list[_DirectInjectionParameter] = []
+    dynamic_parameters: list[_InjectionParameter] = []
+    for index, (field_name, param) in enumerate(inspect.signature(func).parameters.items()):
+        default = param.default
+        if isinstance(default, StringProviderDefinition):
+            dynamic_parameters.append(_InjectionParameter(index, field_name, _INJECT_STRING_PROVIDER, default))
+        elif isinstance(default, AbstractProvider):
+            direct_parameters.append(
+                _DirectInjectionParameter(index, field_name, default, default._get_scope_init_order())  # noqa: SLF001
+            )
+        elif isinstance(default, _Provide):
+            dynamic_parameters.append(_InjectionParameter(index, field_name, _INJECT_TYPED_PROVIDER, param.annotation))
+    return _InjectionPlan(
+        direct_parameters=tuple(direct_parameters),
+        dynamic_parameters=tuple(dynamic_parameters),
+    )
 
 
 @typing.overload
@@ -88,10 +172,11 @@ def inject(  # noqa: C901
     def _inject_to_sync_gen(
         gen: typing.Callable[P, typing.Generator[T, typing.Any, typing.Any]],
     ) -> typing.Callable[P, typing.Generator[T, typing.Any, typing.Any]]:
+        plan = _build_injection_plan(gen)
+
         @functools.wraps(gen)
         def inner(*args: P.args, **kwargs: P.kwargs) -> typing.Generator[T, typing.Any, typing.Any]:
-            signature = inspect.signature(gen)
-            injected, kwargs = _resolve_arguments_sync(signature, scope, container, None, *args, **kwargs)  # type: ignore[assignment]
+            injected, kwargs = _resolve_arguments_sync(plan, scope, container, None, *args, **kwargs)  # type: ignore[assignment]
 
             if not injected:
                 warnings.warn(_INJECTION_WARNING_MESSAGE, RuntimeWarning, stacklevel=2)
@@ -105,11 +190,11 @@ def inject(  # noqa: C901
     def _inject_to_async_gen(
         gen: typing.Callable[P, typing.AsyncGenerator[T, typing.Any]],
     ) -> typing.Callable[P, typing.AsyncGenerator[T, typing.Any]]:
+        plan = _build_injection_plan(gen)
+
         @functools.wraps(gen)
         async def inner(*args: P.args, **kwargs: P.kwargs) -> typing.AsyncGenerator[T, typing.Any]:
-            signature = inspect.signature(gen)
-
-            injected, kwargs = await _resolve_arguments_async(signature, scope, container, None, *args, **kwargs)  # type: ignore[assignment]
+            injected, kwargs = await _resolve_arguments_async(plan, scope, container, None, *args, **kwargs)  # type: ignore[assignment]
 
             if not injected:
                 warnings.warn(_INJECTION_WARNING_MESSAGE, RuntimeWarning, stacklevel=1)
@@ -122,26 +207,30 @@ def inject(  # noqa: C901
     def _inject_to_async(
         func: typing.Callable[P, typing.Coroutine[typing.Any, typing.Any, T]],
     ) -> typing.Callable[P, typing.Coroutine[typing.Any, typing.Any, T]]:
+        plan = _build_injection_plan(func)
+
         @functools.wraps(func)
         async def inner(*args: P.args, **kwargs: P.kwargs) -> T:
             if enter_scope:
                 async with container_context(scope=scope):
-                    return await _resolve_async(func, None, container, *args, **kwargs)
+                    return await _resolve_async(func, plan, None, container, *args, **kwargs)
             else:
-                return await _resolve_async(func, scope, container, *args, **kwargs)
+                return await _resolve_async(func, plan, scope, container, *args, **kwargs)
 
         return inner
 
     def _inject_to_sync(
         func: typing.Callable[P, T],
     ) -> typing.Callable[P, T]:
+        plan = _build_injection_plan(func)
+
         @functools.wraps(func)
         def inner(*args: P.args, **kwargs: P.kwargs) -> T:
             if enter_scope:
                 with container_context(scope=scope):
-                    return _resolve_sync(func, None, container, *args, **kwargs)
+                    return _resolve_sync(func, plan, None, container, *args, **kwargs)
             else:
-                return _resolve_sync(func, scope, container, *args, **kwargs)
+                return _resolve_sync(func, plan, scope, container, *args, **kwargs)
 
         return inner
 
@@ -150,131 +239,128 @@ def inject(  # noqa: C901
     return _inject(func)
 
 
-_SYNC_SIGNATURE_CACHE: dict[typing.Callable[..., typing.Any], inspect.Signature] = {}
-_THREADING_LOCK = threading.Lock()
-
-
 async def _resolve_arguments_async(
-    signature: inspect.Signature,
+    plan: _InjectionPlan,
     scope: ContextScope | None,
     container: BaseContainerMeta | None,
     stack: AsyncExitStack | None,
     *args: typing.Any,  # noqa: ANN401
     **kwargs: typing.Any,  # noqa: ANN401
 ) -> tuple[bool, dict[str, typing.Any]]:
-    injected = False
+    if not plan.direct_parameters and not plan.dynamic_parameters:
+        return False, kwargs
+
     context_providers: set[AbstractProvider[typing.Any]] = set()
-    params = list(signature.parameters.items())
-
-    for i, (field_name, param) in enumerate(params):
-        default = param.default
-
-        if i < len(args) or field_name in kwargs:
-            if isinstance(default, (AbstractProvider, StringProviderDefinition)):
-                injected = True
+    for direct_parameter in plan.direct_parameters:
+        if direct_parameter.argument_index < len(args) or direct_parameter.field_name in kwargs:
             continue
 
-        if isinstance(default, StringProviderDefinition):
-            injected = True
-            resolved_val = await _resolve_provider_with_scope_async(default.provider, scope, stack, context_providers)
-            kwargs[field_name] = resolved_val
-        elif isinstance(default, AbstractProvider):
-            injected = True
-            resolved_val = await _resolve_provider_with_scope_async(default, scope, stack, context_providers)
-            kwargs[field_name] = resolved_val
+        await _setup_scope_contexts_async(direct_parameter.scope_init_order, scope, stack, context_providers)
+        kwargs[direct_parameter.field_name] = await direct_parameter.provider.resolve()
 
-        elif isinstance(default, _Provide):
-            injected = True
-            if container is None:
-                raise RuntimeError(_PROVIDE_MESSAGE)
-            try:
-                provider = container.get_provider_for_type(signature.parameters[field_name].annotation)
-            except TypeNotBoundError as e:
-                msg = f"Type {signature.parameters[field_name].annotation} is not bound to a provider."
-                raise RuntimeError(msg) from e
-            kwargs[field_name] = await _resolve_provider_with_scope_async(provider, scope, stack, context_providers)
-    return injected, kwargs
+    for dynamic_parameter in plan.dynamic_parameters:
+        if dynamic_parameter.argument_index < len(args) or dynamic_parameter.field_name in kwargs:
+            continue
+
+        provider = _resolve_injected_provider(dynamic_parameter, container)
+        kwargs[dynamic_parameter.field_name] = await _resolve_provider_with_scope_async(
+            provider,
+            scope,
+            stack,
+            context_providers,
+        )
+    return True, kwargs
 
 
 def _resolve_arguments_sync(
-    signature: inspect.Signature,
+    plan: _InjectionPlan,
     scope: ContextScope | None,
     container: BaseContainerMeta | None,
-    stack: contextlib.ExitStack | None,
+    stack: _SyncInjectionStack | None,
     *args: typing.Any,  # noqa: ANN401
     **kwargs: typing.Any,  # noqa: ANN401
 ) -> tuple[bool, dict[str, typing.Any]]:
-    injected = False
+    if not plan.direct_parameters and not plan.dynamic_parameters:
+        return False, kwargs
+
     context_providers: set[AbstractProvider[typing.Any]] = set()
-    for i, (field_name, param) in enumerate(signature.parameters.items()):
-        default = param.default
-        if i < len(args) or field_name in kwargs:
-            if isinstance(default, (AbstractProvider, StringProviderDefinition, _Provide)):
-                injected = True
+    for direct_parameter in plan.direct_parameters:
+        if direct_parameter.argument_index < len(args) or direct_parameter.field_name in kwargs:
             continue
 
-        if isinstance(default, StringProviderDefinition):
-            injected = True
-            kwargs[field_name] = _resolve_provider_with_scope_sync(default.provider, scope, stack, context_providers)
-        elif isinstance(default, AbstractProvider):
-            injected = True
-            kwargs[field_name] = _resolve_provider_with_scope_sync(default, scope, stack, context_providers)
-        elif isinstance(default, _Provide):
-            injected = True
-            if container is None:
-                raise RuntimeError(_PROVIDE_MESSAGE)
-            try:
-                provider = container.get_provider_for_type(signature.parameters[field_name].annotation)
-            except TypeNotBoundError as e:
-                msg = f"Type {signature.parameters[field_name].annotation} is not bound to a provider."
-                raise RuntimeError(msg) from e
-            kwargs[field_name] = _resolve_provider_with_scope_sync(provider, scope, stack, context_providers)
+        _setup_scope_contexts_sync(direct_parameter.scope_init_order, scope, stack, context_providers)
+        kwargs[direct_parameter.field_name] = direct_parameter.provider.resolve_sync()
 
-    return injected, kwargs
+    for dynamic_parameter in plan.dynamic_parameters:
+        if dynamic_parameter.argument_index < len(args) or dynamic_parameter.field_name in kwargs:
+            continue
+
+        provider = _resolve_injected_provider(dynamic_parameter, container)
+        kwargs[dynamic_parameter.field_name] = _resolve_provider_with_scope_sync(
+            provider,
+            scope,
+            stack,
+            context_providers,
+        )
+
+    return True, kwargs
+
+
+def _resolve_injected_provider(
+    parameter: _InjectionParameter,
+    container: BaseContainerMeta | None,
+) -> AbstractProvider[typing.Any]:
+    if parameter.kind == _INJECT_DIRECT_PROVIDER:
+        return typing.cast(AbstractProvider[typing.Any], parameter.dependency)
+    if parameter.kind == _INJECT_STRING_PROVIDER:
+        string_definition = typing.cast(StringProviderDefinition, parameter.dependency)
+        return string_definition.provider
+    if container is None:
+        raise RuntimeError(_PROVIDE_MESSAGE)
+    annotation = parameter.dependency
+    try:
+        return container.get_provider_for_type(annotation)
+    except TypeNotBoundError as e:
+        msg = f"Type {annotation} is not bound to a provider."
+        raise RuntimeError(msg) from e
 
 
 def _resolve_sync(
     func: typing.Callable[P, T],
+    plan: _InjectionPlan,
     scope: ContextScope | None,
     container: BaseContainerMeta | None = None,
     *args: P.args,
     **kwargs: P.kwargs,
 ) -> T:
-    if func not in _SYNC_SIGNATURE_CACHE:
-        with _THREADING_LOCK:
-            _SYNC_SIGNATURE_CACHE[func] = inspect.signature(func)
-    signature = _SYNC_SIGNATURE_CACHE[func]
+    if scope is None:
+        injected, kwargs = _resolve_arguments_sync(plan, scope, container, None, *args, **kwargs)  # type: ignore[assignment]
+        if not injected:
+            warnings.warn(_INJECTION_WARNING_MESSAGE, RuntimeWarning, stacklevel=3)
 
-    with ExitStack() as stack:
-        injected, kwargs = _resolve_arguments_sync(signature, scope, container, stack, *args, **kwargs)  # type: ignore[assignment]
+        return func(*args, **kwargs)
+
+    with _SyncInjectionStack() as stack:
+        injected, kwargs = _resolve_arguments_sync(plan, scope, container, stack, *args, **kwargs)  # type: ignore[assignment]
 
         if not injected:
             warnings.warn(_INJECTION_WARNING_MESSAGE, RuntimeWarning, stacklevel=3)
 
         return func(*args, **kwargs)
 
-
-_SIGNATURE_CACHE: dict[
-    typing.Callable[..., typing.Coroutine[typing.Any, typing.Any, typing.Any]], inspect.Signature
-] = {}
-
-_ASYNCIO_LOCK = asyncio.Lock()
+    raise RuntimeError  # pragma: no cover # to prevent mypy issue
 
 
 async def _resolve_async(
     func: typing.Callable[P, typing.Coroutine[typing.Any, typing.Any, T]],
+    plan: _InjectionPlan,
     scope: ContextScope | None,
     container: BaseContainerMeta | None = None,
     *args: P.args,
     **kwargs: P.kwargs,
 ) -> T:
-    if func not in _SIGNATURE_CACHE:
-        async with _ASYNCIO_LOCK:
-            _SIGNATURE_CACHE[func] = inspect.signature(func)
-    signature = _SIGNATURE_CACHE[func]
-
     async with AsyncExitStack() as stack:
-        injected, kwargs = await _resolve_arguments_async(signature, scope, container, stack, *args, **kwargs)  # type: ignore[assignment]
+        injected, kwargs = await _resolve_arguments_async(plan, scope, container, stack, *args, **kwargs)  # type: ignore[assignment]
         if not injected:
             warnings.warn(_INJECTION_WARNING_MESSAGE, RuntimeWarning, stacklevel=1)
 
@@ -306,79 +392,68 @@ async def _resolve_provider_with_scope_async(
         ContextProviderError: if the stack is None.
 
     """
-    await _add_provider_to_stack_async(provider, stack, scope, providers)
+    await _setup_scope_contexts_async(provider._get_scope_init_order(), scope, stack, providers)  # noqa: SLF001
     return await provider.resolve()
 
 
-async def _add_provider_to_stack_async(
-    provider: AbstractProvider[T],
-    stack: AsyncExitStack | None,
+async def _setup_scope_contexts_async(
+    scope_init_order: tuple[AbstractProvider[typing.Any], ...],
     scope: ContextScope | None,
+    stack: AsyncExitStack | None,
     providers: set[AbstractProvider[typing.Any]],
 ) -> None:
-    if provider in providers:
-        return
-    providers.add(provider)
-
     if not scope:
         return
-    if isinstance(provider, ProviderWithArguments):
-        provider._register_arguments()  # noqa: SLF001
-
-        parents = provider._parents  # noqa: SLF001
-        for parent in parents:
-            await _add_provider_to_stack_async(parent, stack, scope, providers)
-    if isinstance(provider, ContextResource):
-        provider_scope = provider.get_scope()
-        if provider_scope in (ContextScopes.ANY, scope):
-            if stack is None:
-                msg = (
-                    f"No stack exists, cannot initialize context for {provider} using scope {scope}.\n"
-                    f"Note: @inject cannot initialize context for ContextResources when wrapping a generator."
-                )
-                raise ContextProviderError(msg)
-            await stack.enter_async_context(provider.context_async(force=True))
+    for provider in scope_init_order:
+        if provider in providers:
+            continue
+        providers.add(provider)
+        if isinstance(provider, ContextResource):
+            provider_scope = provider.get_scope()
+            if provider_scope is ContextScopes.ANY or provider_scope is scope:
+                if stack is None:
+                    msg = (
+                        f"No stack exists, cannot initialize context for {provider} using scope {scope}.\n"
+                        f"Note: @inject cannot initialize context for ContextResources when wrapping a generator."
+                    )
+                    raise ContextProviderError(msg)
+                await stack.enter_async_context(provider.context_async(force=True))
 
 
 def _resolve_provider_with_scope_sync(
     provider: AbstractProvider[T],
     scope: ContextScope | None,
-    stack: ExitStack | None,
+    stack: _SyncInjectionStack | None,
     providers: set[AbstractProvider[typing.Any]],
 ) -> T:
-    _add_provider_to_stack_sync(provider, stack, scope, providers)
+    _setup_scope_contexts_sync(provider._get_scope_init_order(), scope, stack, providers)  # noqa: SLF001
     return provider.resolve_sync()
 
 
-def _add_provider_to_stack_sync(
-    provider: AbstractProvider[T],
-    stack: ExitStack | None,
+def _setup_scope_contexts_sync(
+    scope_init_order: tuple[AbstractProvider[typing.Any], ...],
     scope: ContextScope | None,
+    stack: _SyncInjectionStack | None,
     providers: set[AbstractProvider[typing.Any]],
 ) -> None:
-    if provider in providers:
-        return
-    providers.add(provider)
-
     if not scope:
         return
-    if isinstance(provider, ProviderWithArguments):
-        provider._register_arguments()  # noqa: SLF001
+    for provider in scope_init_order:
+        if provider in providers:
+            continue
+        providers.add(provider)
 
-        parents = provider._parents  # noqa: SLF001
-        for parent in parents:
-            _add_provider_to_stack_sync(parent, stack, scope, providers)
-
-    if isinstance(provider, ContextResource):
-        provider_scope = provider.get_scope()
-        if provider_scope in (ContextScopes.ANY, scope):
-            if stack is None:
-                msg = (
-                    f"No stack exists, cannot initialize context for {provider} using scope {scope}.\n"
-                    f"Note: @inject cannot initialize context for ContextResources when wrapping a generator."
-                )
-                raise ContextProviderError(msg)
-            stack.enter_context(provider.context_sync(force=True))
+        if isinstance(provider, ContextResource):
+            provider_scope = provider.get_scope()
+            if provider_scope is ContextScopes.ANY or provider_scope is scope:
+                if stack is None:
+                    msg = (
+                        f"No stack exists, cannot initialize context for {provider} using scope {scope}.\n"
+                        f"Note: @inject cannot initialize context for ContextResources when wrapping a generator."
+                    )
+                    raise ContextProviderError(msg)
+                _, exit_state = provider._enter_injection_context_sync(force=True)  # noqa: SLF001
+                stack.push_exit_state(exit_state)
 
 
 class StringProviderDefinition:

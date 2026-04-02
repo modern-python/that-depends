@@ -88,6 +88,7 @@ class BaseContainerMeta(abc.ABCMeta, SupportsContext[None]):
         "containers",
         "alias",
         "default_scope",
+        "type_provider_cache",
     )
 
     _lock: Lock = Lock()
@@ -163,12 +164,18 @@ class BaseContainerMeta(abc.ABCMeta, SupportsContext[None]):
             Provider for the given type.
 
         """
+        if not hasattr(cls, "type_provider_cache"):
+            cls.type_provider_cache: dict[type[typing.Any], AbstractProvider[typing.Any]] = {}
+        if provider := cls.type_provider_cache.get(t):
+            return typing.cast(AbstractProvider[T], provider)
         for provider in cls.get_providers().values():
             if provider._has_contravariant_bindings:  # noqa: SLF001
                 for bind in provider._bindings:  # noqa: SLF001
                     if issubclass(bind, t):
+                        cls.type_provider_cache[t] = provider
                         return provider
             elif t in provider._bindings:  # noqa: SLF001
+                cls.type_provider_cache[t] = provider
                 return provider
         msg = f"Type {t} is not bound to any provider in container {cls.name()}"
         raise TypeNotBoundError(msg)

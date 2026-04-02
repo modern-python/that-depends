@@ -5,6 +5,12 @@ import typing
 from typing_extensions import override
 
 from that_depends.providers import AbstractProvider
+from that_depends.providers.base import (
+    _resolve_arguments,
+    _resolve_arguments_sync,
+    _resolve_keyword_arguments,
+    _resolve_keyword_arguments_sync,
+)
 from that_depends.providers.mixin import ProviderWithArguments, SupportsTeardown
 
 
@@ -55,14 +61,22 @@ class ThreadLocalSingleton(ProviderWithArguments, SupportsTeardown, AbstractProv
         self._asyncio_lock = asyncio.Lock()
         self._args: typing.Final = args
         self._kwargs: typing.Final = kwargs
+        self._args_are_providers: typing.Final = tuple(isinstance(arg, AbstractProvider) for arg in args)
+        self._kwargs_items: typing.Final = tuple(kwargs.items())
+        self._kwargs_are_providers: typing.Final = tuple(
+            isinstance(value, AbstractProvider) for _, value in self._kwargs_items
+        )
 
     def _register_arguments(self) -> None:
+        if not self._mark_arguments_registered():
+            return
         self._register(self._args)
         self._register(self._kwargs.values())
 
     def _deregister_arguments(self) -> None:
         self._deregister(self._args)
         self._deregister(self._kwargs.values())
+        self._reset_arguments_registration()
 
     @property
     def _instance(self) -> T_co | None:
@@ -84,10 +98,8 @@ class ThreadLocalSingleton(ProviderWithArguments, SupportsTeardown, AbstractProv
             self._register_arguments()
 
             self._instance = self._factory(
-                *[await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args],  # type: ignore[arg-type]
-                **{  # type: ignore[arg-type]
-                    k: await v.resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()
-                },
+                *await _resolve_arguments(self._args, self._args_are_providers),
+                **await _resolve_keyword_arguments(self._kwargs_items, self._kwargs_are_providers),
             )
             return self._instance
 
@@ -102,8 +114,8 @@ class ThreadLocalSingleton(ProviderWithArguments, SupportsTeardown, AbstractProv
         self._register_arguments()
 
         self._instance = self._factory(
-            *[x.resolve_sync() if isinstance(x, AbstractProvider) else x for x in self._args],  # type: ignore[arg-type]
-            **{k: v.resolve_sync() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},  # type: ignore[arg-type]
+            *_resolve_arguments_sync(self._args, self._args_are_providers),
+            **_resolve_keyword_arguments_sync(self._kwargs_items, self._kwargs_are_providers),
         )
         return self._instance
 

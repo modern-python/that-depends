@@ -26,6 +26,22 @@ class SupportsTeardown(abc.ABC):
 class ProviderWithArguments(abc.ABC):
     """Interface for providers that require arguments."""
 
+    __slots__ = ("_arguments_registered",)
+
+    def __init__(self) -> None:
+        """Initialize provider argument registration state."""
+        super().__init__()
+        self._arguments_registered = False
+
+    def _mark_arguments_registered(self) -> bool:
+        if self._arguments_registered:
+            return False
+        self._arguments_registered = True
+        return True
+
+    def _reset_arguments_registration(self) -> None:
+        self._arguments_registered = False
+
     @abc.abstractmethod
     def _register_arguments(self) -> None:
         """Register arguments for the provider."""

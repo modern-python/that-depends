@@ -20,6 +20,66 @@ ResourceCreatorType: typing.TypeAlias = typing.Callable[
     P,
     typing.Iterator[T_co] | typing.AsyncIterator[T_co] | typing.ContextManager[T_co] | typing.AsyncContextManager[T_co],
 ]
+_EMPTY_ARGS: typing.Final[tuple[()]] = ()
+_EMPTY_KWARGS: typing.Final[dict[str, typing.Any]] = {}
+
+
+async def _resolve_arguments(
+    args: tuple[typing.Any, ...],
+    args_are_providers: tuple[bool, ...],
+) -> tuple[typing.Any, ...] | list[typing.Any]:
+    if not args:
+        return _EMPTY_ARGS
+    if len(args) == 1:
+        arg = args[0]
+        return (await arg.resolve() if args_are_providers[0] else arg,)
+    return [
+        await arg.resolve() if is_provider else arg for arg, is_provider in zip(args, args_are_providers, strict=False)
+    ]
+
+
+def _resolve_arguments_sync(
+    args: tuple[typing.Any, ...],
+    args_are_providers: tuple[bool, ...],
+) -> tuple[typing.Any, ...] | list[typing.Any]:
+    if not args:
+        return _EMPTY_ARGS
+    if len(args) == 1:
+        arg = args[0]
+        return (arg.resolve_sync() if args_are_providers[0] else arg,)
+    return [
+        arg.resolve_sync() if is_provider else arg for arg, is_provider in zip(args, args_are_providers, strict=False)
+    ]
+
+
+async def _resolve_keyword_arguments(
+    kwargs_items: tuple[tuple[str, typing.Any], ...],
+    kwargs_are_providers: tuple[bool, ...],
+) -> dict[str, typing.Any]:
+    if not kwargs_items:
+        return _EMPTY_KWARGS
+    if len(kwargs_items) == 1:
+        key, value = kwargs_items[0]
+        return {key: await value.resolve() if kwargs_are_providers[0] else value}
+    return {
+        key: await value.resolve() if is_provider else value
+        for (key, value), is_provider in zip(kwargs_items, kwargs_are_providers, strict=False)
+    }
+
+
+def _resolve_keyword_arguments_sync(
+    kwargs_items: tuple[tuple[str, typing.Any], ...],
+    kwargs_are_providers: tuple[bool, ...],
+) -> dict[str, typing.Any]:
+    if not kwargs_items:
+        return _EMPTY_KWARGS
+    if len(kwargs_items) == 1:
+        key, value = kwargs_items[0]
+        return {key: value.resolve_sync() if kwargs_are_providers[0] else value}
+    return {
+        key: value.resolve_sync() if is_provider else value
+        for (key, value), is_provider in zip(kwargs_items, kwargs_are_providers, strict=False)
+    }
 
 
 class AbstractProvider(abc.ABC, typing.Generic[T_co]):
@@ -30,6 +90,7 @@ class AbstractProvider(abc.ABC, typing.Generic[T_co]):
         super().__init__()
         self._children: set[AbstractProvider[typing.Any]] = set()
         self._parents: set[AbstractProvider[typing.Any]] = set()
+        self._scope_init_order: tuple[AbstractProvider[typing.Any], ...] | None = None
         self._override: typing.Any = None
         self._bindings: set[type] = set()
         self._has_contravariant_bindings: bool = False
@@ -62,10 +123,14 @@ class AbstractProvider(abc.ABC, typing.Generic[T_co]):
             None
 
         """
+        changed = False
         for candidate in candidates:
             if isinstance(candidate, AbstractProvider):
                 candidate.add_child_provider(self)
                 self._parents.add(candidate)
+                changed = True
+        if changed:
+            self._invalidate_scope_init_order()
 
     def _deregister(self, candidates: typing.Iterable[typing.Any]) -> None:
         """Deregister current provider as child.
@@ -77,10 +142,48 @@ class AbstractProvider(abc.ABC, typing.Generic[T_co]):
             None
 
         """
+        changed = False
         for candidate in candidates:
             if isinstance(candidate, AbstractProvider) and self in candidate._children:  # noqa: SLF001
                 candidate.remove_child_provider(self)
                 self._parents.discard(candidate)
+                changed = True
+        if changed:
+            self._invalidate_scope_init_order()
+
+    def _invalidate_scope_init_order(self) -> None:
+        stack = [self]
+        visited: set[AbstractProvider[typing.Any]] = set()
+
+        while stack:
+            provider = stack.pop()
+            if provider in visited:
+                continue
+            visited.add(provider)
+            provider._scope_init_order = None  # noqa: SLF001
+            stack.extend(provider._children)  # noqa: SLF001
+
+    def _get_scope_init_order(self) -> tuple["AbstractProvider[typing.Any]", ...]:
+        if self._scope_init_order is not None:
+            return self._scope_init_order
+
+        if isinstance(self, ProviderWithArguments):
+            self._register_arguments()
+
+        ordered: list[AbstractProvider[typing.Any]] = []
+        seen: set[AbstractProvider[typing.Any]] = set()
+
+        for parent in self._parents:
+            for ancestor in parent._get_scope_init_order():  # noqa: SLF001
+                if ancestor not in seen:
+                    seen.add(ancestor)
+                    ordered.append(ancestor)
+
+        if self not in seen:
+            ordered.append(self)
+
+        self._scope_init_order = tuple(ordered)
+        return self._scope_init_order
 
     def add_child_provider(self, provider: "AbstractProvider[typing.Any]") -> None:
         """Add a child provider to the current provider.
@@ -327,14 +430,20 @@ class AbstractResource(ProviderWithArguments, AbstractProvider[T_co], abc.ABC):
             raise TypeError(msg)
         self._args = args
         self._kwargs = kwargs
+        self._args_are_providers = tuple(isinstance(arg, AbstractProvider) for arg in args)
+        self._kwargs_items = tuple(kwargs.items())
+        self._kwargs_are_providers = tuple(isinstance(value, AbstractProvider) for _, value in self._kwargs_items)
 
     def _register_arguments(self) -> None:
+        if not self._mark_arguments_registered():
+            return
         self._register(self._args)
         self._register(self._kwargs.values())
 
     def _deregister_arguments(self) -> None:
         self._deregister(self._args)
         self._deregister(self._kwargs.values())
+        self._reset_arguments_registration()
 
     @abc.abstractmethod
     def _fetch_context(self) -> ResourceContext[T_co]: ...
@@ -354,8 +463,8 @@ class AbstractResource(ProviderWithArguments, AbstractProvider[T_co], abc.ABC):
             self._register_arguments()
 
             cm: typing.ContextManager[T_co] | typing.AsyncContextManager[T_co] = self._creator(
-                *[await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args],  # type:ignore[arg-type]
-                **{k: await v.resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},  # type:ignore[arg-type]
+                *await _resolve_arguments(self._args, self._args_are_providers),
+                **await _resolve_keyword_arguments(self._kwargs_items, self._kwargs_are_providers),
             )
 
             if isinstance(cm, typing.AsyncContextManager):
@@ -390,8 +499,8 @@ class AbstractResource(ProviderWithArguments, AbstractProvider[T_co], abc.ABC):
             self._register_arguments()
 
             cm = self._creator(
-                *[x.resolve_sync() if isinstance(x, AbstractProvider) else x for x in self._args],  # type:ignore[arg-type]
-                **{k: v.resolve_sync() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},  # type:ignore[arg-type]
+                *_resolve_arguments_sync(self._args, self._args_are_providers),
+                **_resolve_keyword_arguments_sync(self._kwargs_items, self._kwargs_are_providers),
             )
             context.context_stack = contextlib.ExitStack()
             context.instance = context.context_stack.enter_context(cm)  # type:ignore[arg-type]
@@ -411,6 +520,8 @@ class AttrGetter(
     """Provides an attribute after resolving the wrapped provider."""
 
     def _register_arguments(self) -> None:
+        if not self._mark_arguments_registered():
+            return
         if isinstance(self._provider, ProviderWithArguments):
             self._provider._register_arguments()  # noqa: SLF001
         self._parents = self._provider._parents  # noqa: SLF001
@@ -419,6 +530,7 @@ class AttrGetter(
         if isinstance(self._provider, ProviderWithArguments):
             self._provider._deregister_arguments()  # noqa: SLF001
         self._parents = self._provider._parents  # noqa: SLF001
+        self._reset_arguments_registration()
 
     __slots__ = "_attrs", "_provider"
 
