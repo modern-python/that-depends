@@ -42,23 +42,25 @@ class InvalidContextError(RuntimeError):
 
 
 class _SyncInjectionExitState(typing.Generic[T_co]):
-    __slots__ = ("_provider", "_temp_token", "_token")
+    __slots__ = ("_context", "_context_item", "_token")
 
     def __init__(
         self,
-        provider: "ContextResource[T_co]",
-        token: Token[ResourceContext[T_co]] | None,
-        temp_token: Token[ResourceContext[T_co]] | None,
+        context: ContextVar[ResourceContext[T_co]],
+        context_item: ResourceContext[T_co],
+        token: Token[ResourceContext[T_co]],
     ) -> None:
-        self._provider = provider
+        self._context = context
+        self._context_item = context_item
         self._token = token
-        self._temp_token = temp_token
 
     def close(self) -> None:
-        with self._provider._lock:  # noqa: SLF001
-            self._provider._token = self._temp_token  # noqa: SLF001
-            self._provider._exit_context_sync()  # noqa: SLF001
-        self._provider._token = self._token  # noqa: SLF001
+        context_stack = self._context_item.context_stack
+        if context_stack is not None:
+            context_stack.close()  # type: ignore[union-attr]
+            self._context_item.context_stack = None
+            self._context_item.instance = None
+        self._context.reset(self._token)
 
 
 class _SyncContextResourceContext(contextlib.ContextDecorator, AbstractContextManager[ResourceContext[T_co]]):
@@ -275,16 +277,20 @@ class ContextResource(
 
     @override
     async def resolve(self) -> T_co:
+        if not self._strict_scope or self._scope is ContextScopes.ANY:
+            return await super().resolve()
         current_scope = get_current_scope()
-        if not self._strict_scope or self._scope is ContextScopes.ANY or self._scope is current_scope:
+        if self._scope is current_scope:
             return await super().resolve()
         msg = f"Cannot resolve resource with scope `{self._scope}` in scope `{current_scope}`"
         raise RuntimeError(msg)
 
     @override
     def resolve_sync(self) -> T_co:
+        if not self._strict_scope or self._scope is ContextScopes.ANY:
+            return super().resolve_sync()
         current_scope = get_current_scope()
-        if not self._strict_scope or self._scope is ContextScopes.ANY or self._scope is current_scope:
+        if self._scope is current_scope:
             return super().resolve_sync()
         msg = f"Cannot resolve resource with scope `{self._scope}` in scope `{current_scope}`"
         raise RuntimeError(msg)
@@ -321,6 +327,7 @@ class ContextResource(
 
         """
         super().__init__(creator, *args, **kwargs)
+        self._is_context_resource = True
         self._from_creator = creator
         self._context: ContextVar[ResourceContext[T_co]] = ContextVar(f"{self._creator.__name__}-context")
         self._token: Token[ResourceContext[T_co]] | None = None
@@ -404,24 +411,28 @@ class ContextResource(
         if self._is_async:
             msg = "Please use async context instead."
             raise RuntimeError(msg)
+        if not force and self._scope is not ContextScopes.ANY:
+            current_scope = get_current_scope()
+            if self._scope is not current_scope:
+                msg = f"Cannot enter context for resource with scope {self._scope} in scope {current_scope!r}"
+                raise InvalidContextError(msg)
 
-        token = self._token
-        with self._lock:
-            value = self._enter_context_sync(force=force)
-            temp_token = self._token
-
-        return value, _SyncInjectionExitState(self, token, temp_token)
+        context_item: ResourceContext[T_co] = ResourceContext(is_async=False)
+        token = self._context.set(context_item)
+        return context_item, _SyncInjectionExitState(self._context, context_item, token)
 
     async def _enter_context_async(self, force: bool = False) -> ResourceContext[T_co]:
         return self._enter(force)
 
     def _enter(self, force: bool = False) -> ResourceContext[T_co]:
-        current_scope = get_current_scope()
-        if not force and self._scope is not ContextScopes.ANY and self._scope is not current_scope:
-            msg = f"Cannot enter context for resource with scope {self._scope} in scope {current_scope!r}"
-            raise InvalidContextError(msg)
-        self._token = self._context.set(ResourceContext(is_async=self._is_async))
-        return self._context.get()
+        if not force and self._scope is not ContextScopes.ANY:
+            current_scope = get_current_scope()
+            if self._scope is not current_scope:
+                msg = f"Cannot enter context for resource with scope {self._scope} in scope {current_scope!r}"
+                raise InvalidContextError(msg)
+        context_item: ResourceContext[T_co] = ResourceContext(is_async=self._is_async)
+        self._token = self._context.set(context_item)
+        return context_item
 
     def _exit_context_sync(self) -> None:
         if self._token is None:
@@ -430,7 +441,11 @@ class ContextResource(
 
         try:
             context_item = self._context.get()
-            context_item.tear_down_sync()
+            context_stack = context_item.context_stack
+            if context_stack is not None and ResourceContext.is_context_stack_sync(context_stack):
+                context_stack.close()
+                context_item.context_stack = None
+                context_item.instance = None
         finally:
             self._context.reset(self._token)
 

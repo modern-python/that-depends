@@ -90,6 +90,8 @@ class ThreadLocalSingleton(ProviderWithArguments, SupportsTeardown, AbstractProv
     async def resolve(self) -> T_co:
         if self._override is not None:
             return typing.cast(T_co, self._override)
+        if self._instance is not None:
+            return self._instance
 
         async with self._asyncio_lock:
             if self._instance is not None:

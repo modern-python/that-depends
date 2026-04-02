@@ -90,6 +90,8 @@ class AbstractProvider(abc.ABC, typing.Generic[T_co]):
         super().__init__()
         self._children: set[AbstractProvider[typing.Any]] = set()
         self._parents: set[AbstractProvider[typing.Any]] = set()
+        self._is_context_resource = False
+        self._scope_context_init_order: tuple[AbstractProvider[typing.Any], ...] | None = None
         self._scope_init_order: tuple[AbstractProvider[typing.Any], ...] | None = None
         self._override: typing.Any = None
         self._bindings: set[type] = set()
@@ -160,6 +162,7 @@ class AbstractProvider(abc.ABC, typing.Generic[T_co]):
             if provider in visited:
                 continue
             visited.add(provider)
+            provider._scope_context_init_order = None  # noqa: SLF001
             provider._scope_init_order = None  # noqa: SLF001
             stack.extend(provider._children)  # noqa: SLF001
 
@@ -184,6 +187,28 @@ class AbstractProvider(abc.ABC, typing.Generic[T_co]):
 
         self._scope_init_order = tuple(ordered)
         return self._scope_init_order
+
+    def _get_scope_context_init_order(self) -> tuple["AbstractProvider[typing.Any]", ...]:
+        if self._scope_context_init_order is not None:
+            return self._scope_context_init_order
+
+        if isinstance(self, ProviderWithArguments):
+            self._register_arguments()
+
+        ordered: list[AbstractProvider[typing.Any]] = []
+        seen: set[AbstractProvider[typing.Any]] = set()
+
+        for parent in self._parents:
+            for ancestor in parent._get_scope_context_init_order():  # noqa: SLF001
+                if ancestor not in seen:
+                    seen.add(ancestor)
+                    ordered.append(ancestor)
+
+        if self._is_context_resource and self not in seen:
+            ordered.append(self)
+
+        self._scope_context_init_order = tuple(ordered)
+        return self._scope_context_init_order
 
     def add_child_provider(self, provider: "AbstractProvider[typing.Any]") -> None:
         """Add a child provider to the current provider.
@@ -461,7 +486,6 @@ class AbstractResource(ProviderWithArguments, AbstractProvider[T_co], abc.ABC):
                 return context.instance
 
             self._register_arguments()
-
             cm: typing.ContextManager[T_co] | typing.AsyncContextManager[T_co] = self._creator(
                 *await _resolve_arguments(self._args, self._args_are_providers),
                 **await _resolve_keyword_arguments(self._kwargs_items, self._kwargs_are_providers),
@@ -497,13 +521,12 @@ class AbstractResource(ProviderWithArguments, AbstractProvider[T_co], abc.ABC):
                 raise RuntimeError(msg)
 
             self._register_arguments()
-
             cm = self._creator(
                 *_resolve_arguments_sync(self._args, self._args_are_providers),
                 **_resolve_keyword_arguments_sync(self._kwargs_items, self._kwargs_are_providers),
             )
             context.context_stack = contextlib.ExitStack()
-            context.instance = context.context_stack.enter_context(cm)  # type:ignore[arg-type]
+            context.instance = context.context_stack.enter_context(cm)  # type: ignore[arg-type]
 
             return context.instance
 

@@ -11,7 +11,7 @@ from typing_extensions import Self
 from that_depends.container import BaseContainer
 from that_depends.exceptions import TypeNotBoundError
 from that_depends.meta import BaseContainerMeta
-from that_depends.providers import AbstractProvider, ContextResource
+from that_depends.providers import AbstractProvider
 from that_depends.providers.context_resources import ContextScope, ContextScopes, container_context
 
 
@@ -42,7 +42,7 @@ class _DirectInjectionParameter(typing.NamedTuple):
     argument_index: int
     field_name: str
     provider: AbstractProvider[typing.Any]
-    scope_init_order: tuple[AbstractProvider[typing.Any], ...]
+    scope_context_init_order: tuple[AbstractProvider[typing.Any], ...]
 
 
 class _InjectionPlan(typing.NamedTuple):
@@ -103,7 +103,12 @@ def _build_injection_plan(func: typing.Callable[..., typing.Any]) -> _InjectionP
             dynamic_parameters.append(_InjectionParameter(index, field_name, _INJECT_STRING_PROVIDER, default))
         elif isinstance(default, AbstractProvider):
             direct_parameters.append(
-                _DirectInjectionParameter(index, field_name, default, default._get_scope_init_order())  # noqa: SLF001
+                _DirectInjectionParameter(
+                    index,
+                    field_name,
+                    default,
+                    default._get_scope_context_init_order(),  # noqa: SLF001
+                )
             )
         elif isinstance(default, _Provide):
             dynamic_parameters.append(_InjectionParameter(index, field_name, _INJECT_TYPED_PROVIDER, param.annotation))
@@ -255,7 +260,13 @@ async def _resolve_arguments_async(
         if direct_parameter.argument_index < len(args) or direct_parameter.field_name in kwargs:
             continue
 
-        await _setup_scope_contexts_async(direct_parameter.scope_init_order, scope, stack, context_providers)
+        if direct_parameter.scope_context_init_order:
+            await _setup_scope_contexts_async(
+                direct_parameter.scope_context_init_order,
+                scope,
+                stack,
+                context_providers,
+            )
         kwargs[direct_parameter.field_name] = await direct_parameter.provider.resolve()
 
     for dynamic_parameter in plan.dynamic_parameters:
@@ -288,7 +299,13 @@ def _resolve_arguments_sync(
         if direct_parameter.argument_index < len(args) or direct_parameter.field_name in kwargs:
             continue
 
-        _setup_scope_contexts_sync(direct_parameter.scope_init_order, scope, stack, context_providers)
+        if direct_parameter.scope_context_init_order:
+            _setup_scope_contexts_sync(
+                direct_parameter.scope_context_init_order,
+                scope,
+                stack,
+                context_providers,
+            )
         kwargs[direct_parameter.field_name] = direct_parameter.provider.resolve_sync()
 
     for dynamic_parameter in plan.dynamic_parameters:
@@ -392,7 +409,9 @@ async def _resolve_provider_with_scope_async(
         ContextProviderError: if the stack is None.
 
     """
-    await _setup_scope_contexts_async(provider._get_scope_init_order(), scope, stack, providers)  # noqa: SLF001
+    scope_context_init_order = provider._get_scope_context_init_order()  # noqa: SLF001
+    if scope_context_init_order:
+        await _setup_scope_contexts_async(scope_context_init_order, scope, stack, providers)
     return await provider.resolve()
 
 
@@ -408,16 +427,15 @@ async def _setup_scope_contexts_async(
         if provider in providers:
             continue
         providers.add(provider)
-        if isinstance(provider, ContextResource):
-            provider_scope = provider.get_scope()
-            if provider_scope is ContextScopes.ANY or provider_scope is scope:
-                if stack is None:
-                    msg = (
-                        f"No stack exists, cannot initialize context for {provider} using scope {scope}.\n"
-                        f"Note: @inject cannot initialize context for ContextResources when wrapping a generator."
-                    )
-                    raise ContextProviderError(msg)
-                await stack.enter_async_context(provider.context_async(force=True))
+        provider_scope = provider._scope  # noqa: SLF001
+        if provider_scope is ContextScopes.ANY or provider_scope is scope:
+            if stack is None:
+                msg = (
+                    f"No stack exists, cannot initialize context for {provider} using scope {scope}.\n"
+                    f"Note: @inject cannot initialize context for ContextResources when wrapping a generator."
+                )
+                raise ContextProviderError(msg)
+            await stack.enter_async_context(provider.context_async(force=True))
 
 
 def _resolve_provider_with_scope_sync(
@@ -426,7 +444,9 @@ def _resolve_provider_with_scope_sync(
     stack: _SyncInjectionStack | None,
     providers: set[AbstractProvider[typing.Any]],
 ) -> T:
-    _setup_scope_contexts_sync(provider._get_scope_init_order(), scope, stack, providers)  # noqa: SLF001
+    scope_context_init_order = provider._get_scope_context_init_order()  # noqa: SLF001
+    if scope_context_init_order:
+        _setup_scope_contexts_sync(scope_context_init_order, scope, stack, providers)
     return provider.resolve_sync()
 
 
@@ -442,18 +462,16 @@ def _setup_scope_contexts_sync(
         if provider in providers:
             continue
         providers.add(provider)
-
-        if isinstance(provider, ContextResource):
-            provider_scope = provider.get_scope()
-            if provider_scope is ContextScopes.ANY or provider_scope is scope:
-                if stack is None:
-                    msg = (
-                        f"No stack exists, cannot initialize context for {provider} using scope {scope}.\n"
-                        f"Note: @inject cannot initialize context for ContextResources when wrapping a generator."
-                    )
-                    raise ContextProviderError(msg)
-                _, exit_state = provider._enter_injection_context_sync(force=True)  # noqa: SLF001
-                stack.push_exit_state(exit_state)
+        provider_scope = provider._scope  # noqa: SLF001
+        if provider_scope is ContextScopes.ANY or provider_scope is scope:
+            if stack is None:
+                msg = (
+                    f"No stack exists, cannot initialize context for {provider} using scope {scope}.\n"
+                    f"Note: @inject cannot initialize context for ContextResources when wrapping a generator."
+                )
+                raise ContextProviderError(msg)
+            _, exit_state = provider._enter_injection_context_sync(force=True)  # noqa: SLF001
+            stack.push_exit_state(exit_state)
 
 
 class StringProviderDefinition:
