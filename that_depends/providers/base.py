@@ -18,7 +18,10 @@ R = typing.TypeVar("R")
 P = typing.ParamSpec("P")
 ResourceCreatorType: typing.TypeAlias = typing.Callable[
     P,
-    typing.Iterator[T_co] | typing.AsyncIterator[T_co] | typing.ContextManager[T_co] | typing.AsyncContextManager[T_co],
+    typing.Iterator[T_co]
+    | typing.AsyncIterator[T_co]
+    | contextlib.AbstractContextManager[T_co]
+    | contextlib.AbstractAsyncContextManager[T_co],
 ]
 
 
@@ -314,10 +317,10 @@ class AbstractResource(ProviderWithArguments, AbstractProvider[T_co], abc.ABC):
         elif inspect.isgeneratorfunction(creator):
             self._is_async = False
             self._creator = contextlib.contextmanager(creator)
-        elif isinstance(creator, type) and issubclass(creator, typing.AsyncContextManager):
+        elif isinstance(creator, type) and hasattr(creator, "__aenter__") and hasattr(creator, "__aexit__"):
             self._is_async = True
             self._creator = creator
-        elif isinstance(creator, type) and issubclass(creator, typing.ContextManager):
+        elif isinstance(creator, type) and hasattr(creator, "__enter__") and hasattr(creator, "__exit__"):
             self._is_async = False
             self._creator = creator
         else:
@@ -351,23 +354,26 @@ class AbstractResource(ProviderWithArguments, AbstractProvider[T_co], abc.ABC):
 
             self._register_arguments()
 
-            cm: typing.ContextManager[T_co] | typing.AsyncContextManager[T_co] = self._creator(
+            cm: contextlib.AbstractContextManager[T_co] | contextlib.AbstractAsyncContextManager[T_co] = self._creator(
                 *[await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
                 **{k: await v.resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
             )
+            stack: contextlib.AsyncExitStack | contextlib.ExitStack
 
-            if isinstance(cm, typing.AsyncContextManager):
-                context.context_stack = contextlib.AsyncExitStack()
-                context.instance = await context.context_stack.enter_async_context(cm)
+            if isinstance(cm, contextlib.AbstractAsyncContextManager):
+                stack = contextlib.AsyncExitStack()
+                instance = await stack.enter_async_context(cm)
 
-            elif isinstance(cm, typing.ContextManager):
-                context.context_stack = contextlib.ExitStack()
-                context.instance = context.context_stack.enter_context(cm)
+            elif isinstance(cm, contextlib.AbstractContextManager):
+                stack = contextlib.ExitStack()
+                instance = stack.enter_context(cm)
 
             else:  # pragma: no cover
                 typing.assert_never(cm)
 
-        return context.instance
+            context.set_context_state(instance=instance, context_stack=stack)
+
+        return instance
 
     @override
     def resolve_sync(self) -> T_co:
@@ -387,14 +393,15 @@ class AbstractResource(ProviderWithArguments, AbstractProvider[T_co], abc.ABC):
 
             self._register_arguments()
 
-            cm = self._creator(
+            cm: contextlib.AbstractContextManager[T_co] = self._creator(
                 *[x.resolve_sync() if isinstance(x, AbstractProvider) else x for x in self._args],
                 **{k: v.resolve_sync() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
             )
-            context.context_stack = contextlib.ExitStack()
-            context.instance = context.context_stack.enter_context(cm)
+            stack = contextlib.ExitStack()
+            instance = stack.enter_context(cm)
+            context.set_context_state(instance=instance, context_stack=stack)
 
-            return context.instance
+            return instance
 
 
 def _get_value_from_object_by_dotted_path(obj: typing.Any, path: str) -> typing.Any:  # noqa: ANN401
@@ -433,11 +440,11 @@ class AttrGetter(
         self._attrs = [attr_name]
 
     @override
-    def __getattr__(self, attr: str) -> "AttrGetter[T_co]":
-        if attr.startswith("_"):
-            msg = f"'{type(self)}' object has no attribute '{attr}'"
+    def __getattr__(self, attr_name: str) -> "AttrGetter[T_co]":
+        if attr_name.startswith("_"):
+            msg = f"'{type(self)}' object has no attribute '{attr_name}'"
             raise AttributeError(msg)
-        self._attrs.append(attr)
+        self._attrs.append(attr_name)
         return self
 
     @override

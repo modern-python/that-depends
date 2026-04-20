@@ -50,7 +50,7 @@ class ThreadLocalSingleton(ProviderWithArguments, SupportsTeardown, AbstractProv
 
         """
         super().__init__()
-        self._factory: typing.Final = factory
+        self._factory: typing.Final[typing.Callable[..., T_co]] = factory
         self._thread_local = threading.local()
         self._asyncio_lock = asyncio.Lock()
         self._args: typing.Final = args
@@ -83,13 +83,12 @@ class ThreadLocalSingleton(ProviderWithArguments, SupportsTeardown, AbstractProv
 
             self._register_arguments()
 
-            self._instance = self._factory(
-                *[await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args],  # type: ignore[arg-type]
-                **{  # type: ignore[arg-type]
-                    k: await v.resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()
-                },
+            instance = self._factory(
+                *[await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
+                **{k: await v.resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
             )
-            return self._instance
+            self._instance = instance
+            return instance
 
     @override
     def resolve_sync(self) -> T_co:
@@ -101,11 +100,12 @@ class ThreadLocalSingleton(ProviderWithArguments, SupportsTeardown, AbstractProv
 
         self._register_arguments()
 
-        self._instance = self._factory(
-            *[x.resolve_sync() if isinstance(x, AbstractProvider) else x for x in self._args],  # type: ignore[arg-type]
-            **{k: v.resolve_sync() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},  # type: ignore[arg-type]
+        instance = self._factory(
+            *[x.resolve_sync() if isinstance(x, AbstractProvider) else x for x in self._args],
+            **{k: v.resolve_sync() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
         )
-        return self._instance
+        self._instance = instance
+        return instance
 
     @override
     def tear_down_sync(self, propagate: bool = True, raise_on_async: bool = True) -> None:

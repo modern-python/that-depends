@@ -186,6 +186,7 @@ async def test_early_exit_of_container_context() -> None:
 
 async def test_resource_context_early_teardown() -> None:
     context: ResourceContext[str] = ResourceContext(is_async=True)
+    assert context.is_async is True
     assert context.context_stack is None
     context.tear_down_sync()
     assert context.context_stack is None
@@ -193,7 +194,7 @@ async def test_resource_context_early_teardown() -> None:
 
 async def test_teardown_sync_container_context_with_async_resource() -> None:
     resource_context: ResourceContext[typing.Any] = ResourceContext(is_async=True)
-    resource_context.context_stack = AsyncExitStack()
+    resource_context.set_context_state(context_stack=AsyncExitStack())
     message = "Cannot tear down async context in sync mode"
     with pytest.raises(RuntimeError, match=message):
         resource_context.tear_down_sync()
@@ -698,6 +699,11 @@ def test_scoped_container_get_scope() -> None:
     class _Container(BaseContainer): ...
 
     assert _Container.get_scope() is ContextScopes.ANY
+
+    class _UnsetScopeContainer(BaseContainer):
+        default_scope = None
+
+    assert _UnsetScopeContainer.get_scope() is ContextScopes.ANY
 
     class _ScopedContainer(BaseContainer):
         default_scope = ContextScopes.INJECT

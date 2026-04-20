@@ -94,7 +94,7 @@ class Factory(AbstractFactory[T_co]):
 
         """
         super().__init__()
-        self._factory: typing.Final = factory
+        self._factory: typing.Final[typing.Callable[..., T_co]] = factory
         self._args: typing.Final = args
         self._kwargs: typing.Final = kwargs
         self._register_arguments()
@@ -105,12 +105,8 @@ class Factory(AbstractFactory[T_co]):
             return typing.cast(T_co, self._override)
 
         return self._factory(
-            *[  # type: ignore[arg-type]
-                await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args
-            ],
-            **{  # type: ignore[arg-type]
-                k: await v.resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()
-            },
+            *[await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
+            **{k: await v.resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
         )
 
     @override
@@ -119,12 +115,8 @@ class Factory(AbstractFactory[T_co]):
             return typing.cast(T_co, self._override)
 
         return self._factory(
-            *[  # type: ignore[arg-type]
-                x.resolve_sync() if isinstance(x, AbstractProvider) else x for x in self._args
-            ],
-            **{  # type: ignore[arg-type]
-                k: v.resolve_sync() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()
-            },
+            *[x.resolve_sync() if isinstance(x, AbstractProvider) else x for x in self._args],
+            **{k: v.resolve_sync() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
         )
 
 
@@ -176,7 +168,7 @@ class AsyncFactory(AbstractFactory[T_co]):
 
         """
         super().__init__()
-        self._factory: typing.Final = factory
+        self._factory: typing.Final[typing.Callable[..., T_co | typing.Awaitable[T_co]]] = factory
         self._args: typing.Final = args
         self._kwargs: typing.Final = kwargs
         self._register_arguments()
@@ -190,8 +182,8 @@ class AsyncFactory(AbstractFactory[T_co]):
         kwargs = {k: await v.resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()}
 
         result = self._factory(
-            *args,  # type:ignore[arg-type]
-            **kwargs,  # type:ignore[arg-type]
+            *args,
+            **kwargs,
         )
 
         if inspect.isawaitable(result):

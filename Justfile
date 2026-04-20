@@ -9,11 +9,13 @@ lint:
     uv run ruff format
     uv run ruff check --fix
     uv run mypy .
+    uv run pyrefly check
 
 lint-ci:
     uv run ruff format --check
     uv run ruff check --no-fix
     uv run mypy .
+    uv run pyrefly check
 
 test *args:
     uv run --no-sync pytest {{ args }}

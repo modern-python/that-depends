@@ -46,7 +46,7 @@ class Singleton(ProviderWithArguments, SupportsTeardown, AbstractProvider[T_co])
 
         """
         super().__init__()
-        self._factory: typing.Final = factory
+        self._factory: typing.Final[typing.Callable[..., T_co]] = factory
         self._instance: T_co | None = None
         self._asyncio_lock: typing.Final = asyncio.Lock()
         self._threading_lock: typing.Final = threading.Lock()
@@ -73,10 +73,8 @@ class Singleton(ProviderWithArguments, SupportsTeardown, AbstractProvider[T_co])
                 return self._instance
             self._register_arguments()
             self._instance = self._factory(
-                *[await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args],  # type: ignore[arg-type]
-                **{  # type: ignore[arg-type]
-                    k: await v.resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()
-                },
+                *[await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
+                **{k: await v.resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
             )
             return self._instance
 
@@ -92,8 +90,8 @@ class Singleton(ProviderWithArguments, SupportsTeardown, AbstractProvider[T_co])
                 return self._instance
             self._register_arguments()
             self._instance = self._factory(
-                *[x.resolve_sync() if isinstance(x, AbstractProvider) else x for x in self._args],  # type: ignore[arg-type]
-                **{k: v.resolve_sync() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},  # type: ignore[arg-type]
+                *[x.resolve_sync() if isinstance(x, AbstractProvider) else x for x in self._args],
+                **{k: v.resolve_sync() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
             )
             return self._instance
 
@@ -159,7 +157,7 @@ class AsyncSingleton(ProviderWithArguments, SupportsTeardown, AbstractProvider[T
 
         """
         super().__init__()
-        self._factory: typing.Final[typing.Callable[P, typing.Awaitable[T_co]]] = factory
+        self._factory: typing.Final[typing.Callable[..., typing.Awaitable[T_co]]] = factory
         self._instance: T_co | None = None
         self._asyncio_lock: typing.Final = asyncio.Lock()
         self._args: typing.Final = args
@@ -186,10 +184,8 @@ class AsyncSingleton(ProviderWithArguments, SupportsTeardown, AbstractProvider[T
             self._register_arguments()
 
             self._instance = await self._factory(
-                *[await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args],  # type: ignore[arg-type]
-                **{  # type: ignore[arg-type]
-                    k: await v.resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()
-                },
+                *[await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
+                **{k: await v.resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
             )
             return self._instance
 
