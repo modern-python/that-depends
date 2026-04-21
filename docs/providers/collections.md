@@ -3,7 +3,7 @@ There are several collection providers: `List` and `Dict`
 
 ## List
 - List provider contains other providers.
-- Resolves into list of dependencies.
+- Resolves into an immutable sequence of dependencies.
 
 ```python
 import random
@@ -16,12 +16,12 @@ class DIContainer(BaseContainer):
 
 
 DIContainer.numbers_sequence.resolve_sync()
-# [0.3035656170071561, 0.8280498192037787]
+# (0.3035656170071561, 0.8280498192037787)
 ```
 
 ## Dict
 - Dict provider is a collection of named providers.
-- Resolves into dict of dependencies.
+- Resolves into a read-only mapping of dependencies.
 
 ```python
 import random
@@ -34,5 +34,5 @@ class DIContainer(BaseContainer):
 
 
 DIContainer.numbers_map.resolve_sync()
-# {'key1': 0.6851384528299208, 'key2': 0.41044920948045294}
+# mappingproxy({'key1': 0.6851384528299208, 'key2': 0.41044920948045294})
 ```

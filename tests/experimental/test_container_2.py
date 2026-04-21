@@ -22,12 +22,21 @@ class _RandomWrapper:
         return 0  # pragma: nocover
 
 
+class _BrokenContextObject(providers.Object[int]):
+    def get_scope(self) -> ContextScopes | None:
+        msg = "_missing_scope"
+        raise AttributeError(msg)
+
+
 async def _async_creator() -> AsyncIterator[float]:
     yield random.random()
 
 
 def _sync_creator() -> Iterator[_RandomWrapper]:
     yield _RandomWrapper()
+
+
+broken_context_provider = _BrokenContextObject(1)
 
 
 class Container2(BaseContainer):
@@ -137,6 +146,13 @@ async def test_lazy_provider_not_implemented() -> None:
         lazy_provider.tear_down_sync()
     with pytest.raises(NotImplementedError):
         await lazy_provider.tear_down()
+
+
+def test_lazy_provider_not_implemented_when_context_method_raises_attribute_error() -> None:
+    lazy_provider = LazyProvider("tests.experimental.test_container_2.broken_context_provider")
+
+    with pytest.raises(NotImplementedError):
+        lazy_provider.get_scope()
 
 
 def test_lazy_provider_attr_getter() -> None:

@@ -8,7 +8,7 @@
 To interact with both types of contexts, there are two separate interfaces:
 
 1. Use the `container_context()` context manager to interact with the global context and manage `ContextResource` providers.
-2. Directly manage a `ContextResource` context by using the `SupportsContext` interface, which both containers
+2. Directly manage a `ContextResource` context by using the `SupportsContext` protocol, which both containers
    and `ContextResource` providers implement.
 
 ---
@@ -185,7 +185,7 @@ async with container_context(MyContainer.async_resource):
     ...
 ```
 
-It is not necessary to use `container_context()` to do this. Instead, you can use the `SupportsContext` interface described 
+It is not necessary to use `container_context()` to do this. Instead, you can use the `SupportsContext` protocol described 
 [here](#quick-reference).
 
 ### Context Hierarchy

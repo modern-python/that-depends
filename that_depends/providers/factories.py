@@ -110,7 +110,7 @@ class Factory(AbstractFactory[T_co]):
 
         """
         super().__init__()
-        self._factory: typing.Final = factory
+        self._factory: typing.Final[typing.Callable[..., T_co]] = factory
         self._args: typing.Final = args
         self._kwargs: typing.Final = kwargs
         self._args_are_providers: typing.Final = tuple(isinstance(arg, AbstractProvider) for arg in args)
@@ -199,7 +199,7 @@ class AsyncFactory(AbstractFactory[T_co]):
 
         """
         super().__init__()
-        self._factory: typing.Final = factory
+        self._factory: typing.Final[typing.Callable[..., T_co | typing.Awaitable[T_co]]] = factory
         self._args: typing.Final = args
         self._kwargs: typing.Final = kwargs
         self._args_are_providers: typing.Final = tuple(isinstance(arg, AbstractProvider) for arg in args)

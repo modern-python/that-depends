@@ -1,13 +1,13 @@
 import inspect
 import typing
-from contextlib import contextmanager
+from contextlib import AsyncExitStack, ExitStack, asynccontextmanager, contextmanager
 from typing import overload
 
 from typing_extensions import override
 
 from that_depends.meta import BaseContainerMeta
 from that_depends.providers import AbstractProvider, AsyncSingleton, Resource, Singleton
-from that_depends.providers.context_resources import ContextScope, ContextScopes
+from that_depends.providers.context_resources import ContextResource, ContextScope, ContextScopes
 
 
 if typing.TYPE_CHECKING:
@@ -25,6 +25,42 @@ class BaseContainer(metaclass=BaseContainerMeta):
     providers: dict[str, AbstractProvider[typing.Any]]
     containers: list[type["BaseContainer"]]
     default_scope: ContextScope | None = ContextScopes.ANY
+
+    @classmethod
+    def get_scope(cls) -> ContextScope | None:
+        """Return the default scope used by the container."""
+        if cls.default_scope is not None:
+            return cls.default_scope
+        return ContextScopes.ANY
+
+    @classmethod
+    @asynccontextmanager
+    async def context_async(cls, force: bool = False) -> typing.AsyncIterator[None]:
+        """Enter async contexts for all connected containers and context resources."""
+        async with AsyncExitStack() as stack:
+            for container in cls.get_containers():
+                await stack.enter_async_context(container.context_async(force=force))
+            for provider in cls.get_providers().values():
+                if isinstance(provider, ContextResource):
+                    await stack.enter_async_context(provider.context_async(force=force))
+            yield
+
+    @classmethod
+    @contextmanager
+    def context_sync(cls, force: bool = False) -> typing.Iterator[None]:
+        """Enter sync contexts for all connected containers and sync context resources."""
+        with ExitStack() as stack:
+            for container in cls.get_containers():
+                stack.enter_context(container.context_sync(force=force))
+            for provider in cls.get_providers().values():
+                if isinstance(provider, ContextResource) and not provider._is_async:  # noqa: SLF001
+                    stack.enter_context(provider.context_sync(force=force))
+            yield
+
+    @classmethod
+    def supports_context_sync(cls) -> bool:
+        """Indicate that container classes support sync context management."""
+        return True
 
     @classmethod
     @overload

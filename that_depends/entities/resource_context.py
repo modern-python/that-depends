@@ -32,6 +32,25 @@ class ResourceContext(SupportsTeardown, typing.Generic[T_co]):
         self.context_stack: contextlib.AsyncExitStack | contextlib.ExitStack | None = None
         self.is_async = is_async
 
+    def set_context_state(
+        self,
+        *,
+        instance: T_co | None = None,
+        context_stack: contextlib.AsyncExitStack | contextlib.ExitStack | None = None,
+    ) -> None:
+        """Set the context state of the resource.
+
+        Args:
+            instance: instance.
+            context_stack: stack.
+
+        Returns:
+            None
+
+        """
+        self.instance = instance
+        self.context_stack = context_stack
+
     @staticmethod
     def is_context_stack_async(
         context_stack: contextlib.AsyncExitStack | contextlib.ExitStack | None,
@@ -56,8 +75,7 @@ class ResourceContext(SupportsTeardown, typing.Generic[T_co]):
             await self.context_stack.aclose()
         elif self.is_context_stack_sync(self.context_stack):
             self.context_stack.close()
-        self.context_stack = None
-        self.instance = None
+        self.set_context_state(instance=None, context_stack=None)
 
     @override
     def tear_down_sync(self, propagate: bool = True, raise_on_async: bool = True) -> None:
@@ -67,8 +85,7 @@ class ResourceContext(SupportsTeardown, typing.Generic[T_co]):
 
         if self.is_context_stack_sync(self.context_stack):
             self.context_stack.close()
-            self.context_stack = None
-            self.instance = None
+            self.set_context_state(instance=None, context_stack=None)
         elif self.is_context_stack_async(self.context_stack):
             msg = "Cannot tear down async context in sync mode"
             if raise_on_async:

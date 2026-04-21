@@ -3,7 +3,6 @@ import contextlib
 import inspect
 import logging
 import typing
-from abc import abstractmethod
 from collections.abc import Iterable
 from contextlib import AbstractAsyncContextManager, AbstractContextManager
 from contextvars import ContextVar, Token
@@ -11,7 +10,7 @@ from functools import wraps
 from types import TracebackType
 from typing import Final, overload
 
-from typing_extensions import TypeIs, override
+from typing_extensions import Protocol, TypeIs, override, runtime_checkable
 
 from that_depends.entities.resource_context import ResourceContext
 from that_depends.providers.base import AbstractResource
@@ -151,22 +150,21 @@ def _enter_named_scope(scope: ContextScope) -> typing.Iterator[ContextScope]:
 
 
 T = typing.TypeVar("T")
-CT = typing.TypeVar("CT")
+CT_co = typing.TypeVar("CT_co", covariant=True)
 
 
-class SupportsContext(typing.Generic[CT]):
+@runtime_checkable
+class SupportsContext(Protocol[CT_co]):
     """Interface for resources that support context initialization.
 
     This interface defines methods to create synchronous and asynchronous
     context managers, as well as a function decorator for context initialization.
     """
 
-    @abstractmethod
     def get_scope(self) -> ContextScope | None:
         """Return the scope of the resource."""
 
-    @abstractmethod
-    def context_async(self, force: bool = False) -> typing.AsyncContextManager[CT]:
+    def context_async(self, force: bool = False) -> typing.AsyncContextManager[CT_co]:
         """Create an async context manager for this resource.
 
         Args:
@@ -182,9 +180,9 @@ class SupportsContext(typing.Generic[CT]):
             ```
 
         """
+        ...
 
-    @abstractmethod
-    def context_sync(self, force: bool = False) -> typing.ContextManager[CT]:
+    def context_sync(self, force: bool = False) -> typing.ContextManager[CT_co]:
         """Create a sync context manager for this resource.
 
         Args:
@@ -200,8 +198,8 @@ class SupportsContext(typing.Generic[CT]):
             ```
 
         """
+        ...
 
-    @abstractmethod
     def supports_context_sync(self) -> bool:
         """Check whether the resource supports sync context.
 
@@ -209,6 +207,10 @@ class SupportsContext(typing.Generic[CT]):
             bool: True if sync context is supported, False otherwise.
 
         """
+        ...
+
+
+BaseContainerType: typing.TypeAlias = type["BaseContainer"]
 
 
 def _get_container_context() -> dict[str, typing.Any] | None:
@@ -327,8 +329,8 @@ class ContextResource(
 
         """
         super().__init__(creator, *args, **kwargs)
+        self._from_creator: typing.Callable[..., typing.Iterator[T_co] | typing.AsyncIterator[T_co]] = creator
         self._is_context_resource = True
-        self._from_creator = creator
         self._context: ContextVar[ResourceContext[T_co]] = ContextVar(f"{self._creator.__name__}-context")
         self._token: Token[ResourceContext[T_co]] | None = None
         self._async_lock: Final = asyncio.Lock()
@@ -388,7 +390,7 @@ class ContextResource(
         if strict_scope and scope == ContextScopes.ANY:
             msg = f"Cannot set strict_scope with scope {scope}."
             raise ValueError(msg)
-        r = ContextResource(self._from_creator, *self._args, **self._kwargs)  # type: ignore[arg-type]
+        r = ContextResource(self._from_creator, *self._args, **self._kwargs)
         r._scope = scope
         r._strict_scope = strict_scope
 
@@ -442,8 +444,8 @@ class ContextResource(
         try:
             context_item = self._context.get()
             context_stack = context_item.context_stack
-            if context_stack is not None and ResourceContext.is_context_stack_sync(context_stack):
-                context_stack.close()
+            if context_stack is not None:
+                context_stack.close()  # type: ignore[union-attr]
                 context_item.context_stack = None
                 context_item.instance = None
         finally:
@@ -489,9 +491,6 @@ class ContextResource(
             raise RuntimeError(msg) from e
 
 
-ContainerType = typing.TypeVar("ContainerType", bound="type[BaseContainer]")
-
-
 class container_context(AbstractContextManager[ContextType], AbstractAsyncContextManager[ContextType]):  # noqa: N801
     """Initialize contexts for the provided containers or resources.
 
@@ -502,16 +501,14 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
     __slots__ = (
         "_container_items",
         "_container_providers_by_scope",
-        "_containers",
         "_context_items",
-        "_context_providers",
         "_context_stack",
         "_context_token",
-        "_direct_context_providers",
+        "_direct_context_items",
+        "_entered_context_items",
         "_global_context",
         "_initial_context",
         "_preserve_global_context",
-        "_providers",
         "_reset_resource_context",
         "_scope",
         "_scope_token",
@@ -527,7 +524,7 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
         """Initialize a new container context.
 
         Args:
-            *context_items (SupportsContext[Any]): Context items to initialize a new context for.
+            *context_items: Context-capable providers or container classes to initialize.
             global_context (dict[str, Any] | None): A dictionary representing the global context.
             preserve_global_context (bool): If True, merges the existing global context with the new one.
             scope (ContextScope | None): The named scope that should be initialized.
@@ -551,40 +548,40 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
         self._context_token: Token[ContextType] | None = None
         self._context_items: typing.Final[set[SupportsContext[typing.Any]]] = set(context_items)
         self._container_items: tuple[type[BaseContainer], ...]
-        self._direct_context_providers: tuple[ContextResource[typing.Any], ...]
+        self._direct_context_items: tuple[SupportsContext[typing.Any], ...]
         self._container_providers_by_scope: dict[ContextScope | None, tuple[ContextResource[typing.Any], ...]] = {}
-        self._context_providers: set[ContextResource[typing.Any]] = set()
+        self._entered_context_items: tuple[SupportsContext[typing.Any], ...] = ()
         self._reset_resource_context: typing.Final[bool] = bool(scope)
         self._context_stack: contextlib.AsyncExitStack | contextlib.ExitStack | None = None
         self._scope_token: Token[ContextScope | None] | None = None
-        self._container_items, self._direct_context_providers = self._parse_context_items(self._context_items)
+        self._container_items, self._direct_context_items = self._parse_context_items(self._context_items)
 
     def _parse_context_items(
         self,
         context_items: set[SupportsContext[typing.Any]],
-    ) -> tuple[tuple[type["BaseContainer"], ...], tuple[ContextResource[typing.Any], ...]]:
+    ) -> tuple[tuple[type["BaseContainer"], ...], tuple[SupportsContext[typing.Any], ...]]:
         from that_depends.container import BaseContainer  # noqa: PLC0415
 
         containers: list[type[BaseContainer]] = []
-        providers: list[ContextResource[typing.Any]] = []
+        direct_items: list[SupportsContext[typing.Any]] = []
         for item in context_items:
             if isinstance(item, type) and issubclass(item, BaseContainer):
                 containers.append(item)
-            elif isinstance(item, ContextResource):
-                providers.append(item)
-        return tuple(containers), tuple(providers)
+            else:
+                direct_items.append(item)
+        return tuple(containers), tuple(direct_items)
 
     def _get_context_providers_for_scope(
         self,
         scope: ContextScope | None,
-    ) -> set[ContextResource[typing.Any]]:
+    ) -> tuple[ContextResource[typing.Any], ...]:
         cached = self._container_providers_by_scope.get(scope)
         if cached is None:
-            providers = set(self._direct_context_providers)
+            providers: set[ContextResource[typing.Any]] = set()
             self._add_providers_from_containers(self._container_items, providers, scope)
             cached = tuple(providers)
             self._container_providers_by_scope[scope] = cached
-        return set(cached)
+        return cached
 
     def _resolve_initial_conditions(self) -> ContextScope | None:
         scope = self._scope or get_current_scope()
@@ -599,20 +596,22 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
             )
         else:
             self._initial_context = self._global_context or {}
-        self._context_providers = self._get_context_providers_for_scope(scope)
+        entered_context_items = dict.fromkeys(self._direct_context_items)
+        for provider in self._get_context_providers_for_scope(scope):
+            entered_context_items[provider] = provider
         if self._reset_resource_context:
             from that_depends.meta import BaseContainerMeta  # noqa: PLC0415
 
-            self._add_providers_from_containers(
-                BaseContainerMeta.get_instances().values(),
-                self._context_providers,
-                scope,
-            )
+            scope_providers: set[ContextResource[typing.Any]] = set()
+            self._add_providers_from_containers(BaseContainerMeta.get_instances().values(), scope_providers, scope)
+            for provider in scope_providers:
+                entered_context_items[provider] = provider
+        self._entered_context_items = tuple(entered_context_items)
         return scope
 
     def _add_providers_from_containers(
         self,
-        containers: Iterable[ContainerType],
+        containers: Iterable[BaseContainerType],
         target: set[ContextResource[typing.Any]],
         scope: ContextScope | None = ContextScopes.ANY,
     ) -> None:
@@ -628,7 +627,7 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
         scope = self._resolve_initial_conditions()
         self._context_stack = contextlib.ExitStack()
         self._scope_token = _set_current_scope(scope)
-        for item in self._context_providers:
+        for item in self._entered_context_items:
             if item.supports_context_sync():
                 self._context_stack.enter_context(item.context_sync())
         return self._enter_globals()
@@ -638,7 +637,7 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
         scope = self._resolve_initial_conditions()
         self._context_stack = contextlib.AsyncExitStack()
         self._scope_token = _set_current_scope(scope)
-        for item in self._context_providers:
+        for item in self._entered_context_items:
             await self._context_stack.enter_async_context(item.context_async())
         return self._enter_globals()
 
@@ -769,8 +768,7 @@ class DIContextMiddleware:
 
         Args:
             app (ASGIApp): The ASGI application to wrap.
-            *context_items (SupportsContext[Any]): A collection of containers and providers that
-                need context initialization prior to a request.
+            *context_items: Containers and providers that need context initialization prior to a request.
             global_context (dict[str, Any] | None): A global context dictionary to set before requests.
             scope (ContextScope | None): The scope in which the context should be initialized.
 

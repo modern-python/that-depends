@@ -63,7 +63,7 @@ class Singleton(ProviderWithArguments, SupportsTeardown, AbstractProvider[T_co])
 
         """
         super().__init__()
-        self._factory: typing.Final = factory
+        self._factory: typing.Final[typing.Callable[..., T_co]] = factory
         self._instance: T_co | None = None
         self._asyncio_lock: typing.Final = asyncio.Lock()
         self._threading_lock: typing.Final = threading.Lock()
@@ -196,7 +196,7 @@ class AsyncSingleton(ProviderWithArguments, SupportsTeardown, AbstractProvider[T
 
         """
         super().__init__()
-        self._factory: typing.Final[typing.Callable[P, typing.Awaitable[T_co]]] = factory
+        self._factory: typing.Final[typing.Callable[..., typing.Awaitable[T_co]]] = factory
         self._instance: T_co | None = None
         self._asyncio_lock: typing.Final = asyncio.Lock()
         self._args: typing.Final = args

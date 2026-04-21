@@ -56,7 +56,7 @@ class ThreadLocalSingleton(ProviderWithArguments, SupportsTeardown, AbstractProv
 
         """
         super().__init__()
-        self._factory: typing.Final = factory
+        self._factory: typing.Final[typing.Callable[..., T_co]] = factory
         self._thread_local = threading.local()
         self._asyncio_lock = asyncio.Lock()
         self._args: typing.Final = args
@@ -99,11 +99,12 @@ class ThreadLocalSingleton(ProviderWithArguments, SupportsTeardown, AbstractProv
 
             self._register_arguments()
 
-            self._instance = self._factory(
+            instance = self._factory(
                 *await _resolve_arguments(self._args, self._args_are_providers),
                 **await _resolve_keyword_arguments(self._kwargs_items, self._kwargs_are_providers),
             )
-            return self._instance
+            self._instance = instance
+            return instance
 
     @override
     def resolve_sync(self) -> T_co:
@@ -115,11 +116,12 @@ class ThreadLocalSingleton(ProviderWithArguments, SupportsTeardown, AbstractProv
 
         self._register_arguments()
 
-        self._instance = self._factory(
+        instance = self._factory(
             *_resolve_arguments_sync(self._args, self._args_are_providers),
             **_resolve_keyword_arguments_sync(self._kwargs_items, self._kwargs_are_providers),
         )
-        return self._instance
+        self._instance = instance
+        return instance
 
     @override
     def tear_down_sync(self, propagate: bool = True, raise_on_async: bool = True) -> None:
