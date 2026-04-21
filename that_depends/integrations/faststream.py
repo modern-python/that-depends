@@ -31,7 +31,7 @@ if Version(_FASTSTREAM_VERSION) >= Version("0.6.0"):  # pragma: no cover
             """Initialize the container context middleware.
 
             Args:
-                *context_items: Context-capable providers or container classes to initialize.
+                *context_items (SupportsContext[Any]): Context-capable providers or container classes to initialize.
                 msg (Any): Message object.
                 context (ContextRepo): Context repository.
                 global_context (dict[str, Any] | Unset): Global context to initialize the container.
@@ -79,8 +79,8 @@ if Version(_FASTSTREAM_VERSION) >= Version("0.6.0"):  # pragma: no cover
 
             return DIContextMiddleware(
                 *self._context_items,
-                msg=msg,
-                context=context,
+                msg=msg,  # type:ignore[unexpected-keyword]
+                context=context,  # type:ignore[unexpected-keyword]
                 scope=self._scope,
                 global_context=self._global_context,
             )
@@ -94,22 +94,17 @@ else:  # pragma: no cover
         def __init__(
             self,
             *context_items: SupportsContext[typing.Any],
-            msg: object | None = None,
-            context: object | None = None,
             global_context: dict[str, Any] | Unset = UNSET,
             scope: ContextScope | Unset = UNSET,
         ) -> None:
             """Initialize the container context middleware.
 
             Args:
-                *context_items: Context-capable providers or container classes to initialize.
-                msg: Message object passed by faststream.
-                context: Context repository passed by faststream.
+                *context_items (SupportsContext[Any]): Context-capable providers or container classes to initialize.
                 global_context (dict[str, Any] | Unset): Global context to initialize the container.
                 scope (ContextScope | Unset): Context scope to initialize the container.
 
             """
-            del msg, context
             super().__init__()  # type: ignore[call-arg]
             self._context: container_context | None = None
             self._context_items: set[SupportsContext[typing.Any]] = set(context_items)
