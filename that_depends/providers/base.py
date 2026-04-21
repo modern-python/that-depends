@@ -504,7 +504,7 @@ class AbstractResource(ProviderWithArguments, AbstractProvider[T_co], abc.ABC):
                 context.instance = context.context_stack.enter_context(cm)
 
             else:  # pragma: no cover
-                typing.assert_never(cm)
+                typing_extensions.assert_never(cm)
 
         return context.instance
 
