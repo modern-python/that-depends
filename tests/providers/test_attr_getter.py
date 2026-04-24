@@ -172,6 +172,7 @@ def test_attr_getter_deregister_arguments() -> None:
     attr_getter = _Container.child.v
 
     attr_getter._register_arguments()
+    attr_getter._register_arguments()
 
     assert attr_getter.resolve_sync() == _Container.parent.resolve_sync()
     assert _Container.parent in attr_getter._parents

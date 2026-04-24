@@ -591,9 +591,18 @@ def test_enter_sync_context_for_async_resource_should_throw(
         async_context_resource._enter_context_sync()
 
 
-def test_exit_sync_context_before_enter_should_throw(sync_context_resource: providers.ContextResource[str]) -> None:
-    with pytest.raises(RuntimeError):
-        sync_context_resource._exit_context_sync()
+def test_exit_sync_context_before_enter_should_throw() -> None:
+    provider = providers.ContextResource(create_sync_context_resource)
+
+    with pytest.raises(RuntimeError, match=r"Context is not set, call ``_enter_sync_context`` first"):
+        provider._exit_context_sync()
+
+
+def test_context_sync_manager_exit_before_enter_should_throw(
+    sync_context_resource: providers.ContextResource[str],
+) -> None:
+    with pytest.raises(RuntimeError, match=r"Context is not set, call ``__enter__`` first"):
+        sync_context_resource.context_sync().__exit__(None, None, None)
 
 
 async def test_exit_async_context_before_enter_should_throw(
@@ -608,6 +617,18 @@ def test_enter_sync_context_from_async_resource_should_throw(
 ) -> None:
     with pytest.raises(RuntimeError), ExitStack() as stack:
         stack.enter_context(async_context_resource.context_sync())
+
+
+def test_enter_and_exit_sync_context_directly(sync_context_resource: providers.ContextResource[str]) -> None:
+    context = sync_context_resource._enter_context_sync()
+
+    assert isinstance(context, ResourceContext)
+    assert sync_context_resource.resolve_sync() is not None
+
+    sync_context_resource._exit_context_sync()
+
+    with pytest.raises(RuntimeError, match=r"Context is not set. Use container_context"):
+        sync_context_resource.resolve_sync()
 
 
 async def test_preserve_globals_and_initial_context() -> None:

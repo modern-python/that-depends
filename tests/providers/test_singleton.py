@@ -144,6 +144,16 @@ async def test_async_singleton_override() -> None:
     assert result == SingletonFactory(dep1="bar")
 
 
+def test_async_singleton_register_arguments_is_idempotent() -> None:
+    parent = providers.Singleton(lambda: "foo")
+    singleton_async = providers.AsyncSingleton(create_async_obj, value=parent.cast)
+
+    singleton_async._register_arguments()
+    singleton_async._register_arguments()
+
+    assert singleton_async in parent._children
+
+
 async def test_async_singleton_asyncio_concurrency() -> None:
     singleton_async = providers.AsyncSingleton(create_async_obj, "foo")
 

@@ -6,7 +6,7 @@ import pytest
 from typing_extensions import override
 
 from that_depends import BaseContainer
-from that_depends.providers.base import AbstractProvider
+from that_depends.providers.base import AbstractProvider, _resolve_arguments, _resolve_arguments_sync
 from that_depends.providers.local_singleton import ThreadLocalSingleton
 from that_depends.providers.mixin import SupportsTeardown
 from that_depends.providers.resources import Resource
@@ -43,6 +43,18 @@ class DummyProvider(SupportsTeardown, AbstractProvider[int]):
         return self._instance  # pragma: no cover
 
 
+async def test_resolve_arguments_with_multiple_values() -> None:
+    provider = DummyProvider()
+
+    assert await _resolve_arguments((provider, "value"), (True, False)) == [1, "value"]
+
+
+def test_resolve_arguments_sync_with_multiple_values() -> None:
+    provider = DummyProvider()
+
+    assert _resolve_arguments_sync((provider, "value"), (True, False)) == [1, "value"]
+
+
 def test_add_child_provider() -> None:
     provider_a = DummyProvider()
     provider_b = DummyProvider()
@@ -73,6 +85,28 @@ def test_register_with_mixed_items() -> None:
     parent._register([child_1, non_provider])
 
     assert parent in child_1._children, "Expected child_1._children to contain parent"
+
+
+def test_invalidate_scope_init_order_handles_duplicate_descendants() -> None:
+    root = DummyProvider()
+    left = DummyProvider()
+    right = DummyProvider()
+    shared = DummyProvider()
+
+    root.add_child_provider(left)
+    root.add_child_provider(right)
+    left.add_child_provider(shared)
+    right.add_child_provider(shared)
+
+    for provider in (root, left, right, shared):
+        provider._scope_context_init_order = ()
+        provider._scope_init_order = ()
+
+    root._invalidate_scope_init_order()
+
+    for provider in (root, left, right, shared):
+        assert provider._scope_context_init_order is None
+        assert provider._scope_init_order is None
 
 
 def test_sync_tear_down_propagation() -> None:
@@ -166,6 +200,16 @@ def test_thread_local_singleton_registration_and_deregistration(dummy_singleton:
     thread_local.tear_down_sync()
 
     assert thread_local not in dummy_singleton._children, "ThreadLocalSingleton should be deregistered after teardown."
+
+
+def test_get_scope_init_order_is_cached_and_includes_parents(dummy_singleton: Singleton[int]) -> None:
+    singleton = Singleton(lambda value: value + 1, dummy_singleton.cast)
+
+    first = singleton._get_scope_init_order()
+    second = singleton._get_scope_init_order()
+
+    assert first == (dummy_singleton, singleton)
+    assert second is first
 
 
 def test_resource_registration_and_deregistration(dummy_singleton: Singleton[int]) -> None:
