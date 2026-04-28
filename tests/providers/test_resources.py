@@ -14,6 +14,7 @@ from tests.creators import (
     create_sync_resource,
 )
 from that_depends import BaseContainer, providers
+from that_depends.utils import is_set
 
 
 logger = logging.getLogger(__name__)
@@ -189,9 +190,9 @@ def test_resource_threading_concurrency() -> None:
 
 def test_sync_resource_sync_tear_down() -> None:
     DIContainer.sync_resource.resolve_sync()
-    assert DIContainer.sync_resource._context.instance is not None
+    assert is_set(DIContainer.sync_resource._context.instance)
     DIContainer.sync_resource.tear_down_sync()
-    assert DIContainer.sync_resource._context.instance is None
+    assert not is_set(DIContainer.sync_resource._context.instance)
 
 
 async def test_async_resource_sync_tear_down_raises() -> None:

@@ -24,6 +24,7 @@ from that_depends.entities.resource_context import ResourceContext
 from that_depends.meta import DefaultScopeNotDefinedError
 from that_depends.providers import DIContextMiddleware, container_context
 from that_depends.providers.context_resources import InvalidContextError, _enter_named_scope, fetch_context_item_by_type
+from that_depends.utils import is_set
 
 
 logger = logging.getLogger(__name__)
@@ -187,9 +188,9 @@ async def test_early_exit_of_container_context() -> None:
 async def test_resource_context_early_teardown() -> None:
     context: ResourceContext[str] = ResourceContext(is_async=True)
     assert context.is_async is True
-    assert context.context_stack is None
+    assert not is_set(context.context_stack)
     context.tear_down_sync()
-    assert context.context_stack is None
+    assert not is_set(context.context_stack)
 
 
 async def test_teardown_sync_container_context_with_async_resource() -> None:

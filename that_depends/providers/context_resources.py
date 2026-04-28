@@ -14,6 +14,7 @@ from typing_extensions import Protocol, TypeIs, override, runtime_checkable
 
 from that_depends.entities.resource_context import ResourceContext
 from that_depends.providers.base import AbstractResource
+from that_depends.utils import UNSET
 
 
 if typing.TYPE_CHECKING:
@@ -55,10 +56,10 @@ class _SyncInjectionExitState(typing.Generic[T_co]):
 
     def close(self) -> None:
         context_stack = self._context_item.context_stack
-        if context_stack is not None:
+        if self._context_item.is_context_stack_sync(context_stack):
             context_stack.close()  # type: ignore[union-attr]
-            self._context_item.context_stack = None
-            self._context_item.instance = None
+            self._context_item.context_stack = UNSET
+            self._context_item.instance = UNSET
         self._context.reset(self._token)
 
 
@@ -444,10 +445,10 @@ class ContextResource(
         try:
             context_item = self._context.get()
             context_stack = context_item.context_stack
-            if context_stack is not None:
+            if context_item.is_context_stack_sync(context_stack):
                 context_stack.close()  # type: ignore[union-attr]
-                context_item.context_stack = None
-                context_item.instance = None
+                context_item.context_stack = UNSET
+                context_item.instance = UNSET
         finally:
             self._context.reset(self._token)
 

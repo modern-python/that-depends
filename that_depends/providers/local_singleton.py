@@ -12,6 +12,7 @@ from that_depends.providers.base import (
     _resolve_keyword_arguments_sync,
 )
 from that_depends.providers.mixin import ProviderWithArguments, SupportsTeardown
+from that_depends.utils import UNSET, Unset, is_set
 
 
 T_co = typing.TypeVar("T_co", covariant=True)
@@ -79,22 +80,22 @@ class ThreadLocalSingleton(ProviderWithArguments, SupportsTeardown, AbstractProv
         self._reset_arguments_registration()
 
     @property
-    def _instance(self) -> T_co | None:
-        return getattr(self._thread_local, "instance", None)
+    def _instance(self) -> T_co | Unset:
+        return typing.cast(T_co | Unset, getattr(self._thread_local, "instance", UNSET))
 
     @_instance.setter
-    def _instance(self, value: T_co | None) -> None:
+    def _instance(self, value: T_co | Unset) -> None:
         self._thread_local.instance = value
 
     @override
     async def resolve(self) -> T_co:
-        if self._override is not None:
+        if is_set(self._override):
             return typing.cast(T_co, self._override)
-        if self._instance is not None:
+        if is_set(self._instance):
             return self._instance
 
         async with self._asyncio_lock:
-            if self._instance is not None:
+            if is_set(self._instance):
                 return self._instance
 
             self._register_arguments()
@@ -108,10 +109,10 @@ class ThreadLocalSingleton(ProviderWithArguments, SupportsTeardown, AbstractProv
 
     @override
     def resolve_sync(self) -> T_co:
-        if self._override is not None:
+        if is_set(self._override):
             return typing.cast(T_co, self._override)
 
-        if self._instance is not None:
+        if is_set(self._instance):
             return self._instance
 
         self._register_arguments()
@@ -125,8 +126,8 @@ class ThreadLocalSingleton(ProviderWithArguments, SupportsTeardown, AbstractProv
 
     @override
     def tear_down_sync(self, propagate: bool = True, raise_on_async: bool = True) -> None:
-        if self._instance is not None:
-            self._instance = None
+        if is_set(self._instance):
+            self._instance = UNSET
         self._deregister_arguments()
         if propagate:
             self._tear_down_children_sync(propagate=propagate, raise_on_async=raise_on_async)
@@ -138,8 +139,8 @@ class ThreadLocalSingleton(ProviderWithArguments, SupportsTeardown, AbstractProv
         After calling this method, subsequent calls to `resolve_sync()` on the
         same thread will produce a new instance.
         """
-        if self._instance is not None:
-            self._instance = None
+        if is_set(self._instance):
+            self._instance = UNSET
         self._deregister_arguments()
         if propagate:
             await self._tear_down_children()

@@ -13,6 +13,7 @@ from that_depends.providers.base import (
     _resolve_keyword_arguments_sync,
 )
 from that_depends.providers.mixin import ProviderWithArguments
+from that_depends.utils import is_set
 
 
 T_co = typing.TypeVar("T_co", covariant=True)
@@ -122,7 +123,7 @@ class Factory(AbstractFactory[T_co]):
 
     @override
     async def resolve(self) -> T_co:
-        if self._override:
+        if is_set(self._override):
             return typing.cast(T_co, self._override)
 
         return self._factory(
@@ -132,7 +133,7 @@ class Factory(AbstractFactory[T_co]):
 
     @override
     def resolve_sync(self) -> T_co:
-        if self._override:
+        if is_set(self._override):
             return typing.cast(T_co, self._override)
 
         return self._factory(
@@ -211,7 +212,7 @@ class AsyncFactory(AbstractFactory[T_co]):
 
     @override
     async def resolve(self) -> T_co:
-        if self._override:
+        if is_set(self._override):
             return typing.cast(T_co, self._override)
 
         args = await _resolve_arguments(self._args, self._args_are_providers)

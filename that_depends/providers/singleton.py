@@ -14,6 +14,7 @@ from that_depends.providers.base import (
     _resolve_keyword_arguments_sync,
 )
 from that_depends.providers.mixin import ProviderWithArguments, SupportsTeardown
+from that_depends.utils import UNSET, Unset, is_set
 
 
 T_co = typing.TypeVar("T_co", covariant=True)
@@ -64,7 +65,7 @@ class Singleton(ProviderWithArguments, SupportsTeardown, AbstractProvider[T_co])
         """
         super().__init__()
         self._factory: typing.Final[typing.Callable[..., T_co]] = factory
-        self._instance: T_co | None = None
+        self._instance: T_co | Unset = UNSET
         self._asyncio_lock: typing.Final = asyncio.Lock()
         self._threading_lock: typing.Final = threading.Lock()
         self._args: typing.Final = args
@@ -88,15 +89,15 @@ class Singleton(ProviderWithArguments, SupportsTeardown, AbstractProvider[T_co])
 
     @override
     async def resolve(self) -> T_co:
-        if self._override is not None:
+        if is_set(self._override):
             self._register_arguments()
             return typing.cast(T_co, self._override)
-        if self._instance is not None:
+        if is_set(self._instance):
             return self._instance
 
         # lock to prevent resolving several times
         async with self._asyncio_lock:
-            if self._instance is not None:
+            if is_set(self._instance):
                 return self._instance
             self._register_arguments()
             self._instance = self._factory(
@@ -107,15 +108,15 @@ class Singleton(ProviderWithArguments, SupportsTeardown, AbstractProvider[T_co])
 
     @override
     def resolve_sync(self) -> T_co:
-        if self._override is not None:
+        if is_set(self._override):
             self._register_arguments()
             return typing.cast(T_co, self._override)
-        if self._instance is not None:
+        if is_set(self._instance):
             return self._instance
 
         # lock to prevent resolving several times
         with self._threading_lock:
-            if self._instance is not None:
+            if is_set(self._instance):
                 return self._instance
             self._register_arguments()
             self._instance = self._factory(
@@ -130,8 +131,8 @@ class Singleton(ProviderWithArguments, SupportsTeardown, AbstractProvider[T_co])
 
         After calling this method, the next resolve() call will recreate the instance.
         """
-        if self._instance is not None:
-            self._instance = None
+        if is_set(self._instance):
+            self._instance = UNSET
         self._deregister_arguments()
         if propagate:
             await self._tear_down_children()
@@ -142,8 +143,8 @@ class Singleton(ProviderWithArguments, SupportsTeardown, AbstractProvider[T_co])
 
         After calling this method, the next resolve call will recreate the instance.
         """
-        if self._instance is not None:
-            self._instance = None
+        if is_set(self._instance):
+            self._instance = UNSET
         self._deregister_arguments()
         if propagate:
             self._tear_down_children_sync(propagate=propagate, raise_on_async=raise_on_async)
@@ -197,7 +198,7 @@ class AsyncSingleton(ProviderWithArguments, SupportsTeardown, AbstractProvider[T
         """
         super().__init__()
         self._factory: typing.Final[typing.Callable[..., typing.Awaitable[T_co]]] = factory
-        self._instance: T_co | None = None
+        self._instance: T_co | Unset = UNSET
         self._asyncio_lock: typing.Final = asyncio.Lock()
         self._args: typing.Final = args
         self._kwargs: typing.Final = kwargs
@@ -220,14 +221,14 @@ class AsyncSingleton(ProviderWithArguments, SupportsTeardown, AbstractProvider[T
 
     @override
     async def resolve(self) -> T_co:
-        if self._override is not None:
+        if is_set(self._override):
             return typing.cast(T_co, self._override)
-        if self._instance is not None:
+        if is_set(self._instance):
             return self._instance
 
         # lock to prevent resolving several times
         async with self._asyncio_lock:
-            if self._instance is not None:
+            if is_set(self._instance):
                 return self._instance
 
             self._register_arguments()
@@ -249,8 +250,8 @@ class AsyncSingleton(ProviderWithArguments, SupportsTeardown, AbstractProvider[T
 
         After calling this method, the next call to ``resolve()`` will recreate the instance.
         """
-        if self._instance is not None:
-            self._instance = None
+        if is_set(self._instance):
+            self._instance = UNSET
         self._deregister_arguments()
         if propagate:
             await self._tear_down_children()
@@ -261,8 +262,8 @@ class AsyncSingleton(ProviderWithArguments, SupportsTeardown, AbstractProvider[T
 
         After calling this method, the next call to ``resolve_sync()`` will recreate the instance.
         """
-        if self._instance is not None:
-            self._instance = None
+        if is_set(self._instance):
+            self._instance = UNSET
         self._deregister_arguments()
         if propagate:
             self._tear_down_children_sync(propagate=propagate, raise_on_async=raise_on_async)

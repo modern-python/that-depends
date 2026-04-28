@@ -3,6 +3,7 @@ import typing
 
 from tests.container import DIContainer
 from that_depends import BaseContainer, providers
+from that_depends.utils import is_set
 
 
 def _sync_resource() -> typing.Iterator[float]:
@@ -15,11 +16,11 @@ async def test_container_sync_teardown() -> None:
     for provider in DIContainer.providers.values():
         if isinstance(provider, providers.Resource):
             if provider._is_async:
-                assert provider._context.instance is not None
+                assert is_set(provider._context.instance)
             else:
-                assert provider._context.instance is None
+                assert not is_set(provider._context.instance)
         if isinstance(provider, providers.Singleton):
-            assert provider._instance is None
+            assert not is_set(provider._instance)
 
 
 async def test_container_tear_down() -> None:
@@ -27,9 +28,9 @@ async def test_container_tear_down() -> None:
     await DIContainer.tear_down()
     for provider in DIContainer.providers.values():
         if isinstance(provider, providers.Resource):
-            assert provider._context.instance is None
+            assert not is_set(provider._context.instance)
         if isinstance(provider, providers.Singleton):
-            assert provider._instance is None
+            assert not is_set(provider._instance)
 
 
 async def test_container_sync_tear_down_propagation() -> None:
@@ -46,8 +47,8 @@ async def test_container_sync_tear_down_propagation() -> None:
 
     DIContainer.tear_down_sync()
 
-    assert _DependentContainer.singleton._instance is None
-    assert _DependentContainer.resource._context.instance is None
+    assert not is_set(_DependentContainer.singleton._instance)
+    assert not is_set(_DependentContainer.resource._context.instance)
 
 
 async def test_container_tear_down_propagation() -> None:
@@ -74,7 +75,7 @@ async def test_container_tear_down_propagation() -> None:
 
     await DIContainer.tear_down()
 
-    assert _DependentContainer.async_singleton._instance is None
-    assert _DependentContainer.async_resource._context.instance is None
-    assert _DependentContainer.sync_singleton._instance is None
-    assert _DependentContainer.sync_resource._context.instance is None
+    assert not is_set(_DependentContainer.async_singleton._instance)
+    assert not is_set(_DependentContainer.async_resource._context.instance)
+    assert not is_set(_DependentContainer.sync_singleton._instance)
+    assert not is_set(_DependentContainer.sync_resource._context.instance)

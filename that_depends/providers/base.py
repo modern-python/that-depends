@@ -11,6 +11,7 @@ from typing_extensions import override
 
 from that_depends.entities.resource_context import ResourceContext
 from that_depends.providers.mixin import ProviderWithArguments, SupportsTeardown
+from that_depends.utils import UNSET, is_set
 
 
 T_co = typing.TypeVar("T_co", covariant=True)
@@ -96,7 +97,7 @@ class AbstractProvider(abc.ABC, typing.Generic[T_co]):
         self._is_context_resource = False
         self._scope_context_init_order: tuple[AbstractProvider[typing.Any], ...] | None = None
         self._scope_init_order: tuple[AbstractProvider[typing.Any], ...] | None = None
-        self._override: typing.Any = None
+        self._override: typing.Any = UNSET
         self._bindings: set[type] = set()
         self._has_contravariant_bindings: bool = False
         self._lock = threading.Lock()
@@ -363,7 +364,7 @@ class AbstractProvider(abc.ABC, typing.Generic[T_co]):
             None
 
         """
-        self._override = None
+        self._override = UNSET
         if tear_down_children:
             eligible_children = [child for child in self._children if isinstance(child, SupportsTeardown)]
             for child in eligible_children:
@@ -380,7 +381,7 @@ class AbstractProvider(abc.ABC, typing.Generic[T_co]):
             None
 
         """
-        self._override = None
+        self._override = UNSET
         if tear_down_children:
             eligible_children = [child for child in self._children if isinstance(child, SupportsTeardown)]
             for child in eligible_children:
@@ -479,14 +480,14 @@ class AbstractResource(ProviderWithArguments, AbstractProvider[T_co], abc.ABC):
 
     @override
     async def resolve(self) -> T_co:
-        if self._override:
+        if is_set(self._override):
             return typing.cast(T_co, self._override)
 
         context = self._fetch_context()
 
         # lock to prevent race condition while resolving
         async with context.asyncio_lock:
-            if context.instance is not None:
+            if is_set(context.instance):
                 return context.instance
 
             self._register_arguments()
@@ -510,14 +511,14 @@ class AbstractResource(ProviderWithArguments, AbstractProvider[T_co], abc.ABC):
 
     @override
     def resolve_sync(self) -> T_co:
-        if self._override:
+        if is_set(self._override):
             return typing.cast(T_co, self._override)
 
         context = self._fetch_context()
 
         # lock to prevent race condition while resolving
         with context.threading_lock:
-            if context.instance is not None:
+            if is_set(context.instance):
                 return context.instance
 
             if self._is_async:

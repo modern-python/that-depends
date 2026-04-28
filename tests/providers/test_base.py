@@ -11,6 +11,7 @@ from that_depends.providers.local_singleton import ThreadLocalSingleton
 from that_depends.providers.mixin import SupportsTeardown
 from that_depends.providers.resources import Resource
 from that_depends.providers.singleton import AsyncSingleton, Singleton
+from that_depends.utils import is_set
 
 
 class DummyProvider(SupportsTeardown, AbstractProvider[int]):
@@ -277,7 +278,7 @@ def test_propagate_off() -> None:
     parent.tear_down_sync(propagate=False)
 
     assert child in parent._children
-    assert child._instance is not None
+    assert is_set(child._instance)
 
 
 async def test_async_tear_down_propagation_with_singleton() -> None:
@@ -288,7 +289,7 @@ async def test_async_tear_down_propagation_with_singleton() -> None:
 
     await parent.tear_down()
 
-    assert child._instance is None
+    assert not is_set(child._instance)
 
 
 async def test_async_propagate_off() -> None:
@@ -299,7 +300,7 @@ async def test_async_propagate_off() -> None:
 
     await parent.tear_down(propagate=False)
 
-    assert child._instance is not None
+    assert is_set(child._instance)
 
 
 async def test_provider_registration_in_different_scope_async() -> None:

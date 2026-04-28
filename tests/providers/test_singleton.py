@@ -9,6 +9,7 @@ import pydantic
 import pytest
 
 from that_depends import BaseContainer, providers
+from that_depends.utils import is_set
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True, slots=True)
@@ -197,9 +198,9 @@ async def test_async_singleton_teardown() -> None:
     await singleton_async.resolve()
     singleton_async.tear_down_sync()
 
-    assert singleton_async._instance is None
+    assert not is_set(singleton_async._instance)
 
     await singleton_async.resolve()
 
     await singleton_async.tear_down()
-    assert singleton_async._instance is None
+    assert not is_set(singleton_async._instance)
