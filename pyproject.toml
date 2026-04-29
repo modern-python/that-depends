@@ -47,7 +47,7 @@ dev = [
     "mkdocs>=1.6.1",
     "pytest-randomly",
     "mkdocs-llmstxt>=0.4.0",
-    "pydantic<2.12.4" # causes tests to fail because of: TypeError: _eval_type() got an unexpected keyword argument 'prefer_fwd_module'
+    "pyrefly>=0.61.1",
 ]
 
 [build-system]
@@ -61,6 +61,7 @@ module-root = ""
 [tool.mypy]
 python_version = "3.10"
 strict = true
+
 
 [tool.ruff]
 fix = true

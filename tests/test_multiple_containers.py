@@ -4,6 +4,7 @@ import pytest
 
 from tests import container
 from that_depends import BaseContainer, providers
+from that_depends.utils import is_set
 
 
 class InnerContainer(BaseContainer):
@@ -23,16 +24,16 @@ async def test_included_container() -> None:
     assert all(isinstance(x, datetime.datetime) for x in sequence)
 
     await OuterContainer.tear_down()
-    assert InnerContainer.sync_resource._context.instance is None
-    assert InnerContainer.async_resource._context.instance is None
+    assert not is_set(InnerContainer.sync_resource._context.instance)
+    assert not is_set(InnerContainer.async_resource._context.instance)
 
     await OuterContainer.init_resources()
     sync_resource_context = InnerContainer.sync_resource._context
     assert sync_resource_context
-    assert sync_resource_context.instance is not None
+    assert is_set(sync_resource_context.instance)
     async_resource_context = InnerContainer.async_resource._context
     assert async_resource_context
-    assert async_resource_context.instance is not None
+    assert is_set(async_resource_context.instance)
     await OuterContainer.tear_down()
 
 

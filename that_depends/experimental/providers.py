@@ -7,7 +7,7 @@ import typing_extensions
 
 from that_depends import ContextScope
 from that_depends.providers import AbstractProvider
-from that_depends.providers.context_resources import CT, SupportsContext
+from that_depends.providers.context_resources import CT_co, SupportsContext
 from that_depends.providers.mixin import SupportsTeardown
 
 
@@ -55,32 +55,19 @@ class LazyProvider(SupportsTeardown, SupportsContext[Any], AbstractProvider[Any]
 
     @typing_extensions.override
     def get_scope(self) -> ContextScope | None:
-        provider = self._get_provider()
-        if isinstance(provider, SupportsContext):
-            return provider.get_scope()
-        msg = "Underlying provider does not support context scopes"
-        raise NotImplementedError(msg)
+        return typing.cast(ContextScope | None, self._call_context_method("get_scope"))
 
     @typing_extensions.override
-    def context_async(self, force: bool = False) -> typing.AsyncContextManager[CT]:
-        provider = self._get_provider()
-        if isinstance(provider, SupportsContext):
-            return provider.context_async(force)
-        msg = "Underlying provider does not support context management"
-        raise NotImplementedError(msg)
+    def context_async(self, force: bool = False) -> typing.AsyncContextManager[CT_co]:
+        return typing.cast(typing.AsyncContextManager[CT_co], self._call_context_method("context_async", force))
 
     @typing_extensions.override
-    def context_sync(self, force: bool = False) -> typing.ContextManager[CT]:
-        provider = self._get_provider()
-        if isinstance(provider, SupportsContext):
-            return provider.context_sync(force)
-        msg = "Underlying provider does not support context management"
-        raise NotImplementedError(msg)
+    def context_sync(self, force: bool = False) -> typing.ContextManager[CT_co]:
+        return typing.cast(typing.ContextManager[CT_co], self._call_context_method("context_sync", force))
 
     @typing_extensions.override
     def supports_context_sync(self) -> bool:
-        provider = self._get_provider()
-        return isinstance(provider, SupportsContext) and provider.supports_context_sync()
+        return typing.cast(bool, self._call_context_method("supports_context_sync"))
 
     @typing_extensions.override
     async def tear_down(self, propagate: bool = True) -> None:
@@ -138,6 +125,19 @@ class LazyProvider(SupportsTeardown, SupportsContext[Any], AbstractProvider[Any]
             provider = getattr(provider, attr)
         self._provider = cast(AbstractProvider[Any], provider)
         return self._provider
+
+    def _call_context_method(self, method_name: str, *args: object) -> object:
+        provider = self._get_provider()
+        try:
+            method = getattr(type(provider), method_name)
+        except AttributeError as e:
+            msg = "Underlying provider does not support context management"
+            raise NotImplementedError(msg) from e
+        try:
+            return method(provider, *args)
+        except AttributeError as e:
+            msg = "Underlying provider does not support context management"
+            raise NotImplementedError(msg) from e
 
     @typing_extensions.override
     async def resolve(self) -> Any:

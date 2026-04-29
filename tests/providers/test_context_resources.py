@@ -24,6 +24,7 @@ from that_depends.entities.resource_context import ResourceContext
 from that_depends.meta import DefaultScopeNotDefinedError
 from that_depends.providers import DIContextMiddleware, container_context
 from that_depends.providers.context_resources import InvalidContextError, _enter_named_scope, fetch_context_item_by_type
+from that_depends.utils import is_set
 
 
 logger = logging.getLogger(__name__)
@@ -186,14 +187,15 @@ async def test_early_exit_of_container_context() -> None:
 
 async def test_resource_context_early_teardown() -> None:
     context: ResourceContext[str] = ResourceContext(is_async=True)
-    assert context.context_stack is None
+    assert context.is_async is True
+    assert not is_set(context.context_stack)
     context.tear_down_sync()
-    assert context.context_stack is None
+    assert not is_set(context.context_stack)
 
 
 async def test_teardown_sync_container_context_with_async_resource() -> None:
     resource_context: ResourceContext[typing.Any] = ResourceContext(is_async=True)
-    resource_context.context_stack = AsyncExitStack()
+    resource_context.set_context_state(context_stack=AsyncExitStack())
     message = "Cannot tear down async context in sync mode"
     with pytest.raises(RuntimeError, match=message):
         resource_context.tear_down_sync()
@@ -563,6 +565,56 @@ def test_sync_container_context_wrapper(sync_context_resource: providers.Context
     assert _explicit_injected() != _explicit_injected()
 
 
+def test_sync_context_resource_accepts_equal_scope_instance() -> None:
+    configured_scope = ContextScope("MATCHING_SCOPE")
+    current_scope = ContextScope("MATCHING_SCOPE")
+    resource = providers.ContextResource(create_sync_context_resource).with_config(configured_scope)
+
+    with _enter_named_scope(current_scope), resource.context_sync():
+        assert isinstance(resource.resolve_sync(), str)
+
+
+async def test_async_context_resource_accepts_equal_scope_instance() -> None:
+    configured_scope = ContextScope("MATCHING_SCOPE")
+    current_scope = ContextScope("MATCHING_SCOPE")
+    resource = providers.ContextResource(create_async_context_resource).with_config(configured_scope)
+
+    with _enter_named_scope(current_scope):
+        async with resource.context_async():
+            assert isinstance(await resource.resolve(), str)
+
+
+async def test_async_context_resource_strict_scope_accepts_equal_scope_instance() -> None:
+    configured_scope = ContextScope("MATCHING_SCOPE")
+    current_scope = ContextScope("MATCHING_SCOPE")
+    resource = providers.ContextResource(create_async_context_resource).with_config(configured_scope, strict_scope=True)
+
+    with _enter_named_scope(current_scope):
+        async with resource.context_async(force=True):
+            assert isinstance(await resource.resolve(), str)
+
+
+def test_sync_context_resource_strict_scope_accepts_equal_scope_instance() -> None:
+    configured_scope = ContextScope("MATCHING_SCOPE")
+    current_scope = ContextScope("MATCHING_SCOPE")
+    resource = providers.ContextResource(create_sync_context_resource).with_config(configured_scope, strict_scope=True)
+
+    with _enter_named_scope(current_scope), resource.context_sync(force=True):
+        assert isinstance(resource.resolve_sync(), str)
+
+
+def test_container_context_accepts_equal_scope_instance() -> None:
+    configured_scope = ContextScope("MATCHING_SCOPE")
+    current_scope = ContextScope("MATCHING_SCOPE")
+
+    class _Container(BaseContainer):
+        default_scope = ContextScopes.ANY
+        sync_context_resource = providers.ContextResource(create_sync_context_resource).with_config(configured_scope)
+
+    with container_context(_Container, scope=current_scope):
+        assert isinstance(_Container.sync_context_resource.resolve_sync(), str)
+
+
 async def test_async_context_resource_with_dependent_container() -> None:
     """Container should initialize async context resource for dependent containers."""
     async with DIContainer.context_async():
@@ -590,9 +642,18 @@ def test_enter_sync_context_for_async_resource_should_throw(
         async_context_resource._enter_context_sync()
 
 
-def test_exit_sync_context_before_enter_should_throw(sync_context_resource: providers.ContextResource[str]) -> None:
-    with pytest.raises(RuntimeError):
-        sync_context_resource._exit_context_sync()
+def test_exit_sync_context_before_enter_should_throw() -> None:
+    provider = providers.ContextResource(create_sync_context_resource)
+
+    with pytest.raises(RuntimeError, match=r"Context is not set, call ``_enter_sync_context`` first"):
+        provider._exit_context_sync()
+
+
+def test_context_sync_manager_exit_before_enter_should_throw(
+    sync_context_resource: providers.ContextResource[str],
+) -> None:
+    with pytest.raises(RuntimeError, match=r"Context is not set, call ``__enter__`` first"):
+        sync_context_resource.context_sync().__exit__(None, None, None)
 
 
 async def test_exit_async_context_before_enter_should_throw(
@@ -607,6 +668,18 @@ def test_enter_sync_context_from_async_resource_should_throw(
 ) -> None:
     with pytest.raises(RuntimeError), ExitStack() as stack:
         stack.enter_context(async_context_resource.context_sync())
+
+
+def test_enter_and_exit_sync_context_directly(sync_context_resource: providers.ContextResource[str]) -> None:
+    context = sync_context_resource._enter_context_sync()
+
+    assert isinstance(context, ResourceContext)
+    assert sync_context_resource.resolve_sync() is not None
+
+    sync_context_resource._exit_context_sync()
+
+    with pytest.raises(RuntimeError, match=r"Context is not set. Use container_context"):
+        sync_context_resource.resolve_sync()
 
 
 async def test_preserve_globals_and_initial_context() -> None:
@@ -698,6 +771,11 @@ def test_scoped_container_get_scope() -> None:
     class _Container(BaseContainer): ...
 
     assert _Container.get_scope() is ContextScopes.ANY
+
+    class _UnsetScopeContainer(BaseContainer):
+        default_scope = None
+
+    assert _UnsetScopeContainer.get_scope() is ContextScopes.ANY
 
     class _ScopedContainer(BaseContainer):
         default_scope = ContextScopes.INJECT

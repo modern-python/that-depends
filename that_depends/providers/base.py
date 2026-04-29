@@ -11,6 +11,7 @@ from typing_extensions import override
 
 from that_depends.entities.resource_context import ResourceContext
 from that_depends.providers.mixin import ProviderWithArguments, SupportsTeardown
+from that_depends.utils import UNSET, is_set
 
 
 T_co = typing.TypeVar("T_co", covariant=True)
@@ -18,8 +19,71 @@ R = typing.TypeVar("R")
 P = typing.ParamSpec("P")
 ResourceCreatorType: typing.TypeAlias = typing.Callable[
     P,
-    typing.Iterator[T_co] | typing.AsyncIterator[T_co] | typing.ContextManager[T_co] | typing.AsyncContextManager[T_co],
+    typing.Iterator[T_co]
+    | typing.AsyncIterator[T_co]
+    | contextlib.AbstractContextManager[T_co]
+    | contextlib.AbstractAsyncContextManager[T_co],
 ]
+_EMPTY_ARGS: typing.Final[tuple[()]] = ()
+_EMPTY_KWARGS: typing.Final[dict[str, typing.Any]] = {}
+
+
+async def _resolve_arguments(
+    args: tuple[typing.Any, ...],
+    args_are_providers: tuple[bool, ...],
+) -> tuple[typing.Any, ...] | list[typing.Any]:
+    if not args:
+        return _EMPTY_ARGS
+    if len(args) == 1:
+        arg = args[0]
+        return (await arg.resolve() if args_are_providers[0] else arg,)
+    return [
+        await arg.resolve() if is_provider else arg for arg, is_provider in zip(args, args_are_providers, strict=False)
+    ]
+
+
+def _resolve_arguments_sync(
+    args: tuple[typing.Any, ...],
+    args_are_providers: tuple[bool, ...],
+) -> tuple[typing.Any, ...] | list[typing.Any]:
+    if not args:
+        return _EMPTY_ARGS
+    if len(args) == 1:
+        arg = args[0]
+        return (arg.resolve_sync() if args_are_providers[0] else arg,)
+    return [
+        arg.resolve_sync() if is_provider else arg for arg, is_provider in zip(args, args_are_providers, strict=False)
+    ]
+
+
+async def _resolve_keyword_arguments(
+    kwargs_items: tuple[tuple[str, typing.Any], ...],
+    kwargs_are_providers: tuple[bool, ...],
+) -> dict[str, typing.Any]:
+    if not kwargs_items:
+        return _EMPTY_KWARGS
+    if len(kwargs_items) == 1:
+        key, value = kwargs_items[0]
+        return {key: await value.resolve() if kwargs_are_providers[0] else value}
+    return {
+        key: await value.resolve() if is_provider else value
+        for (key, value), is_provider in zip(kwargs_items, kwargs_are_providers, strict=False)
+    }
+
+
+def _resolve_keyword_arguments_sync(
+    kwargs_items: tuple[tuple[str, typing.Any], ...],
+    kwargs_are_providers: tuple[bool, ...],
+) -> dict[str, typing.Any]:
+    if not kwargs_items:
+        return _EMPTY_KWARGS
+    if len(kwargs_items) == 1:
+        key, value = kwargs_items[0]
+        return {key: value.resolve_sync() if kwargs_are_providers[0] else value}
+    return {
+        key: value.resolve_sync() if is_provider else value
+        for (key, value), is_provider in zip(kwargs_items, kwargs_are_providers, strict=False)
+    }
 
 
 class AbstractProvider(abc.ABC, typing.Generic[T_co]):
@@ -30,7 +94,10 @@ class AbstractProvider(abc.ABC, typing.Generic[T_co]):
         super().__init__()
         self._children: set[AbstractProvider[typing.Any]] = set()
         self._parents: set[AbstractProvider[typing.Any]] = set()
-        self._override: typing.Any = None
+        self._is_context_resource = False
+        self._scope_context_init_order: tuple[AbstractProvider[typing.Any], ...] | None = None
+        self._scope_init_order: tuple[AbstractProvider[typing.Any], ...] | None = None
+        self._override: typing.Any = UNSET
         self._bindings: set[type] = set()
         self._has_contravariant_bindings: bool = False
         self._lock = threading.Lock()
@@ -62,10 +129,14 @@ class AbstractProvider(abc.ABC, typing.Generic[T_co]):
             None
 
         """
+        changed = False
         for candidate in candidates:
             if isinstance(candidate, AbstractProvider):
                 candidate.add_child_provider(self)
                 self._parents.add(candidate)
+                changed = True
+        if changed:
+            self._invalidate_scope_init_order()
 
     def _deregister(self, candidates: typing.Iterable[typing.Any]) -> None:
         """Deregister current provider as child.
@@ -77,10 +148,71 @@ class AbstractProvider(abc.ABC, typing.Generic[T_co]):
             None
 
         """
+        changed = False
         for candidate in candidates:
             if isinstance(candidate, AbstractProvider) and self in candidate._children:  # noqa: SLF001
                 candidate.remove_child_provider(self)
                 self._parents.discard(candidate)
+                changed = True
+        if changed:
+            self._invalidate_scope_init_order()
+
+    def _invalidate_scope_init_order(self) -> None:
+        stack = [self]
+        visited: set[AbstractProvider[typing.Any]] = set()
+
+        while stack:
+            provider = stack.pop()
+            if provider in visited:
+                continue
+            visited.add(provider)
+            provider._scope_context_init_order = None  # noqa: SLF001
+            provider._scope_init_order = None  # noqa: SLF001
+            stack.extend(provider._children)  # noqa: SLF001
+
+    def _get_scope_init_order(self) -> tuple["AbstractProvider[typing.Any]", ...]:
+        if self._scope_init_order is not None:
+            return self._scope_init_order
+
+        if isinstance(self, ProviderWithArguments):
+            self._register_arguments()
+
+        ordered: list[AbstractProvider[typing.Any]] = []
+        seen: set[AbstractProvider[typing.Any]] = set()
+
+        for parent in self._parents:
+            for ancestor in parent._get_scope_init_order():  # noqa: SLF001
+                if ancestor not in seen:
+                    seen.add(ancestor)
+                    ordered.append(ancestor)
+
+        if self not in seen:
+            ordered.append(self)
+
+        self._scope_init_order = tuple(ordered)
+        return self._scope_init_order
+
+    def _get_scope_context_init_order(self) -> tuple["AbstractProvider[typing.Any]", ...]:
+        if self._scope_context_init_order is not None:
+            return self._scope_context_init_order
+
+        if isinstance(self, ProviderWithArguments):
+            self._register_arguments()
+
+        ordered: list[AbstractProvider[typing.Any]] = []
+        seen: set[AbstractProvider[typing.Any]] = set()
+
+        for parent in self._parents:
+            for ancestor in parent._get_scope_context_init_order():  # noqa: SLF001
+                if ancestor not in seen:
+                    seen.add(ancestor)
+                    ordered.append(ancestor)
+
+        if self._is_context_resource and self not in seen:
+            ordered.append(self)
+
+        self._scope_context_init_order = tuple(ordered)
+        return self._scope_context_init_order
 
     def add_child_provider(self, provider: "AbstractProvider[typing.Any]") -> None:
         """Add a child provider to the current provider.
@@ -232,7 +364,7 @@ class AbstractProvider(abc.ABC, typing.Generic[T_co]):
             None
 
         """
-        self._override = None
+        self._override = UNSET
         if tear_down_children:
             eligible_children = [child for child in self._children if isinstance(child, SupportsTeardown)]
             for child in eligible_children:
@@ -249,7 +381,7 @@ class AbstractProvider(abc.ABC, typing.Generic[T_co]):
             None
 
         """
-        self._override = None
+        self._override = UNSET
         if tear_down_children:
             eligible_children = [child for child in self._children if isinstance(child, SupportsTeardown)]
             for child in eligible_children:
@@ -306,7 +438,10 @@ class AbstractResource(ProviderWithArguments, AbstractProvider[T_co], abc.ABC):
 
         """
         super().__init__()
-        self._creator: typing.Any
+        self._creator: typing.Callable[
+            ...,
+            contextlib.AbstractContextManager[T_co] | contextlib.AbstractAsyncContextManager[T_co],
+        ]
 
         if inspect.isasyncgenfunction(creator):
             self._is_async = True
@@ -314,10 +449,10 @@ class AbstractResource(ProviderWithArguments, AbstractProvider[T_co], abc.ABC):
         elif inspect.isgeneratorfunction(creator):
             self._is_async = False
             self._creator = contextlib.contextmanager(creator)
-        elif isinstance(creator, type) and issubclass(creator, typing.AsyncContextManager):
+        elif isinstance(creator, type) and hasattr(creator, "__aenter__") and hasattr(creator, "__aexit__"):
             self._is_async = True
             self._creator = creator
-        elif isinstance(creator, type) and issubclass(creator, typing.ContextManager):
+        elif isinstance(creator, type) and hasattr(creator, "__enter__") and hasattr(creator, "__exit__"):
             self._is_async = False
             self._creator = creator
         else:
@@ -325,60 +460,65 @@ class AbstractResource(ProviderWithArguments, AbstractProvider[T_co], abc.ABC):
             raise TypeError(msg)
         self._args = args
         self._kwargs = kwargs
+        self._args_are_providers = tuple(isinstance(arg, AbstractProvider) for arg in args)
+        self._kwargs_items = tuple(kwargs.items())
+        self._kwargs_are_providers = tuple(isinstance(value, AbstractProvider) for _, value in self._kwargs_items)
 
     def _register_arguments(self) -> None:
+        if not self._mark_arguments_registered():
+            return
         self._register(self._args)
         self._register(self._kwargs.values())
 
     def _deregister_arguments(self) -> None:
         self._deregister(self._args)
         self._deregister(self._kwargs.values())
+        self._reset_arguments_registration()
 
     @abc.abstractmethod
     def _fetch_context(self) -> ResourceContext[T_co]: ...
 
     @override
     async def resolve(self) -> T_co:
-        if self._override:
+        if is_set(self._override):
             return typing.cast(T_co, self._override)
 
         context = self._fetch_context()
 
         # lock to prevent race condition while resolving
         async with context.asyncio_lock:
-            if context.instance is not None:
+            if is_set(context.instance):
                 return context.instance
 
             self._register_arguments()
-
-            cm: typing.ContextManager[T_co] | typing.AsyncContextManager[T_co] = self._creator(
-                *[await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args],
-                **{k: await v.resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
+            cm: contextlib.AbstractContextManager[T_co] | contextlib.AbstractAsyncContextManager[T_co] = self._creator(
+                *await _resolve_arguments(self._args, self._args_are_providers),
+                **await _resolve_keyword_arguments(self._kwargs_items, self._kwargs_are_providers),
             )
 
-            if isinstance(cm, typing.AsyncContextManager):
+            if isinstance(cm, contextlib.AbstractAsyncContextManager):
                 context.context_stack = contextlib.AsyncExitStack()
                 context.instance = await context.context_stack.enter_async_context(cm)
 
-            elif isinstance(cm, typing.ContextManager):
+            elif isinstance(cm, contextlib.AbstractContextManager):
                 context.context_stack = contextlib.ExitStack()
                 context.instance = context.context_stack.enter_context(cm)
 
             else:  # pragma: no cover
-                typing.assert_never(cm)
+                typing_extensions.assert_never(cm)
 
         return context.instance
 
     @override
     def resolve_sync(self) -> T_co:
-        if self._override:
+        if is_set(self._override):
             return typing.cast(T_co, self._override)
 
         context = self._fetch_context()
 
         # lock to prevent race condition while resolving
         with context.threading_lock:
-            if context.instance is not None:
+            if is_set(context.instance):
                 return context.instance
 
             if self._is_async:
@@ -386,15 +526,15 @@ class AbstractResource(ProviderWithArguments, AbstractProvider[T_co], abc.ABC):
                 raise RuntimeError(msg)
 
             self._register_arguments()
-
             cm = self._creator(
-                *[x.resolve_sync() if isinstance(x, AbstractProvider) else x for x in self._args],
-                **{k: v.resolve_sync() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},
+                *_resolve_arguments_sync(self._args, self._args_are_providers),
+                **_resolve_keyword_arguments_sync(self._kwargs_items, self._kwargs_are_providers),
             )
             context.context_stack = contextlib.ExitStack()
-            context.instance = context.context_stack.enter_context(cm)
+            instance: T_co = context.context_stack.enter_context(cm)  # type: ignore[arg-type]
+            context.instance = instance
 
-            return context.instance
+            return instance
 
 
 def _get_value_from_object_by_dotted_path(obj: typing.Any, path: str) -> typing.Any:  # noqa: ANN401
@@ -409,6 +549,8 @@ class AttrGetter(
     """Provides an attribute after resolving the wrapped provider."""
 
     def _register_arguments(self) -> None:
+        if not self._mark_arguments_registered():
+            return
         if isinstance(self._provider, ProviderWithArguments):
             self._provider._register_arguments()  # noqa: SLF001
         self._parents = self._provider._parents  # noqa: SLF001
@@ -417,6 +559,7 @@ class AttrGetter(
         if isinstance(self._provider, ProviderWithArguments):
             self._provider._deregister_arguments()  # noqa: SLF001
         self._parents = self._provider._parents  # noqa: SLF001
+        self._reset_arguments_registration()
 
     __slots__ = "_attrs", "_provider"
 
@@ -433,11 +576,11 @@ class AttrGetter(
         self._attrs = [attr_name]
 
     @override
-    def __getattr__(self, attr: str) -> "AttrGetter[T_co]":
-        if attr.startswith("_"):
-            msg = f"'{type(self)}' object has no attribute '{attr}'"
+    def __getattr__(self, attr_name: str) -> "AttrGetter[T_co]":
+        if attr_name.startswith("_"):
+            msg = f"'{type(self)}' object has no attribute '{attr_name}'"
             raise AttributeError(msg)
-        self._attrs.append(attr)
+        self._attrs.append(attr_name)
         return self
 
     @override

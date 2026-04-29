@@ -9,6 +9,7 @@ import pydantic
 import pytest
 
 from that_depends import BaseContainer, providers
+from that_depends.utils import is_set
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True, slots=True)
@@ -144,6 +145,16 @@ async def test_async_singleton_override() -> None:
     assert result == SingletonFactory(dep1="bar")
 
 
+def test_async_singleton_register_arguments_is_idempotent() -> None:
+    parent = providers.Singleton(lambda: "foo")
+    singleton_async = providers.AsyncSingleton(create_async_obj, value=parent.cast)
+
+    singleton_async._register_arguments()
+    singleton_async._register_arguments()
+
+    assert singleton_async in parent._children
+
+
 async def test_async_singleton_asyncio_concurrency() -> None:
     singleton_async = providers.AsyncSingleton(create_async_obj, "foo")
 
@@ -187,9 +198,9 @@ async def test_async_singleton_teardown() -> None:
     await singleton_async.resolve()
     singleton_async.tear_down_sync()
 
-    assert singleton_async._instance is None
+    assert not is_set(singleton_async._instance)
 
     await singleton_async.resolve()
 
     await singleton_async.tear_down()
-    assert singleton_async._instance is None
+    assert not is_set(singleton_async._instance)

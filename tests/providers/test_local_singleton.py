@@ -4,10 +4,12 @@ import threading
 import time
 import typing
 from concurrent.futures.thread import ThreadPoolExecutor
+from unittest.mock import Mock
 
 import pytest
 
 from that_depends.providers import AsyncFactory, ThreadLocalSingleton
+from that_depends.utils import is_set
 
 
 random.seed(23)
@@ -34,7 +36,7 @@ def test_thread_local_singleton_same_thread() -> None:
 
     provider.tear_down_sync()
 
-    assert provider._instance is None, "Tear down failed: Instance should be reset to None."
+    assert not is_set(provider._instance), "Tear down failed: Instance should be unset."
 
 
 async def test_async_thread_local_singleton_asyncio() -> None:
@@ -48,7 +50,23 @@ async def test_async_thread_local_singleton_asyncio() -> None:
 
     await provider.tear_down()
 
-    assert provider._instance is None, "Tear down failed: Instance should be reset to None."
+    assert not is_set(provider._instance), "Tear down failed: Instance should be unset."
+
+
+async def test_thread_local_singleton_reuses_instance_created_while_waiting_on_lock() -> None:
+    expected_value = 42
+    factory = Mock(return_value=1)
+    provider = ThreadLocalSingleton(factory)
+
+    await provider._asyncio_lock.acquire()
+    task = asyncio.create_task(provider.resolve())
+    await asyncio.sleep(0)
+
+    provider._instance = expected_value
+    provider._asyncio_lock.release()
+
+    assert await task == expected_value
+    factory.assert_not_called()
 
 
 def test_thread_local_singleton_different_threads() -> None:

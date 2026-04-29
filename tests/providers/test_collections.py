@@ -28,7 +28,9 @@ async def test_list_provider() -> None:
     sync_resource = await DIContainer.sync_resource()
     async_resource = await DIContainer.async_resource()
 
-    assert sequence == [sync_resource, async_resource]
+    assert sequence == (sync_resource, async_resource)
+    with pytest.raises(TypeError):
+        typing.cast(typing.Any, sequence)[0] = sync_resource
 
 
 def test_list_failed_sync_resolve() -> None:
@@ -48,6 +50,8 @@ async def test_dict_provider() -> None:
 
     assert mapping == {"sync_resource": sync_resource, "async_resource": async_resource}
     assert mapping == DIContainer.mapping.resolve_sync()
+    with pytest.raises(TypeError):
+        typing.cast(typing.Any, mapping)["sync_resource"] = sync_resource
 
 
 @pytest.mark.parametrize("provider", [DIContainer.sequence, DIContainer.mapping])

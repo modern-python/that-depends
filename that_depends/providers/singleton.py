@@ -6,8 +6,15 @@ import typing
 
 from typing_extensions import override
 
-from that_depends.providers.base import AbstractProvider
+from that_depends.providers.base import (
+    AbstractProvider,
+    _resolve_arguments,
+    _resolve_arguments_sync,
+    _resolve_keyword_arguments,
+    _resolve_keyword_arguments_sync,
+)
 from that_depends.providers.mixin import ProviderWithArguments, SupportsTeardown
+from that_depends.utils import UNSET, Unset, is_set
 
 
 T_co = typing.TypeVar("T_co", covariant=True)
@@ -34,7 +41,18 @@ class Singleton(ProviderWithArguments, SupportsTeardown, AbstractProvider[T_co])
 
     """
 
-    __slots__ = "_args", "_asyncio_lock", "_factory", "_instance", "_kwargs", "_override", "_threading_lock"
+    __slots__ = (
+        "_args",
+        "_args_are_providers",
+        "_asyncio_lock",
+        "_factory",
+        "_instance",
+        "_kwargs",
+        "_kwargs_are_providers",
+        "_kwargs_items",
+        "_override",
+        "_threading_lock",
+    )
 
     def __init__(self, factory: typing.Callable[P, T_co], *args: P.args, **kwargs: P.kwargs) -> None:
         """Initialize the Singleton provider.
@@ -46,54 +64,64 @@ class Singleton(ProviderWithArguments, SupportsTeardown, AbstractProvider[T_co])
 
         """
         super().__init__()
-        self._factory: typing.Final = factory
-        self._instance: T_co | None = None
+        self._factory: typing.Final[typing.Callable[..., T_co]] = factory
+        self._instance: T_co | Unset = UNSET
         self._asyncio_lock: typing.Final = asyncio.Lock()
         self._threading_lock: typing.Final = threading.Lock()
         self._args: typing.Final = args
         self._kwargs: typing.Final = kwargs
+        self._args_are_providers: typing.Final = tuple(isinstance(arg, AbstractProvider) for arg in args)
+        self._kwargs_items: typing.Final = tuple(kwargs.items())
+        self._kwargs_are_providers: typing.Final = tuple(
+            isinstance(value, AbstractProvider) for _, value in self._kwargs_items
+        )
 
     def _register_arguments(self) -> None:
+        if not self._mark_arguments_registered():
+            return
         self._register(self._args)
         self._register(self._kwargs.values())
 
     def _deregister_arguments(self) -> None:
         self._deregister(self._args)
         self._deregister(self._kwargs.values())
+        self._reset_arguments_registration()
 
     @override
     async def resolve(self) -> T_co:
-        if self._override is not None:
+        if is_set(self._override):
             self._register_arguments()
             return typing.cast(T_co, self._override)
+        if is_set(self._instance):
+            return self._instance
 
         # lock to prevent resolving several times
         async with self._asyncio_lock:
-            if self._instance is not None:
+            if is_set(self._instance):
                 return self._instance
             self._register_arguments()
             self._instance = self._factory(
-                *[await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args],  # type: ignore[arg-type]
-                **{  # type: ignore[arg-type]
-                    k: await v.resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()
-                },
+                *await _resolve_arguments(self._args, self._args_are_providers),
+                **await _resolve_keyword_arguments(self._kwargs_items, self._kwargs_are_providers),
             )
             return self._instance
 
     @override
     def resolve_sync(self) -> T_co:
-        if self._override is not None:
+        if is_set(self._override):
             self._register_arguments()
             return typing.cast(T_co, self._override)
+        if is_set(self._instance):
+            return self._instance
 
         # lock to prevent resolving several times
         with self._threading_lock:
-            if self._instance is not None:
+            if is_set(self._instance):
                 return self._instance
             self._register_arguments()
             self._instance = self._factory(
-                *[x.resolve_sync() if isinstance(x, AbstractProvider) else x for x in self._args],  # type: ignore[arg-type]
-                **{k: v.resolve_sync() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()},  # type: ignore[arg-type]
+                *_resolve_arguments_sync(self._args, self._args_are_providers),
+                **_resolve_keyword_arguments_sync(self._kwargs_items, self._kwargs_are_providers),
             )
             return self._instance
 
@@ -103,8 +131,8 @@ class Singleton(ProviderWithArguments, SupportsTeardown, AbstractProvider[T_co])
 
         After calling this method, the next resolve() call will recreate the instance.
         """
-        if self._instance is not None:
-            self._instance = None
+        if is_set(self._instance):
+            self._instance = UNSET
         self._deregister_arguments()
         if propagate:
             await self._tear_down_children()
@@ -115,8 +143,8 @@ class Singleton(ProviderWithArguments, SupportsTeardown, AbstractProvider[T_co])
 
         After calling this method, the next resolve call will recreate the instance.
         """
-        if self._instance is not None:
-            self._instance = None
+        if is_set(self._instance):
+            self._instance = UNSET
         self._deregister_arguments()
         if propagate:
             self._tear_down_children_sync(propagate=propagate, raise_on_async=raise_on_async)
@@ -142,7 +170,17 @@ class AsyncSingleton(ProviderWithArguments, SupportsTeardown, AbstractProvider[T
 
     """
 
-    __slots__ = "_args", "_asyncio_lock", "_factory", "_instance", "_kwargs", "_override"
+    __slots__ = (
+        "_args",
+        "_args_are_providers",
+        "_asyncio_lock",
+        "_factory",
+        "_instance",
+        "_kwargs",
+        "_kwargs_are_providers",
+        "_kwargs_items",
+        "_override",
+    )
 
     def __init__(
         self,
@@ -159,37 +197,45 @@ class AsyncSingleton(ProviderWithArguments, SupportsTeardown, AbstractProvider[T
 
         """
         super().__init__()
-        self._factory: typing.Final[typing.Callable[P, typing.Awaitable[T_co]]] = factory
-        self._instance: T_co | None = None
+        self._factory: typing.Final[typing.Callable[..., typing.Awaitable[T_co]]] = factory
+        self._instance: T_co | Unset = UNSET
         self._asyncio_lock: typing.Final = asyncio.Lock()
         self._args: typing.Final = args
         self._kwargs: typing.Final = kwargs
+        self._args_are_providers: typing.Final = tuple(isinstance(arg, AbstractProvider) for arg in args)
+        self._kwargs_items: typing.Final = tuple(kwargs.items())
+        self._kwargs_are_providers: typing.Final = tuple(
+            isinstance(value, AbstractProvider) for _, value in self._kwargs_items
+        )
 
     def _register_arguments(self) -> None:
+        if not self._mark_arguments_registered():
+            return
         self._register(self._args)
         self._register(self._kwargs.values())
 
     def _deregister_arguments(self) -> None:
         self._deregister(self._args)
         self._deregister(self._kwargs.values())
+        self._reset_arguments_registration()
 
     @override
     async def resolve(self) -> T_co:
-        if self._override is not None:
+        if is_set(self._override):
             return typing.cast(T_co, self._override)
+        if is_set(self._instance):
+            return self._instance
 
         # lock to prevent resolving several times
         async with self._asyncio_lock:
-            if self._instance is not None:
+            if is_set(self._instance):
                 return self._instance
 
             self._register_arguments()
 
             self._instance = await self._factory(
-                *[await x.resolve() if isinstance(x, AbstractProvider) else x for x in self._args],  # type: ignore[arg-type]
-                **{  # type: ignore[arg-type]
-                    k: await v.resolve() if isinstance(v, AbstractProvider) else v for k, v in self._kwargs.items()
-                },
+                *await _resolve_arguments(self._args, self._args_are_providers),
+                **await _resolve_keyword_arguments(self._kwargs_items, self._kwargs_are_providers),
             )
             return self._instance
 
@@ -204,8 +250,8 @@ class AsyncSingleton(ProviderWithArguments, SupportsTeardown, AbstractProvider[T
 
         After calling this method, the next call to ``resolve()`` will recreate the instance.
         """
-        if self._instance is not None:
-            self._instance = None
+        if is_set(self._instance):
+            self._instance = UNSET
         self._deregister_arguments()
         if propagate:
             await self._tear_down_children()
@@ -216,8 +262,8 @@ class AsyncSingleton(ProviderWithArguments, SupportsTeardown, AbstractProvider[T
 
         After calling this method, the next call to ``resolve_sync()`` will recreate the instance.
         """
-        if self._instance is not None:
-            self._instance = None
+        if is_set(self._instance):
+            self._instance = UNSET
         self._deregister_arguments()
         if propagate:
             self._tear_down_children_sync(propagate=propagate, raise_on_async=raise_on_async)

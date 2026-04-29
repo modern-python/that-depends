@@ -2,7 +2,6 @@ import abc
 import typing
 import warnings
 from collections.abc import MutableMapping
-from contextlib import AsyncExitStack, ExitStack, asynccontextmanager, contextmanager
 from threading import Lock
 from typing import TYPE_CHECKING
 
@@ -11,7 +10,7 @@ from typing_extensions import override
 import that_depends
 from that_depends.exceptions import TypeNotBoundError
 from that_depends.providers import AbstractProvider, Resource
-from that_depends.providers.context_resources import ContextResource, ContextScope, ContextScopes, SupportsContext
+from that_depends.providers.context_resources import ContextResource, ContextScope, ContextScopes
 from that_depends.providers.mixin import SupportsTeardown
 
 
@@ -43,40 +42,14 @@ class _ContainerMetaDict(dict[str, typing.Any]):
             super().__setitem__(key, value)
 
 
-class BaseContainerMeta(abc.ABCMeta, SupportsContext[None]):
+class BaseContainerMeta(abc.ABCMeta):
     """Metaclass for BaseContainer."""
 
-    @override
     def get_scope(cls) -> ContextScope | None:
+        """Return the default scope used by the container."""
         if scope := getattr(cls, "default_scope", None):
             return typing.cast(ContextScope | None, scope)
         return ContextScopes.ANY
-
-    @asynccontextmanager
-    @override
-    async def context_async(cls, force: bool = False) -> typing.AsyncIterator[None]:
-        async with AsyncExitStack() as stack:
-            for container in cls.get_containers():
-                await stack.enter_async_context(container.context_async(force=force))
-            for provider in cls.get_providers().values():
-                if isinstance(provider, ContextResource):
-                    await stack.enter_async_context(provider.context_async(force=force))
-            yield
-
-    @contextmanager
-    @override
-    def context_sync(cls, force: bool = False) -> typing.Iterator[None]:
-        with ExitStack() as stack:
-            for container in cls.get_containers():
-                stack.enter_context(container.context_sync(force=force))
-            for provider in cls.get_providers().values():
-                if isinstance(provider, ContextResource) and not provider._is_async:  # noqa: SLF001
-                    stack.enter_context(provider.context_sync(force=force))
-            yield
-
-    @override
-    def supports_context_sync(cls) -> bool:
-        return True
 
     _instances: typing.ClassVar[dict[str, type["BaseContainer"]]] = {}
 
@@ -88,6 +61,7 @@ class BaseContainerMeta(abc.ABCMeta, SupportsContext[None]):
         "containers",
         "alias",
         "default_scope",
+        "type_provider_cache",
     )
 
     _lock: Lock = Lock()
@@ -113,10 +87,6 @@ class BaseContainerMeta(abc.ABCMeta, SupportsContext[None]):
     @override
     def __prepare__(cls, name: str, bases: tuple[type, ...], /, **kwds: typing.Any) -> MutableMapping[str, object]:
         return _ContainerMetaDict()
-
-    @override
-    def __new__(cls, name: str, bases: tuple[type, ...], namespace: dict[str, typing.Any]) -> type:
-        return super().__new__(cls, name, bases, namespace)
 
     @classmethod
     def get_instances(cls) -> dict[str, type["BaseContainer"]]:
@@ -163,12 +133,18 @@ class BaseContainerMeta(abc.ABCMeta, SupportsContext[None]):
             Provider for the given type.
 
         """
+        if not hasattr(cls, "type_provider_cache"):
+            cls.type_provider_cache: dict[type[typing.Any], AbstractProvider[typing.Any]] = {}
+        if provider := cls.type_provider_cache.get(t):
+            return typing.cast(AbstractProvider[T], provider)
         for provider in cls.get_providers().values():
             if provider._has_contravariant_bindings:  # noqa: SLF001
                 for bind in provider._bindings:  # noqa: SLF001
                     if issubclass(bind, t):
+                        cls.type_provider_cache[t] = provider
                         return provider
             elif t in provider._bindings:  # noqa: SLF001
+                cls.type_provider_cache[t] = provider
                 return provider
         msg = f"Type {t} is not bound to any provider in container {cls.name()}"
         raise TypeNotBoundError(msg)

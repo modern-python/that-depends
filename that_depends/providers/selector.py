@@ -5,6 +5,7 @@ import typing
 from typing_extensions import override
 
 from that_depends.providers.base import AbstractProvider
+from that_depends.utils import is_set
 
 
 T_co = typing.TypeVar("T_co", covariant=True)
@@ -69,7 +70,7 @@ class Selector(AbstractProvider[T_co]):
 
     @override
     async def resolve(self) -> T_co:
-        if self._override:
+        if is_set(self._override):
             return typing.cast(T_co, self._override)
 
         if isinstance(self._selector, AbstractProvider):
@@ -83,7 +84,7 @@ class Selector(AbstractProvider[T_co]):
 
     @override
     def resolve_sync(self) -> T_co:
-        if self._override:
+        if is_set(self._override):
             return typing.cast(T_co, self._override)
 
         if isinstance(self._selector, AbstractProvider):

@@ -9,8 +9,24 @@ from unittest.mock import Mock
 import pytest
 
 from tests import container
-from that_depends import BaseContainer, ContextScopes, Provide, container_context, get_current_scope, inject, providers
-from that_depends.injection import ContextProviderError, StringProviderDefinition
+from that_depends import (
+    BaseContainer,
+    ContextScope,
+    ContextScopes,
+    Provide,
+    container_context,
+    get_current_scope,
+    inject,
+    providers,
+)
+from that_depends.injection import (
+    ContextProviderError,
+    StringProviderDefinition,
+    _build_injection_plan,
+    _DirectInjectionParameter,
+    _SyncInjectionStack,
+    _TypedInjectionParameter,
+)
 
 
 @pytest.fixture(name="fixture_one")
@@ -53,6 +69,61 @@ async def test_injection_with_overriding() -> None:
     await inner(arg1=True, arg2=container.SimpleFactory(dep1="1", dep2=2))
     await inner(True, container.SimpleFactory(dep1="1", dep2=2))
     await inner(True, arg2=container.SimpleFactory(dep1="1", dep2=2))
+
+
+def test_sync_injection_stack_closes_entered_context_managers() -> None:
+    events: list[str] = []
+
+    @contextmanager
+    def _managed() -> typing.Iterator[str]:
+        events.append("enter")
+        try:
+            yield "value"
+        finally:
+            events.append("exit")
+
+    with _SyncInjectionStack() as stack:
+        assert stack.enter_context(_managed()) == "value"
+        events.append("body")
+
+    assert events == ["enter", "body", "exit"]
+
+
+def test_build_injection_plan_stores_direct_provider_separately() -> None:
+    provider = providers.Object(1)
+
+    def _injected(value: providers.Object[int] = provider) -> providers.Object[int]:
+        return value
+
+    plan = _build_injection_plan(_injected)
+
+    assert _injected(provider) is provider
+    assert plan.direct_parameters == (
+        _DirectInjectionParameter(0, "value", provider, provider._get_scope_context_init_order()),
+    )
+
+
+def test_build_injection_plan_stores_annotation_for_type_based_injection() -> None:
+    def _injected(value: float = Provide()) -> float:
+        return value
+
+    plan = _build_injection_plan(_injected)
+
+    assert _injected(1.0) == 1.0
+    assert plan.typed_parameters == (_TypedInjectionParameter(0, "value", float),)
+
+
+def test_build_injection_plan_stores_string_provider_separately() -> None:
+    def _injected(value: int = Provide["Container.provider"]) -> int:
+        return value
+
+    plan = _build_injection_plan(_injected)
+
+    assert _injected(1) == 1
+    assert len(plan.string_parameters) == 1
+    assert plan.string_parameters[0].argument_index == 0
+    assert plan.string_parameters[0].field_name == "value"
+    assert plan.string_parameters[0].definition._definition == "Container.provider"
 
 
 async def test_empty_injection() -> None:
@@ -116,6 +187,15 @@ def test_sync_empty_injection() -> None:
         next(inner_gen(1))
 
 
+def test_sync_empty_injection_without_scope_warns() -> None:
+    @inject(scope=None)
+    def inner(value: int) -> int:
+        return value
+
+    with pytest.warns(RuntimeWarning, match=r"Expected injection, but nothing found. Remove @inject decorator."):
+        assert inner(1) == 1
+
+
 def test_type_check() -> None:
     @inject
     async def main(simple_factory: container.SimpleFactory = Provide[container.DIContainer.simple_factory]) -> None:
@@ -140,6 +220,20 @@ async def test_async_injection_with_scope() -> None:
         await inject(scope=ContextScopes.REQUEST)(_injected)()
 
 
+async def test_async_injection_with_equal_scope_instance() -> None:
+    configured_scope = ContextScope("MATCHING_SCOPE")
+    injection_scope = ContextScope("MATCHING_SCOPE")
+
+    class _Container(BaseContainer):
+        default_scope = ContextScopes.ANY
+        async_resource = providers.ContextResource(_async_creator).with_config(scope=configured_scope)
+
+    async def _injected(val: int = Provide[_Container.async_resource]) -> int:
+        return val
+
+    assert await inject(scope=injection_scope)(_injected)() == 1
+
+
 async def test_sync_injection_with_scope() -> None:
     class _Container(BaseContainer):
         default_scope = ContextScopes.ANY
@@ -154,6 +248,20 @@ async def test_sync_injection_with_scope() -> None:
         inject(scope=None)(_injected)()
     with pytest.raises(RuntimeError):
         inject(scope=ContextScopes.REQUEST)(_injected)()
+
+
+def test_sync_injection_with_equal_scope_instance() -> None:
+    configured_scope = ContextScope("MATCHING_SCOPE")
+    injection_scope = ContextScope("MATCHING_SCOPE")
+
+    class _Container(BaseContainer):
+        default_scope = ContextScopes.ANY
+        p_inject = providers.ContextResource(_sync_creator).with_config(scope=configured_scope)
+
+    def _injected(val: int = Provide[_Container.p_inject]) -> int:
+        return val
+
+    assert inject(scope=injection_scope)(_injected)() == 1
 
 
 def test_inject_decorator_should_not_allow_any_scope() -> None:
@@ -218,6 +326,34 @@ def test_sync_injection_with_string_provider_definition() -> None:
         return val
 
     assert _injected() == return_value
+
+
+async def test_async_injection_with_string_provider_definition_respects_explicit_arguments() -> None:
+    override_value = 10
+
+    class _Container(BaseContainer):
+        async_resource = providers.AsyncFactory(_async_creator)
+
+    @inject
+    async def _injected(val: int = Provide["_Container.async_resource"]) -> int:
+        return val
+
+    assert await _injected(override_value) == override_value
+    assert await _injected(val=override_value) == override_value
+
+
+def test_sync_injection_with_string_provider_definition_respects_explicit_arguments() -> None:
+    override_value = 10
+
+    class _Container(BaseContainer):
+        sync_resource = providers.Factory(lambda: 1)
+
+    @inject
+    def _injected(val: int = Provide["_Container.sync_resource"]) -> int:
+        return val
+
+    assert _injected(override_value) == override_value
+    assert _injected(val=override_value) == override_value
 
 
 def test_provider_string_definition_with_alias() -> None:
@@ -334,6 +470,46 @@ def test_inject_does_not_initialize_context_sync() -> None:
 
     with pytest.raises(RuntimeError):
         assert _Container.provider_used.resolve_sync()
+
+
+async def test_injection_with_string_provider_definition_initializes_parent_context_async() -> None:
+    async def _async_resource() -> typing.AsyncIterator[float]:
+        yield random.random()
+
+    class _Container(BaseContainer):
+        provider_used = providers.ContextResource(_async_resource).with_config(scope=ContextScopes.INJECT)
+        dependent = providers.Factory(lambda value: value, provider_used.cast)
+
+    @inject
+    async def _injected(val: float = Provide["_Container.dependent"]) -> float:
+        assert val == await _Container.dependent.resolve()
+        assert val == await _Container.provider_used.resolve()
+        return val
+
+    assert isinstance(await _injected(), float)
+
+    with pytest.raises(RuntimeError):
+        await _Container.provider_used.resolve()
+
+
+def test_injection_with_string_provider_definition_initializes_parent_context_sync() -> None:
+    def _sync_resource() -> typing.Iterator[float]:
+        yield random.random()
+
+    class _Container(BaseContainer):
+        provider_used = providers.ContextResource(_sync_resource).with_config(scope=ContextScopes.INJECT)
+        dependent = providers.Factory(lambda value: value, provider_used.cast)
+
+    @inject
+    def _injected(val: float = Provide["_Container.dependent"]) -> float:
+        assert val == _Container.dependent.resolve_sync()
+        assert val == _Container.provider_used.resolve_sync()
+        return val
+
+    assert isinstance(_injected(), float)
+
+    with pytest.raises(RuntimeError):
+        _Container.provider_used.resolve_sync()
 
 
 async def test_injection_initializes_context_for_parents_async() -> None:
@@ -863,6 +1039,20 @@ def test_injection_by_type_sync() -> None:
     assert isinstance(_injected_2(), float)
 
 
+def test_injection_by_type_sync_respects_explicit_arguments() -> None:
+    class _Container(BaseContainer):
+        sync_resource = providers.Factory(random.random).bind(float)
+
+    override_value = 10.0
+
+    @inject(container=_Container)
+    def _injected(val: float = Provide()) -> float:
+        return val
+
+    assert _injected(override_value) == override_value
+    assert _injected(val=override_value) == override_value
+
+
 async def test_injection_by_type_async() -> None:
     class _Container(BaseContainer):
         sync_resource = providers.Factory(random.random).bind(float)
@@ -877,6 +1067,20 @@ async def test_injection_by_type_async() -> None:
 
     assert isinstance(await _injected_1(), float)
     assert isinstance(await _injected_2(), float)
+
+
+async def test_injection_by_type_async_respects_explicit_arguments() -> None:
+    class _Container(BaseContainer):
+        sync_resource = providers.Factory(random.random).bind(float)
+
+    override_value = 10.0
+
+    @inject(container=_Container)
+    async def _injected(val: float = Provide()) -> float:
+        return val
+
+    assert await _injected(override_value) == override_value
+    assert await _injected(val=override_value) == override_value
 
 
 async def test_injection_by_type_async_generator() -> None:
