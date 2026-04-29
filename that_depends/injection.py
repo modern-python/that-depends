@@ -1,3 +1,4 @@
+import enum
 import functools
 import inspect
 import re
@@ -26,16 +27,26 @@ _INJECTION_WARNING_MESSAGE: typing.Final[str] = "Expected injection, but nothing
 _PROVIDE_MESSAGE: typing.Final[str] = (
     "Use @Container.inject or @inject(container=Container) if you wish to use Provide()"
 )
-_INJECT_DIRECT_PROVIDER: typing.Final = 1
-_INJECT_STRING_PROVIDER: typing.Final = 2
-_INJECT_TYPED_PROVIDER: typing.Final = 3
+
+
+class _InjectionKind(enum.Enum):
+    DIRECT_PROVIDER = enum.auto()
+    STRING_PROVIDER = enum.auto()
+    TYPED_PROVIDER = enum.auto()
+
+
+_InjectionDependency: typing.TypeAlias = typing.Union[
+    AbstractProvider[typing.Any],
+    "StringProviderDefinition",
+    type[typing.Any],
+]
 
 
 class _InjectionParameter(typing.NamedTuple):
     argument_index: int
     field_name: str
-    kind: int
-    dependency: typing.Any
+    kind: _InjectionKind
+    dependency: _InjectionDependency
 
 
 class _DirectInjectionParameter(typing.NamedTuple):
@@ -100,7 +111,7 @@ def _build_injection_plan(func: typing.Callable[..., typing.Any]) -> _InjectionP
     for index, (field_name, param) in enumerate(inspect.signature(func).parameters.items()):
         default = param.default
         if isinstance(default, StringProviderDefinition):
-            dynamic_parameters.append(_InjectionParameter(index, field_name, _INJECT_STRING_PROVIDER, default))
+            dynamic_parameters.append(_InjectionParameter(index, field_name, _InjectionKind.STRING_PROVIDER, default))
         elif isinstance(default, AbstractProvider):
             direct_parameters.append(
                 _DirectInjectionParameter(
@@ -111,7 +122,14 @@ def _build_injection_plan(func: typing.Callable[..., typing.Any]) -> _InjectionP
                 )
             )
         elif isinstance(default, _Provide):
-            dynamic_parameters.append(_InjectionParameter(index, field_name, _INJECT_TYPED_PROVIDER, param.annotation))
+            dynamic_parameters.append(
+                _InjectionParameter(
+                    index,
+                    field_name,
+                    _InjectionKind.TYPED_PROVIDER,
+                    typing.cast(type[typing.Any], param.annotation),
+                )
+            )
     return _InjectionPlan(
         direct_parameters=tuple(direct_parameters),
         dynamic_parameters=tuple(dynamic_parameters),
@@ -327,14 +345,14 @@ def _resolve_injected_provider(
     parameter: _InjectionParameter,
     container: BaseContainerMeta | None,
 ) -> AbstractProvider[typing.Any]:
-    if parameter.kind == _INJECT_DIRECT_PROVIDER:
+    if parameter.kind is _InjectionKind.DIRECT_PROVIDER:
         return typing.cast(AbstractProvider[typing.Any], parameter.dependency)
-    if parameter.kind == _INJECT_STRING_PROVIDER:
+    if parameter.kind is _InjectionKind.STRING_PROVIDER:
         string_definition = typing.cast(StringProviderDefinition, parameter.dependency)
         return string_definition.provider
     if container is None:
         raise RuntimeError(_PROVIDE_MESSAGE)
-    annotation = parameter.dependency
+    annotation = typing.cast(type[typing.Any], parameter.dependency)
     try:
         return container.get_provider_for_type(annotation)
     except TypeNotBoundError as e:

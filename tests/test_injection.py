@@ -11,9 +11,10 @@ import pytest
 from tests import container
 from that_depends import BaseContainer, ContextScopes, Provide, container_context, get_current_scope, inject, providers
 from that_depends.injection import (
-    _INJECT_DIRECT_PROVIDER,
     ContextProviderError,
     StringProviderDefinition,
+    _build_injection_plan,
+    _InjectionKind,
     _InjectionParameter,
     _resolve_injected_provider,
     _SyncInjectionStack,
@@ -82,9 +83,18 @@ def test_sync_injection_stack_closes_entered_context_managers() -> None:
 
 def test_resolve_injected_provider_with_direct_provider() -> None:
     provider = providers.Object(1)
-    parameter = _InjectionParameter(0, "value", _INJECT_DIRECT_PROVIDER, provider)
+    parameter = _InjectionParameter(0, "value", _InjectionKind.DIRECT_PROVIDER, provider)
 
     assert _resolve_injected_provider(parameter, None) is provider
+
+
+def test_build_injection_plan_stores_annotation_for_type_based_injection() -> None:
+    def _injected(value: float = Provide()) -> float:
+        return value
+
+    plan = _build_injection_plan(_injected)
+
+    assert plan.dynamic_parameters == (_InjectionParameter(0, "value", _InjectionKind.TYPED_PROVIDER, float),)
 
 
 async def test_empty_injection() -> None:
