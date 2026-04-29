@@ -1,4 +1,3 @@
-import enum
 import functools
 import inspect
 import re
@@ -29,26 +28,6 @@ _PROVIDE_MESSAGE: typing.Final[str] = (
 )
 
 
-class _InjectionKind(enum.Enum):
-    DIRECT_PROVIDER = enum.auto()
-    STRING_PROVIDER = enum.auto()
-    TYPED_PROVIDER = enum.auto()
-
-
-_InjectionDependency: typing.TypeAlias = typing.Union[
-    AbstractProvider[typing.Any],
-    "StringProviderDefinition",
-    type[typing.Any],
-]
-
-
-class _InjectionParameter(typing.NamedTuple):
-    argument_index: int
-    field_name: str
-    kind: _InjectionKind
-    dependency: _InjectionDependency
-
-
 class _DirectInjectionParameter(typing.NamedTuple):
     argument_index: int
     field_name: str
@@ -56,9 +35,22 @@ class _DirectInjectionParameter(typing.NamedTuple):
     scope_context_init_order: tuple[AbstractProvider[typing.Any], ...]
 
 
+class _StringInjectionParameter(typing.NamedTuple):
+    argument_index: int
+    field_name: str
+    definition: "StringProviderDefinition"
+
+
+class _TypedInjectionParameter(typing.NamedTuple):
+    argument_index: int
+    field_name: str
+    annotation: type[typing.Any]
+
+
 class _InjectionPlan(typing.NamedTuple):
     direct_parameters: tuple[_DirectInjectionParameter, ...]
-    dynamic_parameters: tuple[_InjectionParameter, ...]
+    string_parameters: tuple[_StringInjectionParameter, ...]
+    typed_parameters: tuple[_TypedInjectionParameter, ...]
 
 
 class _SyncInjectionStack:
@@ -107,11 +99,12 @@ class _ContextManagerExitState:
 @functools.cache
 def _build_injection_plan(func: typing.Callable[..., typing.Any]) -> _InjectionPlan:
     direct_parameters: list[_DirectInjectionParameter] = []
-    dynamic_parameters: list[_InjectionParameter] = []
+    string_parameters: list[_StringInjectionParameter] = []
+    typed_parameters: list[_TypedInjectionParameter] = []
     for index, (field_name, param) in enumerate(inspect.signature(func).parameters.items()):
         default = param.default
         if isinstance(default, StringProviderDefinition):
-            dynamic_parameters.append(_InjectionParameter(index, field_name, _InjectionKind.STRING_PROVIDER, default))
+            string_parameters.append(_StringInjectionParameter(index, field_name, default))
         elif isinstance(default, AbstractProvider):
             direct_parameters.append(
                 _DirectInjectionParameter(
@@ -122,17 +115,17 @@ def _build_injection_plan(func: typing.Callable[..., typing.Any]) -> _InjectionP
                 )
             )
         elif isinstance(default, _Provide):
-            dynamic_parameters.append(
-                _InjectionParameter(
+            typed_parameters.append(
+                _TypedInjectionParameter(
                     index,
                     field_name,
-                    _InjectionKind.TYPED_PROVIDER,
                     typing.cast(type[typing.Any], param.annotation),
                 )
             )
     return _InjectionPlan(
         direct_parameters=tuple(direct_parameters),
-        dynamic_parameters=tuple(dynamic_parameters),
+        string_parameters=tuple(string_parameters),
+        typed_parameters=tuple(typed_parameters),
     )
 
 
@@ -270,12 +263,12 @@ async def _resolve_arguments_async(
     *args: typing.Any,  # noqa: ANN401
     **kwargs: typing.Any,  # noqa: ANN401
 ) -> tuple[bool, dict[str, typing.Any]]:
-    if not plan.direct_parameters and not plan.dynamic_parameters:
+    if not _plan_has_injected_parameters(plan):
         return False, kwargs
 
     context_providers: set[AbstractProvider[typing.Any]] = set()
     for direct_parameter in plan.direct_parameters:
-        if direct_parameter.argument_index < len(args) or direct_parameter.field_name in kwargs:
+        if _is_argument_provided(direct_parameter.argument_index, direct_parameter.field_name, args, kwargs):
             continue
 
         if direct_parameter.scope_context_init_order:
@@ -287,12 +280,23 @@ async def _resolve_arguments_async(
             )
         kwargs[direct_parameter.field_name] = await direct_parameter.provider.resolve()
 
-    for dynamic_parameter in plan.dynamic_parameters:
-        if dynamic_parameter.argument_index < len(args) or dynamic_parameter.field_name in kwargs:
+    for string_parameter in plan.string_parameters:
+        if _is_argument_provided(string_parameter.argument_index, string_parameter.field_name, args, kwargs):
             continue
 
-        provider = _resolve_injected_provider(dynamic_parameter, container)
-        kwargs[dynamic_parameter.field_name] = await _resolve_provider_with_scope_async(
+        kwargs[string_parameter.field_name] = await _resolve_provider_with_scope_async(
+            string_parameter.definition.provider,
+            scope,
+            stack,
+            context_providers,
+        )
+
+    for typed_parameter in plan.typed_parameters:
+        if _is_argument_provided(typed_parameter.argument_index, typed_parameter.field_name, args, kwargs):
+            continue
+
+        provider = _resolve_typed_provider(typed_parameter.annotation, container)
+        kwargs[typed_parameter.field_name] = await _resolve_provider_with_scope_async(
             provider,
             scope,
             stack,
@@ -309,12 +313,12 @@ def _resolve_arguments_sync(
     *args: typing.Any,  # noqa: ANN401
     **kwargs: typing.Any,  # noqa: ANN401
 ) -> tuple[bool, dict[str, typing.Any]]:
-    if not plan.direct_parameters and not plan.dynamic_parameters:
+    if not _plan_has_injected_parameters(plan):
         return False, kwargs
 
     context_providers: set[AbstractProvider[typing.Any]] = set()
     for direct_parameter in plan.direct_parameters:
-        if direct_parameter.argument_index < len(args) or direct_parameter.field_name in kwargs:
+        if _is_argument_provided(direct_parameter.argument_index, direct_parameter.field_name, args, kwargs):
             continue
 
         if direct_parameter.scope_context_init_order:
@@ -326,12 +330,23 @@ def _resolve_arguments_sync(
             )
         kwargs[direct_parameter.field_name] = direct_parameter.provider.resolve_sync()
 
-    for dynamic_parameter in plan.dynamic_parameters:
-        if dynamic_parameter.argument_index < len(args) or dynamic_parameter.field_name in kwargs:
+    for string_parameter in plan.string_parameters:
+        if _is_argument_provided(string_parameter.argument_index, string_parameter.field_name, args, kwargs):
             continue
 
-        provider = _resolve_injected_provider(dynamic_parameter, container)
-        kwargs[dynamic_parameter.field_name] = _resolve_provider_with_scope_sync(
+        kwargs[string_parameter.field_name] = _resolve_provider_with_scope_sync(
+            string_parameter.definition.provider,
+            scope,
+            stack,
+            context_providers,
+        )
+
+    for typed_parameter in plan.typed_parameters:
+        if _is_argument_provided(typed_parameter.argument_index, typed_parameter.field_name, args, kwargs):
+            continue
+
+        provider = _resolve_typed_provider(typed_parameter.annotation, container)
+        kwargs[typed_parameter.field_name] = _resolve_provider_with_scope_sync(
             provider,
             scope,
             stack,
@@ -341,18 +356,25 @@ def _resolve_arguments_sync(
     return True, kwargs
 
 
-def _resolve_injected_provider(
-    parameter: _InjectionParameter,
+def _plan_has_injected_parameters(plan: _InjectionPlan) -> bool:
+    return bool(plan.direct_parameters or plan.string_parameters or plan.typed_parameters)
+
+
+def _is_argument_provided(
+    argument_index: int,
+    field_name: str,
+    args: tuple[typing.Any, ...],
+    kwargs: dict[str, typing.Any],
+) -> bool:
+    return argument_index < len(args) or field_name in kwargs
+
+
+def _resolve_typed_provider(
+    annotation: type[typing.Any],
     container: BaseContainerMeta | None,
 ) -> AbstractProvider[typing.Any]:
-    if parameter.kind is _InjectionKind.DIRECT_PROVIDER:
-        return typing.cast(AbstractProvider[typing.Any], parameter.dependency)
-    if parameter.kind is _InjectionKind.STRING_PROVIDER:
-        string_definition = typing.cast(StringProviderDefinition, parameter.dependency)
-        return string_definition.provider
     if container is None:
         raise RuntimeError(_PROVIDE_MESSAGE)
-    annotation = typing.cast(type[typing.Any], parameter.dependency)
     try:
         return container.get_provider_for_type(annotation)
     except TypeNotBoundError as e:

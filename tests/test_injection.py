@@ -14,10 +14,9 @@ from that_depends.injection import (
     ContextProviderError,
     StringProviderDefinition,
     _build_injection_plan,
-    _InjectionKind,
-    _InjectionParameter,
-    _resolve_injected_provider,
+    _DirectInjectionParameter,
     _SyncInjectionStack,
+    _TypedInjectionParameter,
 )
 
 
@@ -81,11 +80,18 @@ def test_sync_injection_stack_closes_entered_context_managers() -> None:
     assert events == ["enter", "body", "exit"]
 
 
-def test_resolve_injected_provider_with_direct_provider() -> None:
+def test_build_injection_plan_stores_direct_provider_separately() -> None:
     provider = providers.Object(1)
-    parameter = _InjectionParameter(0, "value", _InjectionKind.DIRECT_PROVIDER, provider)
 
-    assert _resolve_injected_provider(parameter, None) is provider
+    def _injected(value: providers.Object[int] = provider) -> providers.Object[int]:
+        return value
+
+    plan = _build_injection_plan(_injected)
+
+    assert _injected(provider) is provider
+    assert plan.direct_parameters == (
+        _DirectInjectionParameter(0, "value", provider, provider._get_scope_context_init_order()),
+    )
 
 
 def test_build_injection_plan_stores_annotation_for_type_based_injection() -> None:
@@ -94,7 +100,21 @@ def test_build_injection_plan_stores_annotation_for_type_based_injection() -> No
 
     plan = _build_injection_plan(_injected)
 
-    assert plan.dynamic_parameters == (_InjectionParameter(0, "value", _InjectionKind.TYPED_PROVIDER, float),)
+    assert _injected(1.0) == 1.0
+    assert plan.typed_parameters == (_TypedInjectionParameter(0, "value", float),)
+
+
+def test_build_injection_plan_stores_string_provider_separately() -> None:
+    def _injected(value: int = Provide["Container.provider"]) -> int:
+        return value
+
+    plan = _build_injection_plan(_injected)
+
+    assert _injected(1) == 1
+    assert len(plan.string_parameters) == 1
+    assert plan.string_parameters[0].argument_index == 0
+    assert plan.string_parameters[0].field_name == "value"
+    assert plan.string_parameters[0].definition._definition == "Container.provider"
 
 
 async def test_empty_injection() -> None:
@@ -982,6 +1002,20 @@ def test_injection_by_type_sync() -> None:
     assert isinstance(_injected_2(), float)
 
 
+def test_injection_by_type_sync_respects_explicit_arguments() -> None:
+    class _Container(BaseContainer):
+        sync_resource = providers.Factory(random.random).bind(float)
+
+    override_value = 10.0
+
+    @inject(container=_Container)
+    def _injected(val: float = Provide()) -> float:
+        return val
+
+    assert _injected(override_value) == override_value
+    assert _injected(val=override_value) == override_value
+
+
 async def test_injection_by_type_async() -> None:
     class _Container(BaseContainer):
         sync_resource = providers.Factory(random.random).bind(float)
@@ -996,6 +1030,20 @@ async def test_injection_by_type_async() -> None:
 
     assert isinstance(await _injected_1(), float)
     assert isinstance(await _injected_2(), float)
+
+
+async def test_injection_by_type_async_respects_explicit_arguments() -> None:
+    class _Container(BaseContainer):
+        sync_resource = providers.Factory(random.random).bind(float)
+
+    override_value = 10.0
+
+    @inject(container=_Container)
+    async def _injected(val: float = Provide()) -> float:
+        return val
+
+    assert await _injected(override_value) == override_value
+    assert await _injected(val=override_value) == override_value
 
 
 async def test_injection_by_type_async_generator() -> None:
