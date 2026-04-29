@@ -468,7 +468,7 @@ async def _setup_scope_contexts_async(
             continue
         providers.add(provider)
         provider_scope = provider._scope  # noqa: SLF001
-        if provider_scope is ContextScopes.ANY or provider_scope is scope:
+        if provider_scope in (ContextScopes.ANY, scope):
             if stack is None:
                 msg = (
                     f"No stack exists, cannot initialize context for {provider} using scope {scope}.\n"
@@ -503,7 +503,7 @@ def _setup_scope_contexts_sync(
             continue
         providers.add(provider)
         provider_scope = provider._scope  # noqa: SLF001
-        if provider_scope is ContextScopes.ANY or provider_scope is scope:
+        if provider_scope in (ContextScopes.ANY, scope):
             if stack is None:
                 msg = (
                     f"No stack exists, cannot initialize context for {provider} using scope {scope}.\n"

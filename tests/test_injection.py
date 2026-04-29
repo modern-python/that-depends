@@ -9,7 +9,16 @@ from unittest.mock import Mock
 import pytest
 
 from tests import container
-from that_depends import BaseContainer, ContextScopes, Provide, container_context, get_current_scope, inject, providers
+from that_depends import (
+    BaseContainer,
+    ContextScope,
+    ContextScopes,
+    Provide,
+    container_context,
+    get_current_scope,
+    inject,
+    providers,
+)
 from that_depends.injection import (
     ContextProviderError,
     StringProviderDefinition,
@@ -211,6 +220,20 @@ async def test_async_injection_with_scope() -> None:
         await inject(scope=ContextScopes.REQUEST)(_injected)()
 
 
+async def test_async_injection_with_equal_scope_instance() -> None:
+    configured_scope = ContextScope("MATCHING_SCOPE")
+    injection_scope = ContextScope("MATCHING_SCOPE")
+
+    class _Container(BaseContainer):
+        default_scope = ContextScopes.ANY
+        async_resource = providers.ContextResource(_async_creator).with_config(scope=configured_scope)
+
+    async def _injected(val: int = Provide[_Container.async_resource]) -> int:
+        return val
+
+    assert await inject(scope=injection_scope)(_injected)() == 1
+
+
 async def test_sync_injection_with_scope() -> None:
     class _Container(BaseContainer):
         default_scope = ContextScopes.ANY
@@ -225,6 +248,20 @@ async def test_sync_injection_with_scope() -> None:
         inject(scope=None)(_injected)()
     with pytest.raises(RuntimeError):
         inject(scope=ContextScopes.REQUEST)(_injected)()
+
+
+def test_sync_injection_with_equal_scope_instance() -> None:
+    configured_scope = ContextScope("MATCHING_SCOPE")
+    injection_scope = ContextScope("MATCHING_SCOPE")
+
+    class _Container(BaseContainer):
+        default_scope = ContextScopes.ANY
+        p_inject = providers.ContextResource(_sync_creator).with_config(scope=configured_scope)
+
+    def _injected(val: int = Provide[_Container.p_inject]) -> int:
+        return val
+
+    assert inject(scope=injection_scope)(_injected)() == 1
 
 
 def test_inject_decorator_should_not_allow_any_scope() -> None:

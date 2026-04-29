@@ -565,6 +565,56 @@ def test_sync_container_context_wrapper(sync_context_resource: providers.Context
     assert _explicit_injected() != _explicit_injected()
 
 
+def test_sync_context_resource_accepts_equal_scope_instance() -> None:
+    configured_scope = ContextScope("MATCHING_SCOPE")
+    current_scope = ContextScope("MATCHING_SCOPE")
+    resource = providers.ContextResource(create_sync_context_resource).with_config(configured_scope)
+
+    with _enter_named_scope(current_scope), resource.context_sync():
+        assert isinstance(resource.resolve_sync(), str)
+
+
+async def test_async_context_resource_accepts_equal_scope_instance() -> None:
+    configured_scope = ContextScope("MATCHING_SCOPE")
+    current_scope = ContextScope("MATCHING_SCOPE")
+    resource = providers.ContextResource(create_async_context_resource).with_config(configured_scope)
+
+    with _enter_named_scope(current_scope):
+        async with resource.context_async():
+            assert isinstance(await resource.resolve(), str)
+
+
+async def test_async_context_resource_strict_scope_accepts_equal_scope_instance() -> None:
+    configured_scope = ContextScope("MATCHING_SCOPE")
+    current_scope = ContextScope("MATCHING_SCOPE")
+    resource = providers.ContextResource(create_async_context_resource).with_config(configured_scope, strict_scope=True)
+
+    with _enter_named_scope(current_scope):
+        async with resource.context_async(force=True):
+            assert isinstance(await resource.resolve(), str)
+
+
+def test_sync_context_resource_strict_scope_accepts_equal_scope_instance() -> None:
+    configured_scope = ContextScope("MATCHING_SCOPE")
+    current_scope = ContextScope("MATCHING_SCOPE")
+    resource = providers.ContextResource(create_sync_context_resource).with_config(configured_scope, strict_scope=True)
+
+    with _enter_named_scope(current_scope), resource.context_sync(force=True):
+        assert isinstance(resource.resolve_sync(), str)
+
+
+def test_container_context_accepts_equal_scope_instance() -> None:
+    configured_scope = ContextScope("MATCHING_SCOPE")
+    current_scope = ContextScope("MATCHING_SCOPE")
+
+    class _Container(BaseContainer):
+        default_scope = ContextScopes.ANY
+        sync_context_resource = providers.ContextResource(create_sync_context_resource).with_config(configured_scope)
+
+    with container_context(_Container, scope=current_scope):
+        assert isinstance(_Container.sync_context_resource.resolve_sync(), str)
+
+
 async def test_async_context_resource_with_dependent_container() -> None:
     """Container should initialize async context resource for dependent containers."""
     async with DIContainer.context_async():

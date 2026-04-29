@@ -280,20 +280,20 @@ class ContextResource(
 
     @override
     async def resolve(self) -> T_co:
-        if not self._strict_scope or self._scope is ContextScopes.ANY:
+        if not self._strict_scope or self._scope == ContextScopes.ANY:
             return await super().resolve()
         current_scope = get_current_scope()
-        if self._scope is current_scope:
+        if self._scope == current_scope:
             return await super().resolve()
         msg = f"Cannot resolve resource with scope `{self._scope}` in scope `{current_scope}`"
         raise RuntimeError(msg)
 
     @override
     def resolve_sync(self) -> T_co:
-        if not self._strict_scope or self._scope is ContextScopes.ANY:
+        if not self._strict_scope or self._scope == ContextScopes.ANY:
             return super().resolve_sync()
         current_scope = get_current_scope()
-        if self._scope is current_scope:
+        if self._scope == current_scope:
             return super().resolve_sync()
         msg = f"Cannot resolve resource with scope `{self._scope}` in scope `{current_scope}`"
         raise RuntimeError(msg)
@@ -414,9 +414,9 @@ class ContextResource(
         if self._is_async:
             msg = "Please use async context instead."
             raise RuntimeError(msg)
-        if not force and self._scope is not ContextScopes.ANY:
+        if not force and self._scope != ContextScopes.ANY:
             current_scope = get_current_scope()
-            if self._scope is not current_scope:
+            if self._scope != current_scope:
                 msg = f"Cannot enter context for resource with scope {self._scope} in scope {current_scope!r}"
                 raise InvalidContextError(msg)
 
@@ -428,9 +428,9 @@ class ContextResource(
         return self._enter(force)
 
     def _enter(self, force: bool = False) -> ResourceContext[T_co]:
-        if not force and self._scope is not ContextScopes.ANY:
+        if not force and self._scope != ContextScopes.ANY:
             current_scope = get_current_scope()
-            if self._scope is not current_scope:
+            if self._scope != current_scope:
                 msg = f"Cannot enter context for resource with scope {self._scope} in scope {current_scope!r}"
                 raise InvalidContextError(msg)
         context_item: ResourceContext[T_co] = ResourceContext(is_async=self._is_async)
@@ -620,7 +620,7 @@ class container_context(AbstractContextManager[ContextType], AbstractAsyncContex
             for container_provider in container.get_providers().values():
                 if isinstance(container_provider, ContextResource):
                     provider_scope = container_provider.get_scope()
-                    if provider_scope is scope or provider_scope is ContextScopes.ANY:
+                    if provider_scope in (scope, ContextScopes.ANY):
                         target.add(container_provider)
 
     @override
