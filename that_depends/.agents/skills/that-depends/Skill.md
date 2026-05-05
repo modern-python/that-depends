@@ -143,7 +143,7 @@ If you only need to initialize context for one provider, prefer the provider dec
 ```python
 import typing
 
-from that_depends import Provide, inject
+from that_depends import Provide, inject, providers, BaseContainer
 
 
 def request_id_resource() -> typing.Iterator[str]:
@@ -253,4 +253,4 @@ When writing or reviewing code that uses `that-depends`, prefer these defaults:
 
 ## Detailed documentation
 
-For full package documentation, read the official docs: [https://that-depends.readthedocs.io/llms.txt](https://that-depends.readthedocs.io/llms.txt)
+For full package documentation, read the official [documentation](https://that-depends.readthedocs.io/llms.txt).
