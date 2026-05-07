@@ -102,3 +102,7 @@ filterwarnings = [
 
 [tool.coverage.report]
 exclude_also = ["if typing.TYPE_CHECKING:"]
+
+[tool.pyrefly]
+python-version = "3.10"
+preset = "legacy"
