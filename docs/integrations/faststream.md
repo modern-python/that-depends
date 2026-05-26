@@ -1,5 +1,9 @@
 # Usage with `FastStream`
 
+!!! info "See also"
+    [`modern-di-faststream`](https://github.com/modern-python/modern-di-faststream) — the
+    equivalent FastStream integration for [`modern-di`](https://github.com/modern-python/modern-di),
+    the newer sibling DI framework.
 
 `that-depends` is out of the box compatible with `faststream.Depends()`:
 

@@ -11,6 +11,11 @@
 
 Dependency injection framework for Python.
 
+> **Starting a new project?** Also consider
+> [`modern-di`](https://github.com/modern-python/modern-di), the newer DI framework from the
+> same author with a smaller core and per-framework integration packages.
+> `that-depends` remains fully supported — see [Ecosystem](#ecosystem) below.
+
 It is production-ready and gives you the following:
 - Simple async-first DI framework with IOC-container.
 - Python 3.10+ support.
@@ -26,6 +31,23 @@ It is production-ready and gives you the following:
 ```bash
 pip install that-depends
 ```
+
+## Ecosystem
+
+`that-depends` is part of the [`modern-python`](https://github.com/modern-python) family.
+If you're starting a new project, consider [`modern-di`](https://github.com/modern-python/modern-di) —
+the newer DI framework from the same author, with separate framework adapters:
+
+- [`modern-di`](https://github.com/modern-python/modern-di) — core DI framework with scopes
+- [`modern-di-fastapi`](https://github.com/modern-python/modern-di-fastapi),
+  [`modern-di-litestar`](https://github.com/modern-python/modern-di-litestar),
+  [`modern-di-faststream`](https://github.com/modern-python/modern-di-faststream),
+  [`modern-di-typer`](https://github.com/modern-python/modern-di-typer),
+  [`modern-di-pytest`](https://github.com/modern-python/modern-di-pytest)
+
+`that-depends` remains actively maintained — see the
+[migration guide](https://modern-di.readthedocs.io/en/latest/migration/from-that-depends/) if you
+want to move existing projects across.
 
 ## 📚 [Documentation](https://that-depends.readthedocs.io)
 

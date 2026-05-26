@@ -41,6 +41,7 @@ nav:
   - Development:
       - Contributing: dev/contributing.md
       - Decisions: dev/main-decisions.md
+  - Ecosystem: ecosystem.md
 
 theme:
   name: material
@@ -92,6 +93,7 @@ markdown_extensions:
       use_pygments: true
   - attr_list
   - md_in_html
+  - admonition
   - pymdownx.superfences
   - pymdownx.tabbed:
       alternate_style: true
@@ -135,6 +137,8 @@ plugins:
           - testing/provider-overriding.md: Overriding providers
         Experimental features:
           - experimental/lazy.md: The Lazy provider
+        Ecosystem:
+          - ecosystem.md: Related projects in the modern-python organization
 
 extra:
   social:

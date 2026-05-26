@@ -1,5 +1,10 @@
 # Usage with FastAPI
 
+!!! info "See also"
+    [`modern-di-fastapi`](https://github.com/modern-python/modern-di-fastapi) — the equivalent
+    FastAPI integration for [`modern-di`](https://github.com/modern-python/modern-di), the newer
+    sibling DI framework.
+
 ## Installation
 
 To use **`that-depends`** with FastAPI, you need to install the package with the `fastapi` extra. You can do this using pip:
