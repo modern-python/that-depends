@@ -20,3 +20,4 @@ dist/
 .python-version
 .venv
 uv.lock
+.agents

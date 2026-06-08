@@ -42,6 +42,20 @@ async def create_async_context_resource() -> typing.AsyncIterator[str]:
     logger.info("Async resource destructed")
 
 
+def test_enter_named_scope_restores_scope_after_exception() -> None:
+    initial_scope = get_current_scope()
+
+    def raise_in_named_scope() -> typing.NoReturn:
+        with _enter_named_scope(ContextScopes.REQUEST):
+            msg = "expected"
+            raise RuntimeError(msg)
+
+    with pytest.raises(RuntimeError, match="expected"):
+        raise_in_named_scope()
+
+    assert get_current_scope() is initial_scope
+
+
 class DIContainer(BaseContainer):
     alias = "context_resource_container"
     default_scope = ContextScopes.ANY

@@ -1,6 +1,7 @@
 import inspect
 import typing
 from contextlib import AsyncExitStack, ExitStack, asynccontextmanager, contextmanager
+from functools import wraps
 from typing import overload
 
 from typing_extensions import override
@@ -88,19 +89,21 @@ class BaseContainer(metaclass=BaseContainerMeta):
         def _wrapper(func: typing.Callable[P, T]) -> typing.Callable[P, T]:
             if inspect.iscoroutinefunction(func):
 
+                @wraps(func)
                 async def _async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
                     async with cls.context_async(force=force):
                         return await func(*args, **kwargs)  # type: ignore[no-any-return]
 
                 return typing.cast(typing.Callable[P, T], _async_wrapper)
 
+            @wraps(func)
             def _sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
                 with cls.context_sync(force=force):
                     return func(*args, **kwargs)
 
-            return _sync_wrapper
+            return typing.cast(typing.Callable[P, T], _sync_wrapper)
 
-        if func:
+        if func is not None:
             return _wrapper(func)
         return _wrapper
 

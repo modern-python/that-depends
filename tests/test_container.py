@@ -1,5 +1,6 @@
 import random
 import typing
+from inspect import signature
 
 from tests.container import DIContainer
 from that_depends import BaseContainer, providers
@@ -8,6 +9,28 @@ from that_depends.utils import is_set
 
 def _sync_resource() -> typing.Iterator[float]:
     yield random.random()
+
+
+async def test_container_context_decorator_preserves_callable_metadata() -> None:
+    def sync_func(value: int) -> int:
+        """Sync documentation."""
+        return value
+
+    async def async_func(value: int) -> int:
+        """Async documentation."""
+        return value
+
+    wrapped_sync = DIContainer.context(sync_func)
+    wrapped_async = DIContainer.context(async_func)
+
+    assert wrapped_sync.__name__ == sync_func.__name__
+    assert wrapped_sync.__doc__ == sync_func.__doc__
+    assert signature(wrapped_sync) == signature(sync_func)
+    assert wrapped_sync(1) == 1
+    assert wrapped_async.__name__ == async_func.__name__
+    assert wrapped_async.__doc__ == async_func.__doc__
+    assert signature(wrapped_async) == signature(async_func)
+    assert await wrapped_async(1) == 1
 
 
 async def test_container_sync_teardown() -> None:

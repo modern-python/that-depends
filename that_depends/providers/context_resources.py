@@ -146,8 +146,10 @@ def _set_current_scope(scope: ContextScope | None) -> Token[ContextScope | None]
 @contextlib.contextmanager
 def _enter_named_scope(scope: ContextScope) -> typing.Iterator[ContextScope]:
     token = _set_current_scope(scope)
-    yield scope
-    _CONTAINER_SCOPE.reset(token)
+    try:
+        yield scope
+    finally:
+        _CONTAINER_SCOPE.reset(token)
 
 
 T = typing.TypeVar("T")
@@ -247,14 +249,14 @@ def fetch_context_item(key: str, default: typing.Any = None, raise_on_not_found:
     return default
 
 
-def fetch_context_item_by_type(t: type[T]) -> T | None:
+def fetch_context_item_by_type(t: type[T]) -> T:
     """Retrieve a value from the global context by type.
 
     Args:
         t (type[T]): The type of the value to retrieve.
 
     Returns:
-        T | None: The value associated with the type in the global context or None if not found.
+        The value associated with the type in the global context.
 
     Raises:
         RuntimeError: If the context item of the specified type is not found in the global context.
@@ -373,7 +375,7 @@ class ContextResource(
 
             return typing.cast(typing.Callable[P, T], _sync_wrapper)
 
-        if func:
+        if func is not None:
             return _wrapper(func)
         return _wrapper
 
