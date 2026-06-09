@@ -46,7 +46,7 @@ the newer DI framework from the same author, with separate framework adapters:
   [`modern-di-pytest`](https://github.com/modern-python/modern-di-pytest)
 
 `that-depends` remains actively maintained — see the
-[migration guide](https://modern-di.readthedocs.io/latest/migration/from-that-depends/) if you
+[migration guide](https://modern-di.modern-python.org/migration/from-that-depends/) if you
 want to move existing projects across.
 
 ## 📚 [Documentation](https://that-depends.readthedocs.io)
