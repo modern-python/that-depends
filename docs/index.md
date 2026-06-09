@@ -70,6 +70,6 @@ See the [injection documentation](introduction/injection.md) for more informatio
 
 ## llms.txt
 
-`that-depends` provides a [llms.txt](https://that-depends.readthedocs.io/llms.txt) file.
+`that-depends` provides a [llms.txt](https://that-depends.modern-python.org/llms.txt) file.
 
 You can find documentation on how to use it [here](https://llmstxt.org/).

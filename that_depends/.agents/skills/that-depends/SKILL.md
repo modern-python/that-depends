@@ -253,4 +253,4 @@ When writing or reviewing code that uses `that-depends`, prefer these defaults:
 
 ## Detailed documentation
 
-For full package documentation, read the official [documentation](https://that-depends.readthedocs.io/llms.txt).
+For full package documentation, read the official [documentation](https://that-depends.modern-python.org/llms.txt).
