@@ -7,7 +7,7 @@
 [![PyPI Downloads](https://static.pepy.tech/badge/that-depends/month)](https://pepy.tech/projects/that-depends)
 [![GitHub stars](https://img.shields.io/github/stars/modern-python/that-depends)](https://github.com/modern-python/that-depends/stargazers)
 [![libs.tech recommends](https://libs.tech/project/773446541/badge.svg)](https://libs.tech/project/773446541/that-depends)
-[![llms.txt](https://img.shields.io/badge/llms.txt-green)](https://that-depends.readthedocs.io/llms.txt)
+[![llms.txt](https://img.shields.io/badge/llms.txt-green)](https://that-depends.modern-python.org/llms.txt)
 
 Dependency injection framework for Python.
 
@@ -46,10 +46,10 @@ the newer DI framework from the same author, with separate framework adapters:
   [`modern-di-pytest`](https://github.com/modern-python/modern-di-pytest)
 
 `that-depends` remains actively maintained — see the
-[migration guide](https://modern-di.readthedocs.io/latest/migration/from-that-depends/) if you
+[migration guide](https://modern-di.modern-python.org/migration/from-that-depends/) if you
 want to move existing projects across.
 
-## 📚 [Documentation](https://that-depends.readthedocs.io)
+## 📚 [Documentation](https://that-depends.modern-python.org)
 
 ## 📦 [PyPi](https://pypi.org/project/that-depends)
 

@@ -10,7 +10,7 @@ the newer DI framework from the same author. It ships as a small core plus a fam
 framework adapters, in contrast to `that-depends`'s batteries-included approach.
 
 `that-depends` remains actively maintained. The
-[migration guide on the modern-di docs](https://modern-di.readthedocs.io/en/latest/migration/from-that-depends/)
+[migration guide on the modern-di docs](https://modern-di.modern-python.org/migration/from-that-depends/)
 walks through the API differences if you want to move an existing project across.
 
 ### `modern-di` family

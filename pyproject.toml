@@ -29,7 +29,7 @@ faststream = [
 
 [project.urls]
 repository = "https://github.com/modern-python/that-depends"
-docs = "https://that-depends.readthedocs.io"
+docs = "https://that-depends.modern-python.org"
 
 [dependency-groups]
 dev = [
