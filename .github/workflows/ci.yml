@@ -14,9 +14,9 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: extractions/setup-just@v3
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@v6
+      - uses: extractions/setup-just@v4
+      - uses: astral-sh/setup-uv@v8
         with:
           cache-dependency-glob: "**/pyproject.toml"
       - run: uv python install 3.10
@@ -37,9 +37,9 @@ jobs:
           - "<0.6.0"
           - ">=0.6.0"
     steps:
-      - uses: actions/checkout@v5
-      - uses: extractions/setup-just@v3
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@v6
+      - uses: extractions/setup-just@v4
+      - uses: astral-sh/setup-uv@v8
         with:
           cache-dependency-glob: "**/pyproject.toml"
       - run: uv python install ${{ matrix.python-version }}
