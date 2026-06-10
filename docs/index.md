@@ -68,7 +68,19 @@ await some_foo() # "async resource"
 
 See the [injection documentation](introduction/injection.md) for more information.
 
-## llms.txt
+## Agents
+
+### Skills
+
+`that-depends` ships with an [agent skill in the repository](https://github.com/modern-python/that-depends/tree/main/that_depends/.agents/skills/that-depends).
+
+This can be installed using an appropriate tool, such as [skilly](https://pypi.org/project/skilly/):
+```shell
+uvx skilly scan
+```
+
+
+### llms.txt
 
 `that-depends` provides a [llms.txt](https://that-depends.modern-python.org/llms.txt) file.
 
