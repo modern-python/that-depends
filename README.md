@@ -1,12 +1,16 @@
-"That Depends"
-==
+# that-depends
+
+[![PyPI version](https://img.shields.io/pypi/v/that-depends.svg)](https://pypi.org/project/that-depends/)
+[![Supported Python versions](https://img.shields.io/pypi/pyversions/that-depends.svg)](https://pypi.org/project/that-depends/)
+[![Downloads](https://img.shields.io/pypi/dm/that-depends.svg)](https://pypistats.org/packages/that-depends)
 [![Test Coverage](https://codecov.io/gh/modern-python/that-depends/branch/main/graph/badge.svg)](https://codecov.io/gh/modern-python/that-depends)
+[![CI](https://github.com/modern-python/that-depends/actions/workflows/ci.yml/badge.svg)](https://github.com/modern-python/that-depends/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/modern-python/that-depends.svg)](https://github.com/modern-python/that-depends/blob/main/LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/modern-python/that-depends)](https://github.com/modern-python/that-depends/stargazers)
 [![MyPy Strict](https://img.shields.io/badge/mypy-strict-blue)](https://mypy.readthedocs.io/en/stable/getting_started.html#strict-mode-and-configuration)
 [![pyrefly](https://img.shields.io/endpoint?url=https://pyrefly.org/badge.json)](https://github.com/facebook/pyrefly)
-[![Supported versions](https://img.shields.io/pypi/pyversions/that-depends.svg)](https://pypi.python.org/pypi/that-depends)
-[![PyPI Downloads](https://static.pepy.tech/badge/that-depends/month)](https://pepy.tech/projects/that-depends)
-[![GitHub stars](https://img.shields.io/github/stars/modern-python/that-depends)](https://github.com/modern-python/that-depends/stargazers)
 [![libs.tech recommends](https://libs.tech/project/773446541/badge.svg)](https://libs.tech/project/773446541/that-depends)
+[![Context7](https://img.shields.io/badge/Context7-docs-blue)](https://context7.com/modern-python/that-depends)
 [![llms.txt](https://img.shields.io/badge/llms.txt-green)](https://that-depends.modern-python.org/llms.txt)
 
 Dependency injection framework for Python.
@@ -51,6 +55,11 @@ want to move existing projects across.
 
 ## 📚 [Documentation](https://that-depends.modern-python.org)
 
-## 📦 [PyPi](https://pypi.org/project/that-depends)
+## 📦 [PyPI](https://pypi.org/project/that-depends)
 
 ## 📝 [License](LICENSE)
+
+## Part of `modern-python`
+
+Browse the full list of templates and libraries in
+[`modern-python`](https://github.com/modern-python) — see the org profile for the categorized index.
