@@ -1,0 +1,29 @@
+name: scheduled-dep-check
+on:
+  schedule:
+    - cron: "0 6 * * 1"        # Mondays 06:00 UTC
+  workflow_dispatch: {}
+
+concurrency:
+  group: scheduled-dep-check
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    uses: ./.github/workflows/_checks.yml
+    secrets: inherit
+
+  report-failure:
+    needs: checks
+    if: failure() && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: Open or update tracking issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: bash .github/scripts/report-scheduled-failure.sh
