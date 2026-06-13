@@ -15,11 +15,6 @@
 
 Dependency injection framework for Python.
 
-> **Starting a new project?** Also consider
-> [`modern-di`](https://github.com/modern-python/modern-di), the newer DI framework from the
-> same author with a smaller core and per-framework integration packages.
-> `that-depends` remains fully supported — see [Ecosystem](#ecosystem) below.
-
 It is production-ready and gives you the following:
 - Simple async-first DI framework with IOC-container.
 - Python 3.10+ support.
