@@ -1,4 +1,5 @@
 {
   "url": "https://context7.com/modern-python/that-depends",
-  "public_key": "pk_sIP7B0JWZxstxUZb8L28N"
+  "public_key": "pk_sIP7B0JWZxstxUZb8L28N",
+  "excludeFolders": ["planning"]
 }
