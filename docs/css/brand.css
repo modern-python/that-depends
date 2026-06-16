@@ -1,0 +1,17 @@
+/* Brand palette — forest green sampled from the org logo (#356852) */
+:root > * {
+  --md-primary-fg-color:        #356852;
+  --md-primary-fg-color--light: #4a8a6e;
+  --md-primary-fg-color--dark:  #234738;
+  --md-accent-fg-color:         #c98a00;
+}
+
+/* Dark scheme keeps the same brand hue; lighter green for body links so they
+   stay AA-readable on the dark background. */
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color:        #356852;
+  --md-primary-fg-color--light: #4a8a6e;
+  --md-primary-fg-color--dark:  #234738;
+  --md-accent-fg-color:         #e0a300;
+  --md-typeset-a-color:         #7fb79f;
+}
