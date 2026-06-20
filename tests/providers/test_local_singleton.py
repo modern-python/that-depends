@@ -1,4 +1,5 @@
 import asyncio
+import itertools
 import random
 import threading
 import time
@@ -71,10 +72,18 @@ async def test_thread_local_singleton_reuses_instance_created_while_waiting_on_l
 
 def test_thread_local_singleton_different_threads() -> None:
     """Test that different threads receive different instances."""
-    # Use the thread identity as the factory so each thread produces a value that is
-    # unique by construction; a random factory could collide across threads and make
-    # this assertion flaky even when thread-local isolation works correctly.
-    provider = ThreadLocalSingleton(threading.get_ident)
+    # Each factory call returns a distinct value from an atomic counter, so the test is
+    # deterministic: the ThreadLocalSingleton calls the factory once per thread, yielding
+    # one unique value per thread. A random factory could collide and a thread-id factory
+    # is unreliable because thread ids are recycled once a thread exits; itertools.count
+    # avoids both. The sleep keeps the threads overlapping so this exercises real concurrency.
+    counter = itertools.count()
+
+    def factory() -> int:
+        time.sleep(0.01)
+        return next(counter)
+
+    provider = ThreadLocalSingleton(factory)
     results: list[int] = []
     results_lock = threading.Lock()
 
