@@ -13,7 +13,7 @@
 [![Context7](https://img.shields.io/badge/Context7-docs-blue)](https://context7.com/modern-python/that-depends)
 [![llms.txt](https://img.shields.io/badge/llms.txt-green)](https://that-depends.modern-python.org/llms.txt)
 
-Dependency injection framework for Python.
+Simple, typed dependency injection framework for Python.
 
 It is production-ready and gives you the following:
 - Simple async-first DI framework with IOC-container.

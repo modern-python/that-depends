@@ -1,4 +1,5 @@
 import asyncio
+import itertools
 import random
 import threading
 import time
@@ -71,11 +72,25 @@ async def test_thread_local_singleton_reuses_instance_created_while_waiting_on_l
 
 def test_thread_local_singleton_different_threads() -> None:
     """Test that different threads receive different instances."""
-    provider = ThreadLocalSingleton(_factory)
-    results = []
+    # Each factory call returns a distinct value from an atomic counter, so the test is
+    # deterministic: the ThreadLocalSingleton calls the factory once per thread, yielding
+    # one unique value per thread. A random factory could collide and a thread-id factory
+    # is unreliable because thread ids are recycled once a thread exits; itertools.count
+    # avoids both. The sleep keeps the threads overlapping so this exercises real concurrency.
+    counter = itertools.count()
+
+    def factory() -> int:
+        time.sleep(0.01)
+        return next(counter)
+
+    provider = ThreadLocalSingleton(factory)
+    results: list[int] = []
+    results_lock = threading.Lock()
 
     def resolve_in_thread() -> None:
-        results.append(provider.resolve_sync())
+        value = provider.resolve_sync()
+        with results_lock:
+            results.append(value)
 
     number_of_threads = 10
 
@@ -86,8 +101,8 @@ def test_thread_local_singleton_different_threads() -> None:
     for thread in threads:
         thread.join()
 
-    assert len(results) == number_of_threads, "Test failed: Expected results from two threads."
-    assert results[0] != results[1], "Thread-local failed: Instances across threads should differ."
+    assert len(results) == number_of_threads, "Expected one result per thread."
+    assert len(set(results)) == number_of_threads, "Thread-local failed: each thread should get its own instance."
 
 
 def test_thread_local_singleton_override() -> None:

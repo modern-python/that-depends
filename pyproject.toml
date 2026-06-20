@@ -1,14 +1,16 @@
 [project]
 name = "that-depends"
-description = "Simple Dependency Injection framework"
+description = "Simple, typed dependency-injection framework for Python"
 authors = [
     { name = "Artur Shiriev", email = "me@shiriev.ru" },
 ]
 readme = "README.md"
 requires-python = ">=3.10,<4"
 license = "MIT"
-keywords = ["di", "dependency injector", "ioc-container", "mocks", "python"]
+keywords = ["dependency-injection", "di", "ioc-container", "scopes", "mocks", "python"]
 classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -28,8 +30,11 @@ faststream = [
 ]
 
 [project.urls]
-repository = "https://github.com/modern-python/that-depends"
-docs = "https://that-depends.modern-python.org"
+Homepage = "https://that-depends.modern-python.org"
+Documentation = "https://that-depends.modern-python.org"
+Repository = "https://github.com/modern-python/that-depends"
+Issues = "https://github.com/modern-python/that-depends/issues"
+Changelog = "https://github.com/modern-python/that-depends/releases"
 
 [dependency-groups]
 dev = [

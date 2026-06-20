@@ -158,7 +158,7 @@ class AbstractProvider(abc.ABC, typing.Generic[T_co]):
             self._invalidate_scope_init_order()
 
     def _invalidate_scope_init_order(self) -> None:
-        stack = [self]
+        stack: list[AbstractProvider[typing.Any]] = [self]
         visited: set[AbstractProvider[typing.Any]] = set()
 
         while stack:
