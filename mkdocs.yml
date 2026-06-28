@@ -45,8 +45,8 @@ nav:
 
 theme:
   name: material
-  logo: assets/modern-python-white.svg
-  favicon: assets/modern-python-mark.svg
+  logo: assets/mark.svg
+  favicon: assets/favicon.svg
   custom_dir: docs/overrides
   features:
     - content.code.copy
