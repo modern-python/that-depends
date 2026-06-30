@@ -1,4 +1,10 @@
-# that-depends
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)"  srcset="https://raw.githubusercontent.com/modern-python/.github/main/brand/projects/that-depends/lockup-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/modern-python/.github/main/brand/projects/that-depends/lockup-light.svg">
+    <img alt="that-depends" src="https://raw.githubusercontent.com/modern-python/.github/main/brand/projects/that-depends/lockup.png" width="420">
+  </picture>
+</p>
 
 [![PyPI version](https://img.shields.io/pypi/v/that-depends.svg)](https://pypi.org/project/that-depends/)
 [![Supported Python versions](https://img.shields.io/pypi/pyversions/that-depends.svg)](https://pypi.org/project/that-depends/)
