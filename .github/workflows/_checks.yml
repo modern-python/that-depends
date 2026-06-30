@@ -12,6 +12,7 @@ jobs:
         with:
           cache-dependency-glob: "**/pyproject.toml"
       - run: uv python install 3.10
+      - run: uv python pin 3.10
       - run: just install lint-ci
 
   pytest:
@@ -35,6 +36,7 @@ jobs:
         with:
           cache-dependency-glob: "**/pyproject.toml"
       - run: uv python install ${{ matrix.python-version }}
+      - run: uv python pin ${{ matrix.python-version }}
       - run: just install
       - run: uv run --with "faststream${{ matrix.faststream-version }}" pytest . --cov=. --cov-report xml
       - uses: codecov/codecov-action@v5.4.3
