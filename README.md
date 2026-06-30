@@ -2,7 +2,7 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/that-depends.svg)](https://pypi.org/project/that-depends/)
 [![Supported Python versions](https://img.shields.io/pypi/pyversions/that-depends.svg)](https://pypi.org/project/that-depends/)
-[![Downloads](https://img.shields.io/pypi/dm/that-depends.svg)](https://pypistats.org/packages/that-depends)
+[![Downloads](https://static.pepy.tech/badge/that-depends/month)](https://pepy.tech/projects/that-depends)
 [![Test Coverage](https://codecov.io/gh/modern-python/that-depends/branch/main/graph/badge.svg)](https://codecov.io/gh/modern-python/that-depends)
 [![CI](https://github.com/modern-python/that-depends/actions/workflows/ci.yml/badge.svg)](https://github.com/modern-python/that-depends/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/modern-python/that-depends.svg)](https://github.com/modern-python/that-depends/blob/main/LICENSE)
