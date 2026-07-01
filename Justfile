@@ -20,11 +20,12 @@ lint-ci:
 test *args:
     uv run --no-sync pytest {{ args }}
 
+# Auth via PyPI Trusted Publishing (OIDC); uv publish auto-detects the CI id-token.
 publish:
     rm -rf dist
     uv version $GITHUB_REF_NAME
     uv build
-    uv publish --token $PYPI_TOKEN
+    uv publish
 
 hook:
     uv run pre-commit install --install-hooks --overwrite
