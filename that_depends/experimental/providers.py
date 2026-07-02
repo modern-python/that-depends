@@ -16,7 +16,7 @@ T_co = TypeVar("T_co", covariant=True)
 _IMPORT_STRING_REGEX = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*$")
 
 
-class LazyProvider(SupportsTeardown, SupportsContext[Any], AbstractProvider[Any]):
+class LazyProvider(AbstractProvider[Any], SupportsTeardown, SupportsContext[Any]):
     """Lazily imports and provides a provider from a module."""
 
     @overload
@@ -175,5 +175,8 @@ class LazyProvider(SupportsTeardown, SupportsContext[Any], AbstractProvider[Any]
 
     @typing_extensions.override
     def __getattr__(self, attr_name: str) -> typing.Any:
+        if attr_name.startswith("_"):
+            msg = f"'{type(self)}' object has no attribute '{attr_name}'"
+            raise AttributeError(msg)
         provider = self._get_provider()
         return getattr(provider, attr_name)
