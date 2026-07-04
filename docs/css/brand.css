@@ -15,3 +15,23 @@
   --md-accent-fg-color:         #e0a300;
   --md-typeset-a-color:         #7fb79f;
 }
+
+/* Centered project lockup hero on the docs home page */
+.mp-hero {
+  text-align: center;
+  margin: 1.5rem 0 2.5rem;
+}
+.mp-hero .mp-lockup {
+  margin: 0;
+  font-size: 0;   /* collapse whitespace between the stacked <img> variants */
+  line-height: 0;
+}
+.mp-hero .mp-logo {
+  max-width: 420px;
+  width: 70%;
+  height: auto;
+}
+/* Light lockup by default; cream lockup in dark (slate) mode. */
+.mp-hero .mp-logo--dark { display: none; }
+[data-md-color-scheme="slate"] .mp-hero .mp-logo--light { display: none; }
+[data-md-color-scheme="slate"] .mp-hero .mp-logo--dark  { display: inline; }
