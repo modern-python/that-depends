@@ -1,7 +1,3 @@
----
-title: that-depends
----
-
 <div class="mp-hero" markdown>
 
 <h1 class="mp-lockup">
