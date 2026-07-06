@@ -31,7 +31,7 @@ You can use the lazy provider in exactly the same way as you would use the refer
 # first_container.py
 from that_depends import BaseContainer, providers, ContextScopes
 
-def my_creator():
+def my_creator() -> int:
     yield 42
 
 class FirstContainer(BaseContainer):
@@ -44,7 +44,7 @@ You can lazily import this provider:
 from that_depends.experimental import LazyProvider
 from that_depends import BaseContainer, providers
 class SecondContainer(BaseContainer):
-    lazy_value = LazyProvider("first_container.FirstContainer.value_provider")
+    lazy_value: LazyProvider[int] = LazyProvider("first_container.FirstContainer.value_provider")
     
 
 with SecondContainer.lazy_value.context_sync(force=True):

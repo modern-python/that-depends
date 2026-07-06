@@ -1,22 +1,24 @@
 import importlib
 import re
 import typing
-from typing import Any, TypeVar, cast, overload
+from typing import Any, cast, overload
 
 import typing_extensions
+from typing_extensions import TypeVar
 
 from that_depends import ContextScope
+from that_depends.entities.resource_context import ResourceContext
 from that_depends.providers import AbstractProvider
-from that_depends.providers.context_resources import CT_co, SupportsContext
+from that_depends.providers.context_resources import SupportsContext
 from that_depends.providers.mixin import SupportsTeardown
 
 
-T_co = TypeVar("T_co", covariant=True)
+T_co = TypeVar("T_co", covariant=True, default=Any)
 
 _IMPORT_STRING_REGEX = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*$")
 
 
-class LazyProvider(AbstractProvider[Any], SupportsTeardown, SupportsContext[Any]):
+class LazyProvider(AbstractProvider[T_co], SupportsTeardown, SupportsContext[ResourceContext[T_co]]):
     """Lazily imports and provides a provider from a module."""
 
     @overload
@@ -58,12 +60,16 @@ class LazyProvider(AbstractProvider[Any], SupportsTeardown, SupportsContext[Any]
         return typing.cast(ContextScope | None, self._call_context_method("get_scope"))
 
     @typing_extensions.override
-    def context_async(self, force: bool = False) -> typing.AsyncContextManager[CT_co]:
-        return typing.cast(typing.AsyncContextManager[CT_co], self._call_context_method("context_async", force))
+    def context_async(self, force: bool = False) -> typing.AsyncContextManager[ResourceContext[T_co]]:
+        return typing.cast(
+            typing.AsyncContextManager[ResourceContext[T_co]], self._call_context_method("context_async", force)
+        )
 
     @typing_extensions.override
-    def context_sync(self, force: bool = False) -> typing.ContextManager[CT_co]:
-        return typing.cast(typing.ContextManager[CT_co], self._call_context_method("context_sync", force))
+    def context_sync(self, force: bool = False) -> typing.ContextManager[ResourceContext[T_co]]:
+        return typing.cast(
+            typing.ContextManager[ResourceContext[T_co]], self._call_context_method("context_sync", force)
+        )
 
     @typing_extensions.override
     def supports_context_sync(self) -> bool:
@@ -98,7 +104,7 @@ class LazyProvider(AbstractProvider[Any], SupportsTeardown, SupportsContext[Any]
             msg = f"Invalid provider_string '{self._provider_string}'"
             raise ValueError(msg)
 
-    def _get_provider(self) -> AbstractProvider[Any]:
+    def _get_provider(self) -> AbstractProvider[T_co]:
         if self._provider:
             return self._provider
         if self._import_string is not None:
@@ -123,7 +129,7 @@ class LazyProvider(AbstractProvider[Any], SupportsTeardown, SupportsContext[Any]
         provider = module
         for attr in attrs:
             provider = getattr(provider, attr)
-        self._provider = cast(AbstractProvider[Any], provider)
+        self._provider = cast(AbstractProvider[T_co], provider)
         return self._provider
 
     def _call_context_method(self, method_name: str, *args: object) -> object:
@@ -140,12 +146,12 @@ class LazyProvider(AbstractProvider[Any], SupportsTeardown, SupportsContext[Any]
             raise NotImplementedError(msg) from e
 
     @typing_extensions.override
-    async def resolve(self) -> Any:
+    async def resolve(self) -> T_co:
         provider = self._get_provider()
         return await provider.resolve()
 
     @typing_extensions.override
-    def resolve_sync(self) -> Any:
+    def resolve_sync(self) -> T_co:
         provider = self._get_provider()
         return provider.resolve_sync()
 

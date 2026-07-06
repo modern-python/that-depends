@@ -81,7 +81,10 @@ def test_lazy_provider_invalid_state() -> None:
 
 
 async def test_lazy_provider_context_resource_async() -> None:
-    lazy_provider = LazyProvider("tests.experimental.test_container_2.Container2.async_context_provider")
+    lazy_provider: LazyProvider[float] = LazyProvider(
+        "tests.experimental.test_container_2.Container2.async_context_provider"
+    )
+
     async with lazy_provider.context_async(force=True):
         assert await lazy_provider.resolve() == await Container2.async_context_provider.resolve()
         async with Container2.async_context_provider.context_async(force=True):
