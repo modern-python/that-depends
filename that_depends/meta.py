@@ -62,6 +62,7 @@ class BaseContainerMeta(abc.ABCMeta):
         "alias",
         "default_scope",
         "type_provider_cache",
+        "type_provider_cache_revision",
     )
 
     _lock: Lock = Lock()
@@ -133,8 +134,10 @@ class BaseContainerMeta(abc.ABCMeta):
             Provider for the given type.
 
         """
-        if not hasattr(cls, "type_provider_cache"):
+        current_revision = AbstractProvider._get_binding_revision()  # noqa: SLF001
+        if getattr(cls, "type_provider_cache_revision", -1) != current_revision:
             cls.type_provider_cache: dict[type[typing.Any], AbstractProvider[typing.Any]] = {}
+            cls.type_provider_cache_revision = current_revision
         if provider := cls.type_provider_cache.get(t):
             return typing.cast(AbstractProvider[T], provider)
         for provider in cls.get_providers().values():

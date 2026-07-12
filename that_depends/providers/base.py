@@ -89,6 +89,9 @@ def _resolve_keyword_arguments_sync(
 class AbstractProvider(abc.ABC, typing.Generic[T_co]):
     """Base class for all providers."""
 
+    _binding_revision: typing.ClassVar[int] = 0
+    _binding_revision_lock: typing.ClassVar[threading.Lock] = threading.Lock()
+
     def __init__(self) -> None:
         """Create a new provider."""
         super().__init__()
@@ -115,9 +118,16 @@ class AbstractProvider(abc.ABC, typing.Generic[T_co]):
             The current provider instance.
 
         """
-        self._bindings = set(types)
-        self._has_contravariant_bindings = contravariant
+        with AbstractProvider._binding_revision_lock:
+            self._bindings = set(types)
+            self._has_contravariant_bindings = contravariant
+            AbstractProvider._binding_revision += 1
         return self
+
+    @classmethod
+    def _get_binding_revision(cls) -> int:
+        with AbstractProvider._binding_revision_lock:
+            return AbstractProvider._binding_revision
 
     def _register(self, candidates: typing.Iterable[typing.Any]) -> None:
         """Register current provider as child.
