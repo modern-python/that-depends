@@ -99,7 +99,7 @@ def test_build_injection_plan_stores_direct_provider_separately() -> None:
 
     assert _injected(provider) is provider
     assert plan.direct_parameters == (
-        _DirectInjectionParameter(0, "value", provider, provider._get_scope_context_init_order()),
+        _DirectInjectionParameter("value", provider, provider._get_scope_context_init_order()),
     )
 
 
@@ -110,7 +110,7 @@ def test_build_injection_plan_stores_annotation_for_type_based_injection() -> No
     plan = _build_injection_plan(_injected)
 
     assert _injected(1.0) == 1.0
-    assert plan.typed_parameters == (_TypedInjectionParameter(0, "value", float),)
+    assert plan.typed_parameters == (_TypedInjectionParameter("value", float),)
 
 
 def test_build_injection_plan_stores_string_provider_separately() -> None:
@@ -121,9 +121,32 @@ def test_build_injection_plan_stores_string_provider_separately() -> None:
 
     assert _injected(1) == 1
     assert len(plan.string_parameters) == 1
-    assert plan.string_parameters[0].argument_index == 0
     assert plan.string_parameters[0].field_name == "value"
     assert plan.string_parameters[0].definition._definition == "Container.provider"
+
+
+def test_injection_handles_keyword_only_parameter_after_varargs() -> None:
+    injected_value = 42
+    override_value = 7
+    provider = providers.Object(injected_value)
+
+    @inject
+    def target(*values: str, dependency: int = Provide[provider]) -> int:
+        _ = values
+        return dependency
+
+    assert target("one", "two") == injected_value
+    assert target("one", dependency=override_value) == override_value
+
+
+def test_injection_rejects_positional_only_parameter() -> None:
+    provider = providers.Object(42)
+
+    with pytest.raises(TypeError, match="Injected parameter 'dependency' cannot be positional-only"):
+
+        @inject
+        def target(dependency: int = Provide[provider], /) -> int:  # pragma: no cover
+            return dependency
 
 
 async def test_empty_injection() -> None:
