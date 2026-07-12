@@ -48,6 +48,7 @@ class _TypedInjectionParameter(typing.NamedTuple):
 
 
 class _InjectionPlan(typing.NamedTuple):
+    signature: inspect.Signature
     direct_parameters: tuple[_DirectInjectionParameter, ...]
     string_parameters: tuple[_StringInjectionParameter, ...]
     typed_parameters: tuple[_TypedInjectionParameter, ...]
@@ -98,10 +99,21 @@ class _ContextManagerExitState:
 
 @functools.cache
 def _build_injection_plan(func: typing.Callable[..., typing.Any]) -> _InjectionPlan:
+    signature = inspect.signature(func)
+    parameters = tuple(signature.parameters.items())
     direct_parameters: list[_DirectInjectionParameter] = []
     string_parameters: list[_StringInjectionParameter] = []
     typed_parameters: list[_TypedInjectionParameter] = []
-    for index, (field_name, param) in enumerate(inspect.signature(func).parameters.items()):
+    if any(isinstance(param.default, _Provide) for _, param in parameters):
+        try:
+            resolved_hints = typing.get_type_hints(func)
+        except (NameError, TypeError) as exc:
+            msg = f"Cannot resolve annotations for injected function {func.__qualname__}"
+            raise TypeError(msg) from exc
+    else:
+        resolved_hints = {}
+
+    for index, (field_name, param) in enumerate(parameters):
         default = param.default
         if isinstance(default, StringProviderDefinition):
             string_parameters.append(_StringInjectionParameter(index, field_name, default))
@@ -115,14 +127,19 @@ def _build_injection_plan(func: typing.Callable[..., typing.Any]) -> _InjectionP
                 )
             )
         elif isinstance(default, _Provide):
+            annotation = resolved_hints.get(field_name, param.annotation)
+            if annotation is inspect.Parameter.empty or annotation is typing.Any or not isinstance(annotation, type):
+                msg = f"Type-based injection for {field_name!r} requires a concrete runtime type"
+                raise TypeError(msg)
             typed_parameters.append(
                 _TypedInjectionParameter(
                     index,
                     field_name,
-                    typing.cast(type[typing.Any], param.annotation),
+                    annotation,
                 )
             )
     return _InjectionPlan(
+        signature=signature,
         direct_parameters=tuple(direct_parameters),
         string_parameters=tuple(string_parameters),
         typed_parameters=tuple(typed_parameters),
