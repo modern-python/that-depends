@@ -480,11 +480,15 @@ class ContextResource(
         async with self._async_lock:
             val = await self._enter_context_async(force=force)
             temp_token = self._token
-        yield val
-        async with self._async_lock:
-            self._token = temp_token
-            await self._exit_context_async()
-        self._token = token
+        try:
+            yield val
+        finally:
+            async with self._async_lock:
+                self._token = temp_token
+                try:
+                    await self._exit_context_async()
+                finally:
+                    self._token = token
 
     def _fetch_context(self) -> ResourceContext[T_co]:
         try:
