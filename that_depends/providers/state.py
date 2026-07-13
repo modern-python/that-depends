@@ -40,8 +40,10 @@ class State(AbstractProvider[T]):
 
         """
         token = self._state.set(state)
-        yield state
-        self._state.reset(token)
+        try:
+            yield state
+        finally:
+            self._state.reset(token)
 
     @override
     async def resolve(self) -> T:
