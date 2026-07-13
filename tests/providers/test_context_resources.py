@@ -1226,6 +1226,12 @@ def test_fetch_context_item_raises() -> None:
     with pytest.raises(KeyError):
         fetch_context_item("s", raise_on_not_found=True)
 
+    with container_context(global_context={"present": None}):
+        assert fetch_context_item("present", default="fallback") is None
+        with pytest.raises(KeyError, match="Key `missing` not found"):
+            fetch_context_item("missing", raise_on_not_found=True)
+        assert fetch_context_item("missing", default="fallback") == "fallback"
+
 
 def test_context_scope_hash() -> None:
     assert ContextScope("TEST") == ContextScope("TEST")
