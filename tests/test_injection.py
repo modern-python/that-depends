@@ -98,9 +98,7 @@ def test_build_injection_plan_stores_direct_provider_separately() -> None:
     plan = _build_injection_plan(_injected)
 
     assert _injected(provider) is provider
-    assert plan.direct_parameters == (
-        _DirectInjectionParameter("value", provider, provider._get_scope_context_init_order()),
-    )
+    assert plan.direct_parameters == (_DirectInjectionParameter("value", provider),)
 
 
 def test_build_injection_plan_stores_annotation_for_type_based_injection() -> None:
@@ -754,6 +752,187 @@ def test_inject_scope_creates_new_context_for_parents_of_non_context_resource_sy
         return repo.v
 
     assert isinstance(injected(), float)
+
+
+def test_injection_enters_only_selected_selector_context_sync() -> None:
+    events: list[str] = []
+
+    def _sync_creator() -> typing.Iterator[str]:
+        events.append("sync enter")
+        try:
+            yield "sync"
+        finally:
+            events.append("sync exit")
+
+    async def _async_creator() -> typing.AsyncIterator[str]:  # pragma: no cover
+        events.append("async enter")
+        try:
+            yield "async"
+        finally:
+            events.append("async exit")
+
+    selector = providers.Selector(
+        lambda: "sync",
+        sync=providers.ContextResource(_sync_creator).with_config(scope=ContextScopes.INJECT),
+        async_=providers.ContextResource(_async_creator).with_config(scope=ContextScopes.INJECT),
+    )
+
+    @inject
+    def target(value: str = Provide[selector]) -> str:
+        return value
+
+    assert target() == "sync"
+    assert events == ["sync enter", "sync exit"]
+
+
+async def test_injection_enters_only_selected_selector_context_async() -> None:
+    events: list[str] = []
+
+    def _sync_creator() -> typing.Iterator[str]:  # pragma: no cover
+        events.append("sync enter")
+        try:
+            yield "sync"
+        finally:
+            events.append("sync exit")
+
+    async def _async_creator() -> typing.AsyncIterator[str]:
+        events.append("async enter")
+        try:
+            yield "async"
+        finally:
+            events.append("async exit")
+
+    selector = providers.Selector(
+        lambda: "async_",
+        sync=providers.ContextResource(_sync_creator).with_config(scope=ContextScopes.INJECT),
+        async_=providers.ContextResource(_async_creator).with_config(scope=ContextScopes.INJECT),
+    )
+
+    @inject
+    async def target(value: str = Provide[selector]) -> str:
+        return value
+
+    assert await target() == "async"
+    assert events == ["async enter", "async exit"]
+
+
+def test_injection_pins_nested_selector_branch_sync() -> None:
+    selected_keys: list[str] = []
+    events: list[str] = []
+
+    def _select_key() -> str:
+        key = "first" if not selected_keys else "second"
+        selected_keys.append(key)
+        return key
+
+    def _creator(value: str) -> typing.Iterator[str]:
+        events.append(f"{value} enter")
+        try:
+            yield value
+        finally:
+            events.append(f"{value} exit")
+
+    selector = providers.Selector(
+        _select_key,
+        first=providers.ContextResource(_creator, "first").with_config(scope=ContextScopes.INJECT),
+        second=providers.ContextResource(_creator, "second").with_config(scope=ContextScopes.INJECT),
+    )
+    factory = providers.Factory(lambda value: (value, selector.resolve_sync()), selector.cast)
+
+    @inject
+    def target(value: tuple[str, str] = Provide[factory]) -> tuple[str, str]:
+        return value
+
+    assert target() == ("first", "first")
+    assert selected_keys == ["first"]
+    assert events == ["first enter", "first exit"]
+
+
+async def test_injection_pins_nested_selector_branch_async() -> None:
+    selected_keys: list[str] = []
+    events: list[str] = []
+
+    def _select_key() -> str:
+        key = "first" if not selected_keys else "second"
+        selected_keys.append(key)
+        return key
+
+    async def _creator(value: str) -> typing.AsyncIterator[str]:
+        events.append(f"{value} enter")
+        try:
+            yield value
+        finally:
+            events.append(f"{value} exit")
+
+    selector = providers.Selector(
+        _select_key,
+        first=providers.ContextResource(_creator, "first").with_config(scope=ContextScopes.INJECT),
+        second=providers.ContextResource(_creator, "second").with_config(scope=ContextScopes.INJECT),
+    )
+
+    async def _factory(value: str) -> tuple[str, str]:
+        return value, await selector.resolve()
+
+    factory = providers.AsyncFactory(_factory, selector.cast)
+
+    @inject
+    async def target(value: tuple[str, str] = Provide[factory]) -> tuple[str, str]:
+        return value
+
+    assert await target() == ("first", "first")
+    assert selected_keys == ["first"]
+    assert events == ["first enter", "first exit"]
+
+
+def test_string_injection_prepares_selected_selector_context() -> None:
+    def _creator() -> typing.Iterator[str]:
+        yield "selected"
+
+    class _Container(BaseContainer):
+        resource = providers.ContextResource(_creator).with_config(scope=ContextScopes.INJECT)
+        selector = providers.Selector("selected", selected=resource)
+
+    @inject
+    def target(value: str = Provide["_Container.selector"]) -> str:
+        return value
+
+    assert target() == "selected"
+
+
+async def test_type_injection_prepares_selected_selector_context() -> None:
+    async def _creator() -> typing.AsyncIterator[str]:
+        yield "selected"
+
+    class _Container(BaseContainer):
+        resource = providers.ContextResource(_creator).with_config(scope=ContextScopes.INJECT)
+        selector = providers.Selector("selected", selected=resource).bind(str)
+
+    @_Container.inject
+    async def target(value: str = Provide()) -> str:
+        return value
+
+    assert await target() == "selected"
+
+
+def test_injection_scope_none_does_not_enter_selector_context() -> None:
+    events: list[str] = []
+
+    def _creator() -> typing.Iterator[str]:  # pragma: no cover
+        events.append("entered")
+        yield "selected"
+
+    selector = providers.Selector(
+        "selected",
+        selected=providers.ContextResource(_creator).with_config(scope=ContextScopes.INJECT),
+    )
+
+    @inject(scope=None)
+    def target(value: str = Provide[selector]) -> str:
+        return value  # pragma: no cover
+
+    with pytest.raises(RuntimeError, match="Context is not set"):
+        target()
+    assert events == []
 
 
 def test_simple_injection_into_iterator_sync() -> None:
