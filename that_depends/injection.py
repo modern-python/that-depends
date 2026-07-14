@@ -579,10 +579,16 @@ class StringProviderDefinition:
 
 
 class _Provide:
-    def __getitem__(self, provider: AbstractProvider[T] | str) -> T | typing.Any:  # noqa: ANN401
+    @typing.overload
+    def __getitem__(self, provider: AbstractProvider[T]) -> T: ...
+
+    @typing.overload
+    def __getitem__(self, provider: str) -> typing.Any: ...  # noqa: ANN401
+
+    def __getitem__(self, provider: AbstractProvider[T] | str) -> typing.Any:
         if isinstance(provider, str):
             return StringProviderDefinition(provider)  # will be resolved later
-        return typing.cast(T, provider)
+        return provider
 
     def __call__(self) -> typing.Any:  # noqa: ANN401
         """Marker for automatic dependency injection."""
