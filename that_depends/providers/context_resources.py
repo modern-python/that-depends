@@ -241,8 +241,9 @@ def fetch_context_item(key: str, default: typing.Any = None, raise_on_not_found:
         ```
 
     """
-    if context := _get_container_context():
-        return context.get(key, default)
+    context = _get_container_context()
+    if context is not None and key in context:
+        return context[key]
     if raise_on_not_found:
         msg = f"Key `{key}` not found in global context."
         raise KeyError(msg)
@@ -480,11 +481,15 @@ class ContextResource(
         async with self._async_lock:
             val = await self._enter_context_async(force=force)
             temp_token = self._token
-        yield val
-        async with self._async_lock:
-            self._token = temp_token
-            await self._exit_context_async()
-        self._token = token
+        try:
+            yield val
+        finally:
+            async with self._async_lock:
+                self._token = temp_token
+                try:
+                    await self._exit_context_async()
+                finally:
+                    self._token = token
 
     def _fetch_context(self) -> ResourceContext[T_co]:
         try:

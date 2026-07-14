@@ -46,6 +46,38 @@ def test_state_set_resolves_correctly_sync() -> None:
         assert _Container.state.resolve_sync() == state_value
 
 
+def test_state_restores_context_after_exception() -> None:
+    state = State[str]()
+
+    def raise_in_inner_context() -> None:
+        with state.init("inner"):
+            msg = "expected"
+            raise RuntimeError(msg)
+
+    with state.init("outer"):
+        with pytest.raises(RuntimeError, match="expected"):
+            raise_in_inner_context()
+        assert state.resolve_sync() == "outer"
+
+    with pytest.raises(StateNotInitializedError):
+        state.resolve_sync()
+
+
+async def test_state_restores_context_after_async_exception() -> None:
+    state = State[str]()
+
+    async def raise_in_context() -> None:
+        with state.init("value"):
+            msg = "expected"
+            raise RuntimeError(msg)
+
+    with pytest.raises(RuntimeError, match="expected"):
+        await raise_in_context()
+
+    with pytest.raises(StateNotInitializedError):
+        await state.resolve()
+
+
 async def test_state_correctly_manages_its_context() -> None:
     async def _async_creator(x: int) -> int:
         await asyncio.sleep(random.random())
