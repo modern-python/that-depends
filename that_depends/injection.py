@@ -29,20 +29,17 @@ _PROVIDE_MESSAGE: typing.Final[str] = (
 
 
 class _DirectInjectionParameter(typing.NamedTuple):
-    argument_index: int
     field_name: str
     provider: AbstractProvider[typing.Any]
     scope_context_init_order: tuple[AbstractProvider[typing.Any], ...]
 
 
 class _StringInjectionParameter(typing.NamedTuple):
-    argument_index: int
     field_name: str
     definition: "StringProviderDefinition"
 
 
 class _TypedInjectionParameter(typing.NamedTuple):
-    argument_index: int
     field_name: str
     annotation: type[typing.Any]
 
@@ -113,14 +110,19 @@ def _build_injection_plan(func: typing.Callable[..., typing.Any]) -> _InjectionP
     else:
         resolved_hints = {}
 
-    for index, (field_name, param) in enumerate(parameters):
+    for _index, (field_name, param) in enumerate(parameters):
         default = param.default
+        if (
+            isinstance(default, (StringProviderDefinition, AbstractProvider, _Provide))
+            and param.kind is inspect.Parameter.POSITIONAL_ONLY
+        ):
+            msg = f"Injected parameter {field_name!r} cannot be positional-only"
+            raise TypeError(msg)
         if isinstance(default, StringProviderDefinition):
-            string_parameters.append(_StringInjectionParameter(index, field_name, default))
+            string_parameters.append(_StringInjectionParameter(field_name, default))
         elif isinstance(default, AbstractProvider):
             direct_parameters.append(
                 _DirectInjectionParameter(
-                    index,
                     field_name,
                     default,
                     default._get_scope_context_init_order(),  # noqa: SLF001
@@ -138,7 +140,6 @@ def _build_injection_plan(func: typing.Callable[..., typing.Any]) -> _InjectionP
                 raise TypeError(msg)
             typed_parameters.append(
                 _TypedInjectionParameter(
-                    index,
                     field_name,
                     annotation,
                 )
@@ -289,8 +290,9 @@ async def _resolve_arguments_async(
         return False, kwargs
 
     context_providers: set[AbstractProvider[typing.Any]] = set()
+    provided_names = plan.signature.bind_partial(*args, **kwargs).arguments
     for direct_parameter in plan.direct_parameters:
-        if _is_argument_provided(direct_parameter.argument_index, direct_parameter.field_name, args, kwargs):
+        if direct_parameter.field_name in provided_names:
             continue
 
         if direct_parameter.scope_context_init_order:
@@ -303,7 +305,7 @@ async def _resolve_arguments_async(
         kwargs[direct_parameter.field_name] = await direct_parameter.provider.resolve()
 
     for string_parameter in plan.string_parameters:
-        if _is_argument_provided(string_parameter.argument_index, string_parameter.field_name, args, kwargs):
+        if string_parameter.field_name in provided_names:
             continue
 
         kwargs[string_parameter.field_name] = await _resolve_provider_with_scope_async(
@@ -314,7 +316,7 @@ async def _resolve_arguments_async(
         )
 
     for typed_parameter in plan.typed_parameters:
-        if _is_argument_provided(typed_parameter.argument_index, typed_parameter.field_name, args, kwargs):
+        if typed_parameter.field_name in provided_names:
             continue
 
         provider = _resolve_typed_provider(typed_parameter.annotation, container)
@@ -339,8 +341,9 @@ def _resolve_arguments_sync(
         return False, kwargs
 
     context_providers: set[AbstractProvider[typing.Any]] = set()
+    provided_names = plan.signature.bind_partial(*args, **kwargs).arguments
     for direct_parameter in plan.direct_parameters:
-        if _is_argument_provided(direct_parameter.argument_index, direct_parameter.field_name, args, kwargs):
+        if direct_parameter.field_name in provided_names:
             continue
 
         if direct_parameter.scope_context_init_order:
@@ -353,7 +356,7 @@ def _resolve_arguments_sync(
         kwargs[direct_parameter.field_name] = direct_parameter.provider.resolve_sync()
 
     for string_parameter in plan.string_parameters:
-        if _is_argument_provided(string_parameter.argument_index, string_parameter.field_name, args, kwargs):
+        if string_parameter.field_name in provided_names:
             continue
 
         kwargs[string_parameter.field_name] = _resolve_provider_with_scope_sync(
@@ -364,7 +367,7 @@ def _resolve_arguments_sync(
         )
 
     for typed_parameter in plan.typed_parameters:
-        if _is_argument_provided(typed_parameter.argument_index, typed_parameter.field_name, args, kwargs):
+        if typed_parameter.field_name in provided_names:
             continue
 
         provider = _resolve_typed_provider(typed_parameter.annotation, container)
@@ -380,15 +383,6 @@ def _resolve_arguments_sync(
 
 def _plan_has_injected_parameters(plan: _InjectionPlan) -> bool:
     return bool(plan.direct_parameters or plan.string_parameters or plan.typed_parameters)
-
-
-def _is_argument_provided(
-    argument_index: int,
-    field_name: str,
-    args: tuple[typing.Any, ...],
-    kwargs: dict[str, typing.Any],
-) -> bool:
-    return argument_index < len(args) or field_name in kwargs
 
 
 def _resolve_typed_provider(
