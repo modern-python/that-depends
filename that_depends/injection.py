@@ -110,7 +110,7 @@ def _build_injection_plan(func: typing.Callable[..., typing.Any]) -> _InjectionP
     else:
         resolved_hints = {}
 
-    for field_name, param in parameters:
+    for _index, (field_name, param) in enumerate(parameters):
         default = param.default
         if (
             isinstance(default, (StringProviderDefinition, AbstractProvider, _Provide))
@@ -130,7 +130,12 @@ def _build_injection_plan(func: typing.Callable[..., typing.Any]) -> _InjectionP
             )
         elif isinstance(default, _Provide):
             annotation = resolved_hints.get(field_name, param.annotation)
-            if annotation is inspect.Parameter.empty or annotation is typing.Any or not isinstance(annotation, type):
+            if (
+                annotation is inspect.Parameter.empty
+                or annotation is typing.Any
+                or typing.get_origin(annotation) is not None
+                or not isinstance(annotation, type)
+            ):
                 msg = f"Type-based injection for {field_name!r} requires a concrete runtime type"
                 raise TypeError(msg)
             typed_parameters.append(
