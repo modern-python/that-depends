@@ -1067,6 +1067,32 @@ async def test_async_force_enter_context_for_scoped_resource() -> None:
         assert await _Container.p_app.resolve() is not None
 
 
+async def test_context_resource_context_async_cleans_up_after_exception() -> None:
+    events: list[str] = []
+
+    async def create_resource() -> typing.AsyncIterator[int]:
+        events.append("enter")
+        try:
+            yield 1
+        finally:
+            events.append("exit")
+
+    resource = providers.ContextResource(create_resource)
+
+    async def raise_in_resource_context() -> None:
+        async with resource.context_async():
+            assert await resource.resolve() == 1
+            msg = "expected"
+            raise RuntimeError(msg)
+
+    with pytest.raises(RuntimeError, match="expected"):
+        await raise_in_resource_context()
+
+    assert events == ["enter", "exit"]
+    with pytest.raises(RuntimeError, match="Context is not set"):
+        await resource.resolve()
+
+
 def test_sync_force_enter_context_for_scoped_resource() -> None:
     class _Container(BaseContainer):
         p_app = providers.ContextResource(create_sync_context_resource).with_config(scope=ContextScopes.APP)
@@ -1199,6 +1225,12 @@ def test_fetch_context_item_by_type() -> None:
 def test_fetch_context_item_raises() -> None:
     with pytest.raises(KeyError):
         fetch_context_item("s", raise_on_not_found=True)
+
+    with container_context(global_context={"present": None}):
+        assert fetch_context_item("present", default="fallback") is None
+        with pytest.raises(KeyError, match="Key `missing` not found"):
+            fetch_context_item("missing", raise_on_not_found=True)
+        assert fetch_context_item("missing", default="fallback") == "fallback"
 
 
 def test_context_scope_hash() -> None:
