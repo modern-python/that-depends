@@ -98,9 +98,7 @@ def test_build_injection_plan_stores_direct_provider_separately() -> None:
     plan = _build_injection_plan(_injected)
 
     assert _injected(provider) is provider
-    assert plan.direct_parameters == (
-        _DirectInjectionParameter("value", provider, provider._get_scope_context_init_order()),
-    )
+    assert plan.direct_parameters == (_DirectInjectionParameter("value", provider),)
 
 
 def test_build_injection_plan_stores_annotation_for_type_based_injection() -> None:
