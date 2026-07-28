@@ -140,7 +140,7 @@ async def test_selector_with_provider_selector_async() -> None:
     assert (await StringProviderSelectorContainer.selector.resolve()) == "Provider 1"
 
 
-def test_selector_registers_only_its_key_provider() -> None:
+def test_selector_exposes_only_its_key_provider_as_static_dependency() -> None:
     def _selector_key() -> typing.Iterator[str]:  # pragma: no cover
         yield "selected"
 
@@ -148,17 +148,12 @@ def test_selector_registers_only_its_key_provider() -> None:
     selected = providers.Object("value")
     selector = providers.Selector(selector_key, selected=selected)
 
-    selector._register_arguments()
-    selector._register_arguments()
-
-    assert selector in selector_key._children
-    assert selected not in selector._parents
-    assert selector._get_scope_context_init_order() == (selector_key,)
-    assert selector._get_scope_context_init_order() == (selector_key,)
+    assert selector.get_resolution_dependencies() == frozenset({selector_key})
+    assert selector.get_resolution_dependencies() == frozenset({selector_key})
 
     selector._deregister_arguments()
 
-    assert selector not in selector_key._children
+    assert selector.get_resolution_dependencies() == frozenset({selector_key})
 
 
 def test_selector_resolution_context_exposes_and_pins_selected_provider() -> None:
