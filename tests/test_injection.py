@@ -423,41 +423,37 @@ async def test_selector_selection_state_is_reset_after_resolution_error_async() 
 
 
 def test_overridden_selector_does_not_prepare_candidate_branch_sync() -> None:
-    def _resource() -> typing.Iterator[str]:
-        yield "candidate"
-
-    candidate = providers.ContextResource(_resource).with_config(scope=ContextScopes.INJECT)
+    override_value = 2
+    candidate = providers.ContextResource(_sync_creator).with_config(scope=ContextScopes.INJECT)
     selector = providers.Selector("candidate", candidate=candidate)
-    selector.override_sync("override")
+    selector.override_sync(override_value)
 
     @inject
-    def _injected(value: str = Provide[selector]) -> str:
+    def _injected(value: int = Provide[selector]) -> int:
         with pytest.raises(RuntimeError):
             candidate.resolve_sync()
         return value
 
     try:
-        assert _injected() == "override"
+        assert _injected() == override_value
     finally:
         selector.reset_override_sync()
 
 
 async def test_overridden_selector_does_not_prepare_candidate_branch_async() -> None:
-    async def _resource() -> typing.AsyncIterator[str]:
-        yield "candidate"
-
-    candidate = providers.ContextResource(_resource).with_config(scope=ContextScopes.INJECT)
+    override_value = 2
+    candidate = providers.ContextResource(_async_creator).with_config(scope=ContextScopes.INJECT)
     selector = providers.Selector("candidate", candidate=candidate)
-    selector.override_sync("override")
+    selector.override_sync(override_value)
 
     @inject
-    async def _injected(value: str = Provide[selector]) -> str:
+    async def _injected(value: int = Provide[selector]) -> int:
         with pytest.raises(RuntimeError):
             await candidate.resolve()
         return value
 
     try:
-        assert await _injected() == "override"
+        assert await _injected() == override_value
     finally:
         selector.reset_override_sync()
 
@@ -481,6 +477,134 @@ async def test_dynamic_provider_async_traversal_handles_duplicate_and_cyclic_dep
         "exit:dependency",
         "exit:root",
     ]
+
+
+def test_selector_branch_preparation_supports_every_provider_lookup_surface() -> None:
+    events: list[str] = []
+
+    def _resource() -> typing.Iterator[str]:
+        events.append("enter")
+        try:
+            yield "value"
+        finally:
+            events.append("exit")
+
+    selected = providers.ContextResource(_resource).with_config(scope=ContextScopes.INJECT)
+    selector = providers.Selector("selected", selected=selected).bind(str)
+
+    class _ResolutionSurfaceContainer(BaseContainer):
+        dynamic = selector
+
+    @inject
+    def _direct(value: str = Provide[selector]) -> str:
+        return value
+
+    @inject
+    def _string(value: str = Provide["_ResolutionSurfaceContainer.dynamic"]) -> str:
+        return value
+
+    @inject(container=_ResolutionSurfaceContainer)
+    def _typed(value: str = Provide()) -> str:
+        return value
+
+    assert _direct() == "value"
+    assert _string() == "value"
+    assert _typed() == "value"
+    assert events == ["enter", "exit", "enter", "exit", "enter", "exit"]
+
+
+def test_sync_generator_pins_dynamic_selection_without_resource_stack() -> None:
+    selection_count = 0
+
+    def _select() -> str:
+        nonlocal selection_count
+        selection_count += 1
+        return "one" if selection_count == 1 else "two"
+
+    selector = providers.Selector(_select, one=providers.Object("one"), two=providers.Object("two"))
+
+    @inject
+    def _injected(value: str = Provide[selector]) -> typing.Generator[str, None, None]:
+        yield value
+
+    assert next(_injected()) == "one"
+    assert selection_count == 1
+
+
+async def test_async_generator_pins_dynamic_selection_without_resource_stack() -> None:
+    selection_count = 0
+
+    def _select() -> str:
+        nonlocal selection_count
+        selection_count += 1
+        return "one" if selection_count == 1 else "two"
+
+    selector = providers.Selector(_select, one=providers.Object("one"), two=providers.Object("two"))
+
+    @inject
+    async def _injected(value: str = Provide[selector]) -> typing.AsyncGenerator[str, None]:
+        yield value
+
+    assert await anext(_injected()) == "one"
+    assert selection_count == 1
+
+
+def test_sync_generator_rejects_only_selected_context_resource_branch() -> None:
+    selected_key = "plain"
+    resource = providers.ContextResource(_sync_creator).with_config(scope=ContextScopes.INJECT)
+    selector = providers.Selector(
+        lambda: selected_key,
+        plain=providers.Object(1),
+        resource=resource,
+    )
+
+    @inject
+    def _injected(value: int = Provide[selector]) -> typing.Generator[int, None, None]:
+        yield value
+
+    assert next(_injected()) == 1
+
+    selected_key = "resource"
+    with pytest.raises(ContextProviderError):
+        next(_injected())
+
+
+async def test_async_generator_rejects_only_selected_context_resource_branch() -> None:
+    selected_key = "plain"
+    resource = providers.ContextResource(_async_creator).with_config(scope=ContextScopes.INJECT)
+    selector = providers.Selector(
+        lambda: selected_key,
+        plain=providers.Object(1),
+        resource=resource,
+    )
+
+    @inject
+    async def _injected(value: int = Provide[selector]) -> typing.AsyncGenerator[int, None]:
+        yield value
+
+    assert await anext(_injected()) == 1
+
+    selected_key = "resource"
+    with pytest.raises(ContextProviderError):
+        await anext(_injected())
+
+
+def test_selector_branch_preserves_context_resource_scope_filtering() -> None:
+    def _resource() -> typing.Iterator[str]:
+        yield "value"
+
+    resource = providers.ContextResource(_resource).with_config(scope=ContextScopes.REQUEST)
+    selector = providers.Selector("resource", resource=resource)
+
+    @inject(scope=ContextScopes.APP)
+    def _injected(value: str = Provide[selector]) -> str:
+        return value
+
+    with pytest.raises(RuntimeError):
+        _injected()
+
+    with resource.context_sync(force=True):
+        assert _injected() == "value"
 
 
 def test_sync_injection_stack_closes_entered_context_managers() -> None:
