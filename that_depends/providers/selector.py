@@ -1,7 +1,7 @@
 """Selection based providers."""
 
 import typing
-from contextlib import contextmanager
+from contextlib import asynccontextmanager, contextmanager
 from contextvars import ContextVar
 
 from typing_extensions import override
@@ -91,6 +91,34 @@ class Selector(ProviderWithArguments, AbstractProvider[T_co]):
             yield
         finally:
             self._selected_provider.reset(token)
+
+    @asynccontextmanager
+    @override
+    async def resolution_context(
+        self,
+    ) -> typing.AsyncIterator[typing.Collection[AbstractProvider[typing.Any]]]:
+        """Select and expose the active provider for one asynchronous resolution."""
+        if is_set(self._override):
+            yield ()
+            return
+
+        selected_provider = await self._select_provider()
+        with self._pin_selected_provider(selected_provider):
+            yield (selected_provider,)
+
+    @contextmanager
+    @override
+    def resolution_context_sync(
+        self,
+    ) -> typing.Iterator[typing.Collection[AbstractProvider[typing.Any]]]:
+        """Select and expose the active provider for one synchronous resolution."""
+        if is_set(self._override):
+            yield ()
+            return
+
+        selected_provider = self._select_provider_sync()
+        with self._pin_selected_provider(selected_provider):
+            yield (selected_provider,)
 
     @override
     async def resolve(self) -> T_co:

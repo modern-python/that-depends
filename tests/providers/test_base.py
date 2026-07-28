@@ -88,6 +88,25 @@ def test_register_with_mixed_items() -> None:
     assert parent in child_1._children, "Expected child_1._children to contain parent"
 
 
+def test_get_resolution_dependencies_registers_provider_arguments() -> None:
+    dependency = DummyProvider()
+    provider = Singleton(lambda value: value, dependency)
+
+    resolution_dependencies = provider.get_resolution_dependencies()
+
+    assert resolution_dependencies == frozenset({dependency})
+    assert isinstance(resolution_dependencies, frozenset)
+
+
+async def test_default_resolution_contexts_have_no_runtime_dependencies() -> None:
+    provider = DummyProvider()
+
+    async with provider.resolution_context() as async_dependencies:
+        assert async_dependencies == ()
+    with provider.resolution_context_sync() as sync_dependencies:
+        assert sync_dependencies == ()
+
+
 def test_invalidate_scope_init_order_handles_duplicate_descendants() -> None:
     root = DummyProvider()
     left = DummyProvider()

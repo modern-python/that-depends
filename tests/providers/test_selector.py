@@ -161,6 +161,29 @@ def test_selector_registers_only_its_key_provider() -> None:
     assert selector not in selector_key._children
 
 
+def test_selector_resolution_context_exposes_and_pins_selected_provider() -> None:
+    expected_selection_count = 2
+    selected_key = "one"
+    selection_count = 0
+    one = providers.Object("one")
+    two = providers.Object("two")
+
+    def _select() -> str:
+        nonlocal selection_count
+        selection_count += 1
+        return selected_key
+
+    selector = providers.Selector(_select, one=one, two=two)
+
+    with selector.resolution_context_sync() as dependencies:
+        assert dependencies == (one,)
+        selected_key = "two"
+        assert selector.resolve_sync() == "one"
+
+    assert selector.resolve_sync() == "two"
+    assert selection_count == expected_selection_count
+
+
 class InvalidSelectorContainer(BaseContainer):
     selector = providers.Selector(
         None,  # type: ignore[arg-type]
