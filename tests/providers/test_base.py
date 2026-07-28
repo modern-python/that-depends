@@ -119,13 +119,11 @@ def test_invalidate_scope_init_order_handles_duplicate_descendants() -> None:
     right.add_child_provider(shared)
 
     for provider in (root, left, right, shared):
-        provider._scope_context_init_order = ()
         provider._scope_init_order = ()
 
     root._invalidate_scope_init_order()
 
     for provider in (root, left, right, shared):
-        assert provider._scope_context_init_order is None
         assert provider._scope_init_order is None
 
 

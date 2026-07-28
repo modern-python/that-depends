@@ -95,7 +95,6 @@ class AbstractProvider(abc.ABC, typing.Generic[T_co]):
         self._children: set[AbstractProvider[typing.Any]] = set()
         self._parents: set[AbstractProvider[typing.Any]] = set()
         self._is_context_resource = False
-        self._scope_context_init_order: tuple[AbstractProvider[typing.Any], ...] | None = None
         self._scope_init_order: tuple[AbstractProvider[typing.Any], ...] | None = None
         self._override: typing.Any = UNSET
         self._bindings: set[type] = set()
@@ -166,7 +165,6 @@ class AbstractProvider(abc.ABC, typing.Generic[T_co]):
             if provider in visited:
                 continue
             visited.add(provider)
-            provider._scope_context_init_order = None  # noqa: SLF001
             provider._scope_init_order = None  # noqa: SLF001
             stack.extend(provider._children)  # noqa: SLF001
 
@@ -191,28 +189,6 @@ class AbstractProvider(abc.ABC, typing.Generic[T_co]):
 
         self._scope_init_order = tuple(ordered)
         return self._scope_init_order
-
-    def _get_scope_context_init_order(self) -> tuple["AbstractProvider[typing.Any]", ...]:
-        if self._scope_context_init_order is not None:
-            return self._scope_context_init_order
-
-        if isinstance(self, ProviderWithArguments):
-            self._register_arguments()
-
-        ordered: list[AbstractProvider[typing.Any]] = []
-        seen: set[AbstractProvider[typing.Any]] = set()
-
-        for parent in self._parents:
-            for ancestor in parent._get_scope_context_init_order():  # noqa: SLF001
-                if ancestor not in seen:
-                    seen.add(ancestor)
-                    ordered.append(ancestor)
-
-        if self._is_context_resource and self not in seen:
-            ordered.append(self)
-
-        self._scope_context_init_order = tuple(ordered)
-        return self._scope_context_init_order
 
     def add_child_provider(self, provider: "AbstractProvider[typing.Any]") -> None:
         """Add a child provider to the current provider.
