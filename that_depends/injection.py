@@ -31,6 +31,7 @@ _PROVIDE_MESSAGE: typing.Final[str] = (
 class _DirectInjectionParameter(typing.NamedTuple):
     field_name: str
     provider: AbstractProvider[typing.Any]
+    static_context_resources: tuple[ContextResource[typing.Any], ...] | None
 
 
 class _StringInjectionParameter(typing.NamedTuple):
@@ -80,6 +81,9 @@ class _SyncInjectionStack:
         self._exit_states.append(_ContextManagerExitState(context_manager))
         return value
 
+    def push_exit_state(self, exit_state: "_SupportsClose") -> None:
+        self._exit_states.append(exit_state)
+
 
 class _SupportsClose(typing.Protocol):
     def close(self) -> None: ...
@@ -93,6 +97,32 @@ class _ContextManagerExitState:
 
     def close(self) -> None:
         self._context_manager.__exit__(None, None, None)
+
+
+@functools.cache
+def _get_static_context_resources(
+    provider: AbstractProvider[typing.Any],
+) -> tuple[ContextResource[typing.Any], ...] | None:
+    resources: list[ContextResource[typing.Any]] = []
+    visited: set[AbstractProvider[typing.Any]] = set()
+
+    def _visit(dependency: AbstractProvider[typing.Any]) -> bool:
+        if dependency in visited:
+            return True
+        visited.add(dependency)
+
+        if (
+            type(dependency).resolution_context is not AbstractProvider.resolution_context
+            or type(dependency).resolution_context_sync is not AbstractProvider.resolution_context_sync
+        ):
+            return False
+        if not all(_visit(parent) for parent in dependency.get_resolution_dependencies()):
+            return False
+        if isinstance(dependency, ContextResource):
+            resources.append(dependency)
+        return True
+
+    return tuple(resources) if _visit(provider) else None
 
 
 @functools.cache
@@ -126,6 +156,7 @@ def _build_injection_plan(func: typing.Callable[..., typing.Any]) -> _InjectionP
                 _DirectInjectionParameter(
                     field_name,
                     default,
+                    _get_static_context_resources(default),
                 )
             )
         elif isinstance(default, _Provide):
@@ -295,12 +326,22 @@ async def _resolve_arguments_async(
         if direct_parameter.field_name in provided_names:
             continue
 
-        kwargs[direct_parameter.field_name] = await _resolve_provider_with_scope_async(
-            direct_parameter.provider,
-            scope,
-            stack,
-            context_providers,
-        )
+        if direct_parameter.static_context_resources is None:
+            kwargs[direct_parameter.field_name] = await _resolve_provider_with_scope_async(
+                direct_parameter.provider,
+                scope,
+                stack,
+                context_providers,
+            )
+        else:
+            if direct_parameter.static_context_resources:
+                await _prepare_static_context_resources_async(
+                    direct_parameter.static_context_resources,
+                    scope,
+                    stack,
+                    context_providers,
+                )
+            kwargs[direct_parameter.field_name] = await direct_parameter.provider.resolve()
 
     for string_parameter in plan.string_parameters:
         if string_parameter.field_name in provided_names:
@@ -344,12 +385,22 @@ def _resolve_arguments_sync(
         if direct_parameter.field_name in provided_names:
             continue
 
-        kwargs[direct_parameter.field_name] = _resolve_provider_with_scope_sync(
-            direct_parameter.provider,
-            scope,
-            stack,
-            context_providers,
-        )
+        if direct_parameter.static_context_resources is None:
+            kwargs[direct_parameter.field_name] = _resolve_provider_with_scope_sync(
+                direct_parameter.provider,
+                scope,
+                stack,
+                context_providers,
+            )
+        else:
+            if direct_parameter.static_context_resources:
+                _prepare_static_context_resources_sync(
+                    direct_parameter.static_context_resources,
+                    scope,
+                    stack,
+                    context_providers,
+                )
+            kwargs[direct_parameter.field_name] = direct_parameter.provider.resolve_sync()
 
     for string_parameter in plan.string_parameters:
         if string_parameter.field_name in provided_names:
@@ -454,10 +505,37 @@ async def _resolve_provider_with_scope_async(
         ContextProviderError: if the stack is None.
 
     """
+    static_resources = _get_static_context_resources(provider)
+    if static_resources is not None:
+        if static_resources:
+            await _prepare_static_context_resources_async(static_resources, scope, stack, providers)
+        return await provider.resolve()
+
     async with AsyncExitStack() as resolution_stack:
         visits = _ProviderVisits(set(), providers)
         await _prepare_provider_contexts_async(provider, scope, stack, resolution_stack, visits)
         return await provider.resolve()
+
+
+async def _prepare_static_context_resources_async(
+    resources: tuple[ContextResource[typing.Any], ...],
+    scope: ContextScope | None,
+    stack: AsyncExitStack | None,
+    initialized: set[AbstractProvider[typing.Any]],
+) -> None:
+    if scope is None:
+        return
+    for resource in resources:
+        if resource in initialized or resource._scope not in (ContextScopes.ANY, scope):  # noqa: SLF001
+            continue
+        if stack is None:
+            msg = (
+                f"No stack exists, cannot initialize context for {resource} using scope {scope}.\n"
+                f"Note: @inject cannot initialize context for ContextResources when wrapping a generator."
+            )
+            raise ContextProviderError(msg)
+        initialized.add(resource)
+        await stack.enter_async_context(resource.context_async(force=True))
 
 
 async def _prepare_provider_contexts_async(
@@ -512,10 +590,38 @@ def _resolve_provider_with_scope_sync(
     stack: _SyncInjectionStack | None,
     providers: set[AbstractProvider[typing.Any]],
 ) -> T:
+    static_resources = _get_static_context_resources(provider)
+    if static_resources is not None:
+        if static_resources:
+            _prepare_static_context_resources_sync(static_resources, scope, stack, providers)
+        return provider.resolve_sync()
+
     with ExitStack() as resolution_stack:
         visits = _ProviderVisits(set(), providers)
         _prepare_provider_contexts_sync(provider, scope, stack, resolution_stack, visits)
         return provider.resolve_sync()
+
+
+def _prepare_static_context_resources_sync(
+    resources: tuple[ContextResource[typing.Any], ...],
+    scope: ContextScope | None,
+    stack: _SyncInjectionStack | None,
+    initialized: set[AbstractProvider[typing.Any]],
+) -> None:
+    if scope is None:
+        return
+    for resource in resources:
+        if resource in initialized or resource._scope not in (ContextScopes.ANY, scope):  # noqa: SLF001
+            continue
+        if stack is None:
+            msg = (
+                f"No stack exists, cannot initialize context for {resource} using scope {scope}.\n"
+                f"Note: @inject cannot initialize context for ContextResources when wrapping a generator."
+            )
+            raise ContextProviderError(msg)
+        initialized.add(resource)
+        _, exit_state = resource._enter_injection_context_sync(force=True)  # noqa: SLF001
+        stack.push_exit_state(exit_state)
 
 
 def _prepare_provider_contexts_sync(

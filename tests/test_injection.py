@@ -513,6 +513,19 @@ def test_selector_branch_preparation_supports_every_provider_lookup_surface() ->
     assert events == ["enter", "exit", "enter", "exit", "enter", "exit"]
 
 
+def test_static_resolution_fast_path_handles_dependency_cycle() -> None:
+    root = providers.Object("value")
+    dependency = providers.Object("unused")
+    root._register((dependency,))
+    dependency._register((root,))
+
+    @inject
+    def _injected(value: str = Provide[root]) -> str:
+        return value
+
+    assert _injected() == "value"
+
+
 def test_sync_generator_pins_dynamic_selection_without_resource_stack() -> None:
     selection_count = 0
 
@@ -634,7 +647,7 @@ def test_build_injection_plan_stores_direct_provider_separately() -> None:
     plan = _build_injection_plan(_injected)
 
     assert _injected(provider) is provider
-    assert plan.direct_parameters == (_DirectInjectionParameter("value", provider),)
+    assert plan.direct_parameters == (_DirectInjectionParameter("value", provider, ()),)
 
 
 def test_build_injection_plan_stores_annotation_for_type_based_injection() -> None:
