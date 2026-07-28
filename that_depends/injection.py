@@ -28,10 +28,18 @@ _PROVIDE_MESSAGE: typing.Final[str] = (
 )
 
 
+class _RuntimeContextResources:
+    """Mark a provider graph whose context resources require runtime discovery."""
+
+
+_RUNTIME_CONTEXT_RESOURCES = _RuntimeContextResources()
+_ContextResources = tuple[ContextResource[typing.Any], ...] | _RuntimeContextResources
+
+
 class _DirectInjectionParameter(typing.NamedTuple):
     field_name: str
     provider: AbstractProvider[typing.Any]
-    static_context_resources: tuple[ContextResource[typing.Any], ...] | None
+    context_resources: _ContextResources
 
 
 class _StringInjectionParameter(typing.NamedTuple):
@@ -110,10 +118,10 @@ class _ContextManagerExitState:
 @functools.cache
 def _get_static_context_resources(
     provider: AbstractProvider[typing.Any],
-) -> tuple[ContextResource[typing.Any], ...] | None:
+) -> _ContextResources:
     """Collect context resources from a provider's static dependency graph.
 
-    The result is cached with the injection plan. A ``None`` result signals that at
+    The result is cached with the injection plan. A private marker signals that at
     least one provider overrides a resolution-context hook, so injection must walk
     the graph at runtime to discover dynamic dependencies.
 
@@ -121,8 +129,8 @@ def _get_static_context_resources(
         provider: Root provider whose dependency graph should be inspected.
 
     Returns:
-        The statically reachable context resources, or ``None`` when the graph
-        requires runtime traversal.
+        The statically reachable context resources, or a marker requesting runtime
+        traversal.
 
     """
     resources: list[ContextResource[typing.Any]] = []
@@ -154,7 +162,7 @@ def _get_static_context_resources(
             resources.append(dependency)
         return True
 
-    return tuple(resources) if _visit(provider) else None
+    return tuple(resources) if _visit(provider) else _RUNTIME_CONTEXT_RESOURCES
 
 
 @functools.cache
@@ -358,22 +366,23 @@ async def _resolve_arguments_async(
         if direct_parameter.field_name in provided_names:
             continue
 
-        if direct_parameter.static_context_resources is None:
-            kwargs[direct_parameter.field_name] = await _resolve_provider_with_scope_async(
-                direct_parameter.provider,
-                scope,
-                stack,
-                context_providers,
-            )
-        else:
-            if direct_parameter.static_context_resources:
-                await _prepare_static_context_resources_async(
-                    direct_parameter.static_context_resources,
+        context_resources = direct_parameter.context_resources
+        if context_resources:
+            if context_resources is _RUNTIME_CONTEXT_RESOURCES:
+                kwargs[direct_parameter.field_name] = await _resolve_provider_with_scope_async(
+                    direct_parameter.provider,
                     scope,
                     stack,
                     context_providers,
                 )
-            kwargs[direct_parameter.field_name] = await direct_parameter.provider.resolve()
+                continue
+            await _prepare_static_context_resources_async(
+                typing.cast(tuple[ContextResource[typing.Any], ...], context_resources),
+                scope,
+                stack,
+                context_providers,
+            )
+        kwargs[direct_parameter.field_name] = await direct_parameter.provider.resolve()
 
     for string_parameter in plan.string_parameters:
         if string_parameter.field_name in provided_names:
@@ -417,22 +426,23 @@ def _resolve_arguments_sync(
         if direct_parameter.field_name in provided_names:
             continue
 
-        if direct_parameter.static_context_resources is None:
-            kwargs[direct_parameter.field_name] = _resolve_provider_with_scope_sync(
-                direct_parameter.provider,
-                scope,
-                stack,
-                context_providers,
-            )
-        else:
-            if direct_parameter.static_context_resources:
-                _prepare_static_context_resources_sync(
-                    direct_parameter.static_context_resources,
+        context_resources = direct_parameter.context_resources
+        if context_resources:
+            if context_resources is _RUNTIME_CONTEXT_RESOURCES:
+                kwargs[direct_parameter.field_name] = _resolve_provider_with_scope_sync(
+                    direct_parameter.provider,
                     scope,
                     stack,
                     context_providers,
                 )
-            kwargs[direct_parameter.field_name] = direct_parameter.provider.resolve_sync()
+                continue
+            _prepare_static_context_resources_sync(
+                typing.cast(tuple[ContextResource[typing.Any], ...], context_resources),
+                scope,
+                stack,
+                context_providers,
+            )
+        kwargs[direct_parameter.field_name] = direct_parameter.provider.resolve_sync()
 
     for string_parameter in plan.string_parameters:
         if string_parameter.field_name in provided_names:
@@ -542,9 +552,14 @@ async def _resolve_provider_with_scope_async(
 
     """
     static_resources = _get_static_context_resources(provider)
-    if static_resources is not None:
+    if static_resources is not _RUNTIME_CONTEXT_RESOURCES:
         if static_resources:
-            await _prepare_static_context_resources_async(static_resources, scope, stack, providers)
+            await _prepare_static_context_resources_async(
+                typing.cast(tuple[ContextResource[typing.Any], ...], static_resources),
+                scope,
+                stack,
+                providers,
+            )
         return await provider.resolve()
 
     async with AsyncExitStack() as resolution_stack:
@@ -680,9 +695,14 @@ def _resolve_provider_with_scope_sync(
 
     """
     static_resources = _get_static_context_resources(provider)
-    if static_resources is not None:
+    if static_resources is not _RUNTIME_CONTEXT_RESOURCES:
         if static_resources:
-            _prepare_static_context_resources_sync(static_resources, scope, stack, providers)
+            _prepare_static_context_resources_sync(
+                typing.cast(tuple[ContextResource[typing.Any], ...], static_resources),
+                scope,
+                stack,
+                providers,
+            )
         return provider.resolve_sync()
 
     with ExitStack() as resolution_stack:
