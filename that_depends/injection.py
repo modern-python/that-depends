@@ -52,6 +52,14 @@ class _InjectionPlan(typing.NamedTuple):
 
 
 class _ProviderVisits(typing.NamedTuple):
+    """Track traversal state shared by one provider resolution.
+
+    Attributes:
+        traversed: Providers whose dependency contexts have already been visited.
+        initialized_contexts: Context resources already entered by the injection call.
+
+    """
+
     traversed: set[AbstractProvider[typing.Any]]
     initialized_contexts: set[AbstractProvider[typing.Any]]
 
@@ -103,10 +111,34 @@ class _ContextManagerExitState:
 def _get_static_context_resources(
     provider: AbstractProvider[typing.Any],
 ) -> tuple[ContextResource[typing.Any], ...] | None:
+    """Collect context resources from a provider's static dependency graph.
+
+    The result is cached with the injection plan. A ``None`` result signals that at
+    least one provider overrides a resolution-context hook, so injection must walk
+    the graph at runtime to discover dynamic dependencies.
+
+    Args:
+        provider: Root provider whose dependency graph should be inspected.
+
+    Returns:
+        The statically reachable context resources, or ``None`` when the graph
+        requires runtime traversal.
+
+    """
     resources: list[ContextResource[typing.Any]] = []
     visited: set[AbstractProvider[typing.Any]] = set()
 
     def _visit(dependency: AbstractProvider[typing.Any]) -> bool:
+        """Visit a dependency while the graph remains statically discoverable.
+
+        Args:
+            dependency: Provider whose static dependencies should be inspected.
+
+        Returns:
+            Whether the dependency and all of its descendants use the default
+            resolution-context hooks.
+
+        """
         if dependency in visited:
             return True
         visited.add(dependency)
@@ -488,21 +520,25 @@ async def _resolve_provider_with_scope_async(
     stack: AsyncExitStack | None,
     providers: set[AbstractProvider[typing.Any]],
 ) -> T:
-    """Resolve a provider with given scope and stack.
+    """Resolve a provider and initialize its matching asynchronous resources.
 
-    Use `stack=None` to ensure ContextResource providers are not allowed.
+    Static graphs use their cached resource list. Graphs with runtime dependencies
+    are traversed while their resolution contexts remain active. Passing ``None``
+    as the stack explicitly disallows context-resource initialization.
 
     Args:
-        provider: provider to resolve.
-        scope: scope to resolve provider in.
-        stack: stack to use for context resources.
-        providers: providers traversed.
+        provider: Provider to resolve.
+        scope: Scope in which matching context resources should be initialized.
+        stack: Stack that owns initialized context resources, or ``None`` to reject
+            resources that require initialization.
+        providers: Context resources already initialized by the injection call.
 
     Returns:
-        resolved value for the provider.
+        The value resolved by the provider.
 
     Raises:
-        ContextProviderError: if the stack is None.
+        ContextProviderError: If a matching context resource requires initialization
+            but no stack was supplied.
 
     """
     static_resources = _get_static_context_resources(provider)
@@ -523,6 +559,19 @@ async def _prepare_static_context_resources_async(
     stack: AsyncExitStack | None,
     initialized: set[AbstractProvider[typing.Any]],
 ) -> None:
+    """Enter statically discovered asynchronous context resources once.
+
+    Args:
+        resources: Context resources reachable from the root provider.
+        scope: Scope in which matching resources should be initialized.
+        stack: Stack that owns initialized resources, or ``None`` to reject them.
+        initialized: Context resources already entered by the injection call.
+
+    Raises:
+        ContextProviderError: If a matching resource requires initialization but no
+            stack was supplied.
+
+    """
     if scope is None:
         return
     for resource in resources:
@@ -545,6 +594,25 @@ async def _prepare_provider_contexts_async(
     resolution_stack: AsyncExitStack,
     visits: _ProviderVisits,
 ) -> None:
+    """Prepare one provider's asynchronous static and runtime dependencies.
+
+    Dependencies are visited before the provider itself. Resolution contexts are
+    kept open on ``resolution_stack`` until the root provider has resolved, while
+    context resources live on ``resource_stack`` for the entire injection call.
+
+    Args:
+        provider: Provider whose dependency contexts should be prepared.
+        scope: Scope in which matching context resources should be initialized.
+        resource_stack: Stack that owns context resources, or ``None`` to reject
+            resources that require initialization.
+        resolution_stack: Stack that owns provider resolution contexts.
+        visits: Traversal and resource-initialization state for this resolution.
+
+    Raises:
+        ContextProviderError: If a matching context resource requires initialization
+            but no resource stack was supplied.
+
+    """
     if provider in visits.traversed:
         return
     visits.traversed.add(provider)
@@ -590,6 +658,27 @@ def _resolve_provider_with_scope_sync(
     stack: _SyncInjectionStack | None,
     providers: set[AbstractProvider[typing.Any]],
 ) -> T:
+    """Resolve a provider and initialize its matching synchronous resources.
+
+    Static graphs use their cached resource list. Graphs with runtime dependencies
+    are traversed while their resolution contexts remain active. Passing ``None``
+    as the stack explicitly disallows context-resource initialization.
+
+    Args:
+        provider: Provider to resolve.
+        scope: Scope in which matching context resources should be initialized.
+        stack: Stack that owns initialized context resources, or ``None`` to reject
+            resources that require initialization.
+        providers: Context resources already initialized by the injection call.
+
+    Returns:
+        The value resolved by the provider.
+
+    Raises:
+        ContextProviderError: If a matching context resource requires initialization
+            but no stack was supplied.
+
+    """
     static_resources = _get_static_context_resources(provider)
     if static_resources is not None:
         if static_resources:
@@ -608,6 +697,19 @@ def _prepare_static_context_resources_sync(
     stack: _SyncInjectionStack | None,
     initialized: set[AbstractProvider[typing.Any]],
 ) -> None:
+    """Enter statically discovered synchronous context resources once.
+
+    Args:
+        resources: Context resources reachable from the root provider.
+        scope: Scope in which matching resources should be initialized.
+        stack: Stack that owns initialized resources, or ``None`` to reject them.
+        initialized: Context resources already entered by the injection call.
+
+    Raises:
+        ContextProviderError: If a matching resource requires initialization but no
+            stack was supplied.
+
+    """
     if scope is None:
         return
     for resource in resources:
@@ -631,6 +733,25 @@ def _prepare_provider_contexts_sync(
     resolution_stack: ExitStack,
     visits: _ProviderVisits,
 ) -> None:
+    """Prepare one provider's synchronous static and runtime dependencies.
+
+    Dependencies are visited before the provider itself. Resolution contexts are
+    kept open on ``resolution_stack`` until the root provider has resolved, while
+    context resources live on ``resource_stack`` for the entire injection call.
+
+    Args:
+        provider: Provider whose dependency contexts should be prepared.
+        scope: Scope in which matching context resources should be initialized.
+        resource_stack: Stack that owns context resources, or ``None`` to reject
+            resources that require initialization.
+        resolution_stack: Stack that owns provider resolution contexts.
+        visits: Traversal and resource-initialization state for this resolution.
+
+    Raises:
+        ContextProviderError: If a matching context resource requires initialization
+            but no resource stack was supplied.
+
+    """
     if provider in visits.traversed:
         return
     visits.traversed.add(provider)
