@@ -264,6 +264,225 @@ def test_dynamic_provider_traversal_handles_duplicate_and_cyclic_dependencies() 
     ]
 
 
+def test_selector_injection_prepares_only_active_branch_and_reselects_in_body_sync() -> None:
+    expected_selection_count = 2
+    events: list[str] = []
+    selection_count = 0
+
+    def _resource(name: str) -> typing.Iterator[str]:
+        events.append(f"enter:{name}")
+        try:
+            yield name
+        finally:
+            events.append(f"exit:{name}")
+
+    def _select() -> str:
+        nonlocal selection_count
+        selection_count += 1
+        return "selected"
+
+    selected = providers.ContextResource(_resource, "selected").with_config(scope=ContextScopes.INJECT)
+    unselected = providers.ContextResource(_resource, "unselected").with_config(scope=ContextScopes.INJECT)
+    selector = providers.Selector(_select, selected=selected, unselected=unselected)
+
+    @inject
+    def _injected(value: str = Provide[selector]) -> str:
+        assert selection_count == 1
+        assert selector.resolve_sync() == "selected"
+        with pytest.raises(RuntimeError):
+            unselected.resolve_sync()
+        return value
+
+    assert _injected() == "selected"
+    assert selection_count == expected_selection_count
+    assert events == ["enter:selected", "exit:selected"]
+
+
+async def test_selector_injection_prepares_only_active_branch_and_reselects_in_body_async() -> None:
+    expected_selection_count = 2
+    events: list[str] = []
+    selection_count = 0
+
+    async def _resource(name: str) -> typing.AsyncIterator[str]:
+        events.append(f"enter:{name}")
+        try:
+            yield name
+        finally:
+            events.append(f"exit:{name}")
+
+    def _select() -> str:
+        nonlocal selection_count
+        selection_count += 1
+        return "selected"
+
+    selected = providers.ContextResource(_resource, "selected").with_config(scope=ContextScopes.INJECT)
+    unselected = providers.ContextResource(_resource, "unselected").with_config(scope=ContextScopes.INJECT)
+    selector = providers.Selector(_select, selected=selected, unselected=unselected)
+
+    @inject
+    async def _injected(value: str = Provide[selector]) -> str:
+        assert selection_count == 1
+        assert await selector.resolve() == "selected"
+        with pytest.raises(RuntimeError):
+            await unselected.resolve()
+        return value
+
+    assert await _injected() == "selected"
+    assert selection_count == expected_selection_count
+    assert events == ["enter:selected", "exit:selected"]
+
+
+def test_nested_selectors_prepare_the_innermost_selected_branch() -> None:
+    selection_events: list[str] = []
+
+    def _resource() -> typing.Iterator[str]:
+        yield "value"
+
+    def _select_outer() -> str:
+        selection_events.append("outer")
+        return "inner"
+
+    def _select_inner() -> str:
+        selection_events.append("inner")
+        return "resource"
+
+    resource = providers.ContextResource(_resource).with_config(scope=ContextScopes.INJECT)
+    inner = providers.Selector(_select_inner, resource=resource)
+    outer = providers.Selector(_select_outer, inner=inner, unused=providers.Object("unused"))
+
+    @inject
+    def _injected(value: str = Provide[outer]) -> str:
+        return value
+
+    assert _injected() == "value"
+    assert selection_events == ["outer", "inner"]
+
+
+def test_selector_selection_state_is_reset_after_resolution_error_sync() -> None:
+    expected_selection_count = 2
+    selected_key = "failing"
+    selection_count = 0
+
+    def _select() -> str:
+        nonlocal selection_count
+        selection_count += 1
+        return selected_key
+
+    def _fail() -> typing.NoReturn:
+        msg = "resolution failed"
+        raise RuntimeError(msg)
+
+    selector = providers.Selector[str](
+        _select,
+        failing=providers.Factory(_fail),
+        successful=providers.Object("value"),
+    )
+
+    @inject
+    def _injected(value: str = Provide[selector]) -> str:
+        return value
+
+    with pytest.raises(RuntimeError, match="resolution failed"):
+        _injected()
+
+    selected_key = "successful"
+    assert _injected() == "value"
+    assert selection_count == expected_selection_count
+
+
+async def test_selector_selection_state_is_reset_after_resolution_error_async() -> None:
+    expected_selection_count = 2
+    selected_key = "failing"
+    selection_count = 0
+
+    def _select() -> str:
+        nonlocal selection_count
+        selection_count += 1
+        return selected_key
+
+    async def _fail() -> typing.NoReturn:
+        msg = "resolution failed"
+        raise RuntimeError(msg)
+
+    selector = providers.Selector[str](
+        _select,
+        failing=providers.AsyncFactory(_fail),
+        successful=providers.Object("value"),
+    )
+
+    @inject
+    async def _injected(value: str = Provide[selector]) -> str:
+        return value
+
+    with pytest.raises(RuntimeError, match="resolution failed"):
+        await _injected()
+
+    selected_key = "successful"
+    assert await _injected() == "value"
+    assert selection_count == expected_selection_count
+
+
+def test_overridden_selector_does_not_prepare_candidate_branch_sync() -> None:
+    def _resource() -> typing.Iterator[str]:
+        yield "candidate"
+
+    candidate = providers.ContextResource(_resource).with_config(scope=ContextScopes.INJECT)
+    selector = providers.Selector("candidate", candidate=candidate)
+    selector.override_sync("override")
+
+    @inject
+    def _injected(value: str = Provide[selector]) -> str:
+        with pytest.raises(RuntimeError):
+            candidate.resolve_sync()
+        return value
+
+    try:
+        assert _injected() == "override"
+    finally:
+        selector.reset_override_sync()
+
+
+async def test_overridden_selector_does_not_prepare_candidate_branch_async() -> None:
+    async def _resource() -> typing.AsyncIterator[str]:
+        yield "candidate"
+
+    candidate = providers.ContextResource(_resource).with_config(scope=ContextScopes.INJECT)
+    selector = providers.Selector("candidate", candidate=candidate)
+    selector.override_sync("override")
+
+    @inject
+    async def _injected(value: str = Provide[selector]) -> str:
+        with pytest.raises(RuntimeError):
+            await candidate.resolve()
+        return value
+
+    try:
+        assert await _injected() == "override"
+    finally:
+        selector.reset_override_sync()
+
+
+async def test_dynamic_provider_async_traversal_handles_duplicate_and_cyclic_dependencies() -> None:
+    events: list[str] = []
+    root = _TestDynamicProvider("root", events)
+    dependency = _TestDynamicProvider("dependency", events)
+    root.set_runtime_dependencies(root, dependency, dependency)
+    dependency.set_runtime_dependencies(root)
+
+    @inject
+    async def _injected(value: str = Provide[root]) -> str:
+        return value
+
+    assert await _injected() == "root"
+    assert events == [
+        "enter:root",
+        "enter:dependency",
+        "resolve:root",
+        "exit:dependency",
+        "exit:root",
+    ]
+
+
 def test_sync_injection_stack_closes_entered_context_managers() -> None:
     events: list[str] = []
 
