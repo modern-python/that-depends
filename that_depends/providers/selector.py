@@ -19,7 +19,9 @@ class Selector(ProviderWithArguments, AbstractProvider[T_co]):
 
     This class allows you to dynamically select and resolve one of several
     named providers at runtime. The provider key is determined by a
-    user-supplied selector function.
+    user-supplied selector function. During injection, only the selected
+    provider branch is prepared. That selection remains stable for one root
+    provider resolution and is evaluated again by later resolutions.
 
     Examples:
         ```python
