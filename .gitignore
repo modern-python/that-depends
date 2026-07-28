@@ -21,3 +21,4 @@ dist/
 .venv
 uv.lock
 .agents
+site
