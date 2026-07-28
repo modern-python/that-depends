@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager, contextmanager
 from unittest.mock import Mock
 
 import pytest
+from typing_extensions import override
 
 from tests import container
 from that_depends import (
@@ -42,6 +43,87 @@ def _sync_creator() -> typing.Iterator[int]:
     yield 1
 
 
+class _TestDynamicProvider(providers.AbstractProvider[str]):
+    """A third-party-style provider with dependencies chosen at resolution time."""
+
+    def __init__(
+        self,
+        name: str,
+        events: list[str],
+        *,
+        static_dependencies: typing.Collection[providers.AbstractProvider[typing.Any]] = (),
+        delegate: providers.AbstractProvider[str] | None = None,
+    ) -> None:
+        super().__init__()
+        self._name = name
+        self._events = events
+        self._static_dependencies = tuple(static_dependencies)
+        self._runtime_dependencies: tuple[providers.AbstractProvider[typing.Any], ...] = (
+            (delegate,) if delegate is not None else ()
+        )
+        self._delegate = delegate
+        self._active = False
+
+    def set_runtime_dependencies(self, *dependencies: providers.AbstractProvider[typing.Any]) -> None:
+        self._runtime_dependencies = dependencies
+
+    @override
+    def get_resolution_dependencies(self) -> typing.Collection[providers.AbstractProvider[typing.Any]]:
+        return self._static_dependencies
+
+    @asynccontextmanager
+    @override
+    async def resolution_context(
+        self,
+    ) -> typing.AsyncIterator[typing.Collection[providers.AbstractProvider[typing.Any]]]:
+        self._events.append(f"enter:{self._name}")
+        self._active = True
+        try:
+            yield self._runtime_dependencies
+        finally:
+            self._active = False
+            self._events.append(f"exit:{self._name}")
+
+    @contextmanager
+    @override
+    def resolution_context_sync(
+        self,
+    ) -> typing.Iterator[typing.Collection[providers.AbstractProvider[typing.Any]]]:
+        self._events.append(f"enter:{self._name}")
+        self._active = True
+        try:
+            yield self._runtime_dependencies
+        finally:
+            self._active = False
+            self._events.append(f"exit:{self._name}")
+
+    @override
+    async def resolve(self) -> str:
+        assert self._active
+        self._events.append(f"resolve:{self._name}")
+        static_value = await self._resolve_static_dependency()
+        delegate_value = await self._delegate.resolve() if self._delegate is not None else self._name
+        return f"{static_value}:{delegate_value}" if static_value is not None else delegate_value
+
+    @override
+    def resolve_sync(self) -> str:
+        assert self._active
+        self._events.append(f"resolve:{self._name}")
+        static_value = self._resolve_static_dependency_sync()
+        delegate_value = self._delegate.resolve_sync() if self._delegate is not None else self._name
+        return f"{static_value}:{delegate_value}" if static_value is not None else delegate_value
+
+    async def _resolve_static_dependency(self) -> typing.Any:  # noqa: ANN401
+        if not self._static_dependencies:
+            return None
+        return await next(iter(self._static_dependencies)).resolve()
+
+    def _resolve_static_dependency_sync(self) -> typing.Any:  # noqa: ANN401
+        if not self._static_dependencies:
+            return None
+        return next(iter(self._static_dependencies)).resolve_sync()
+
+
 @inject
 async def test_injection(
     fixture_one: int,
@@ -69,6 +151,117 @@ async def test_injection_with_overriding() -> None:
     await inner(arg1=True, arg2=container.SimpleFactory(dep1="1", dep2=2))
     await inner(True, container.SimpleFactory(dep1="1", dep2=2))
     await inner(True, arg2=container.SimpleFactory(dep1="1", dep2=2))
+
+
+def test_custom_dynamic_provider_prepares_static_and_runtime_dependencies_sync() -> None:
+    events: list[str] = []
+
+    def _resource(value: str) -> typing.Iterator[str]:
+        events.append(f"resource-enter:{value}")
+        try:
+            yield value
+        finally:
+            events.append(f"resource-exit:{value}")
+
+    static = providers.ContextResource(_resource, "static").with_config(scope=ContextScopes.INJECT)
+    runtime = providers.ContextResource(_resource, "runtime").with_config(scope=ContextScopes.INJECT)
+    dynamic = _TestDynamicProvider("dynamic", events, static_dependencies=(static,), delegate=runtime)
+
+    @inject
+    def _injected(value: str = Provide[dynamic]) -> str:
+        events.append("body")
+        assert static.resolve_sync() == "static"
+        assert runtime.resolve_sync() == "runtime"
+        return value
+
+    assert _injected() == "static:runtime"
+    assert events == [
+        "enter:dynamic",
+        "resolve:dynamic",
+        "resource-enter:static",
+        "resource-enter:runtime",
+        "exit:dynamic",
+        "body",
+        "resource-exit:runtime",
+        "resource-exit:static",
+    ]
+
+
+async def test_custom_dynamic_provider_prepares_static_and_runtime_dependencies_async() -> None:
+    events: list[str] = []
+
+    async def _resource(value: str) -> typing.AsyncIterator[str]:
+        events.append(f"resource-enter:{value}")
+        try:
+            yield value
+        finally:
+            events.append(f"resource-exit:{value}")
+
+    static = providers.ContextResource(_resource, "static").with_config(scope=ContextScopes.INJECT)
+    runtime = providers.ContextResource(_resource, "runtime").with_config(scope=ContextScopes.INJECT)
+    dynamic = _TestDynamicProvider("dynamic", events, static_dependencies=(static,), delegate=runtime)
+
+    @inject
+    async def _injected(value: str = Provide[dynamic]) -> str:
+        events.append("body")
+        assert await static.resolve() == "static"
+        assert await runtime.resolve() == "runtime"
+        return value
+
+    assert await _injected() == "static:runtime"
+    assert events == [
+        "enter:dynamic",
+        "resolve:dynamic",
+        "resource-enter:static",
+        "resource-enter:runtime",
+        "exit:dynamic",
+        "body",
+        "resource-exit:runtime",
+        "resource-exit:static",
+    ]
+
+
+def test_nested_custom_dynamic_providers_remain_active_until_root_resolution() -> None:
+    events: list[str] = []
+    leaf = providers.Object("value")
+    inner = _TestDynamicProvider("inner", events, delegate=leaf)
+    outer = _TestDynamicProvider("outer", events, delegate=inner)
+    root = providers.Factory(lambda value: value, outer.cast)
+
+    @inject
+    def _injected(value: str = Provide[root]) -> str:
+        return value
+
+    assert _injected() == "value"
+    assert events == [
+        "enter:outer",
+        "enter:inner",
+        "resolve:outer",
+        "resolve:inner",
+        "exit:inner",
+        "exit:outer",
+    ]
+
+
+def test_dynamic_provider_traversal_handles_duplicate_and_cyclic_dependencies() -> None:
+    events: list[str] = []
+    root = _TestDynamicProvider("root", events)
+    dependency = _TestDynamicProvider("dependency", events)
+    root.set_runtime_dependencies(root, dependency, dependency)
+    dependency.set_runtime_dependencies(root)
+
+    @inject
+    def _injected(value: str = Provide[root]) -> str:
+        return value
+
+    assert _injected() == "root"
+    assert events == [
+        "enter:root",
+        "enter:dependency",
+        "resolve:root",
+        "exit:dependency",
+        "exit:root",
+    ]
 
 
 def test_sync_injection_stack_closes_entered_context_managers() -> None:
