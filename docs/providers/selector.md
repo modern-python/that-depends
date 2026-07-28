@@ -4,12 +4,6 @@ The Selector provider chooses between provider based on a key. This resolves int
 
 The selector can be a callable that returns a string, an instance of `AbstractProvider` or a string.
 
-## Injection behavior
-
-When a `Selector` is injected, That Depends prepares context resources only for the selected provider branch. Context resources belonging exclusively to other candidates are not entered.
-
-The selected provider stays consistent while the requested dependency is resolving. Once that resolution finishes, later calls evaluate the selector again. Context resources prepared for the injected dependency keep their normal lifetime and remain available for the decorated function call.
-
 ## Callable selectors
 
 ```python
