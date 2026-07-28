@@ -247,6 +247,10 @@ class AbstractProvider(abc.ABC, typing.Generic[T_co]):
 
         Dynamic providers can expose dependencies selected at runtime from
         :meth:`resolution_context` and :meth:`resolution_context_sync` instead.
+
+        Returns:
+            An immutable snapshot of the provider's static dependencies.
+
         """
         if isinstance(self, ProviderWithArguments):
             self._register_arguments()
@@ -262,6 +266,10 @@ class AbstractProvider(abc.ABC, typing.Generic[T_co]):
         the root provider has resolved. The default implementation has no runtime
         dependencies. Custom providers should yield a read-only collection and must
         not rely on its iteration order.
+
+        Yields:
+            The dependencies discovered for the current asynchronous resolution.
+
         """
         yield ()
 
@@ -275,6 +283,10 @@ class AbstractProvider(abc.ABC, typing.Generic[T_co]):
         the root provider has resolved. The default implementation has no runtime
         dependencies. Custom providers should yield a read-only collection and must
         not rely on its iteration order.
+
+        Yields:
+            The dependencies discovered for the current synchronous resolution.
+
         """
         yield ()
 

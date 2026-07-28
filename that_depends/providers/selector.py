@@ -78,16 +78,31 @@ class Selector(ProviderWithArguments, AbstractProvider[T_co]):
         )
 
     def _register_arguments(self) -> None:
+        """Register the provider-valued selector as a static dependency.
+
+        Registration is idempotent because providers attach their arguments lazily
+        when the dependency graph is first inspected.
+        """
         if not self._mark_arguments_registered():
             return
         self._register((self._selector,))
 
     def _deregister_arguments(self) -> None:
+        """Detach the provider-valued selector from this provider's dependency graph."""
         self._deregister((self._selector,))
         self._reset_arguments_registration()
 
     @contextmanager
     def _pin_selected_provider(self, provider: AbstractProvider[T_co]) -> typing.Iterator[None]:
+        """Keep a selected provider stable for the current resolution context.
+
+        Args:
+            provider: Provider selected for the active root resolution.
+
+        Yields:
+            Control while the provider is pinned in the current context.
+
+        """
         token = self._selected_provider.set(provider)
         try:
             yield
@@ -99,7 +114,16 @@ class Selector(ProviderWithArguments, AbstractProvider[T_co]):
     async def resolution_context(
         self,
     ) -> typing.AsyncIterator[typing.Collection[AbstractProvider[typing.Any]]]:
-        """Select and expose the active provider for one asynchronous resolution."""
+        """Expose the selected provider for one asynchronous root resolution.
+
+        Overrides bypass provider selection because resolving the selector returns
+        the override directly. Otherwise, the selected provider is pinned so the
+        injection traversal and final resolution use the same branch.
+
+        Yields:
+            The selected provider, or an empty collection while overridden.
+
+        """
         if is_set(self._override):
             yield ()
             return
@@ -113,7 +137,16 @@ class Selector(ProviderWithArguments, AbstractProvider[T_co]):
     def resolution_context_sync(
         self,
     ) -> typing.Iterator[typing.Collection[AbstractProvider[typing.Any]]]:
-        """Select and expose the active provider for one synchronous resolution."""
+        """Expose the selected provider for one synchronous root resolution.
+
+        Overrides bypass provider selection because resolving the selector returns
+        the override directly. Otherwise, the selected provider is pinned so the
+        injection traversal and final resolution use the same branch.
+
+        Yields:
+            The selected provider, or an empty collection while overridden.
+
+        """
         if is_set(self._override):
             yield ()
             return
@@ -135,6 +168,19 @@ class Selector(ProviderWithArguments, AbstractProvider[T_co]):
         return self._select_provider_sync().resolve_sync()
 
     async def _select_provider(self) -> AbstractProvider[T_co]:
+        """Return the provider selected for asynchronous resolution.
+
+        A provider pinned by :meth:`resolution_context` takes precedence over
+        evaluating the selector again.
+
+        Returns:
+            The provider associated with the selected key.
+
+        Raises:
+            TypeError: If the selector is not a supported type.
+            KeyError: If the selected key has no associated provider.
+
+        """
         selected_provider = self._selected_provider.get()
         if is_set(selected_provider):
             return selected_provider
@@ -147,6 +193,19 @@ class Selector(ProviderWithArguments, AbstractProvider[T_co]):
         return self._providers[selected_key]
 
     def _select_provider_sync(self) -> AbstractProvider[T_co]:
+        """Return the provider selected for synchronous resolution.
+
+        A provider pinned by :meth:`resolution_context_sync` takes precedence over
+        evaluating the selector again.
+
+        Returns:
+            The provider associated with the selected key.
+
+        Raises:
+            TypeError: If the selector is not a supported type.
+            KeyError: If the selected key has no associated provider.
+
+        """
         selected_provider = self._selected_provider.get()
         if is_set(selected_provider):
             return selected_provider
