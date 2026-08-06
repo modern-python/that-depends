@@ -94,7 +94,6 @@ class AbstractProvider(abc.ABC, typing.Generic[T_co]):
         super().__init__()
         self._children: set[AbstractProvider[typing.Any]] = set()
         self._parents: set[AbstractProvider[typing.Any]] = set()
-        self._is_context_resource = False
         self._scope_init_order: tuple[AbstractProvider[typing.Any], ...] | None = None
         self._override: typing.Any = UNSET
         self._bindings: set[type] = set()
@@ -237,58 +236,6 @@ class AbstractProvider(abc.ABC, typing.Generic[T_co]):
             msg = f"'{type(self)}' object has no attribute '{attr_name}'"
             raise AttributeError(msg)
         return AttrGetter(provider=self, attr_name=attr_name)
-
-    def get_resolution_dependencies(self) -> typing.Collection["AbstractProvider[typing.Any]"]:
-        """Return providers that must be prepared before resolving this provider.
-
-        Injection evaluates these static dependencies before entering this provider's
-        resolution context. Providers with arguments are registered lazily, and the
-        returned collection is an immutable snapshot with no ordering guarantee.
-
-        Dynamic providers can expose dependencies selected at runtime from
-        :meth:`resolution_context` and :meth:`resolution_context_sync` instead.
-
-        Returns:
-            An immutable snapshot of the provider's static dependencies.
-
-        """
-        if isinstance(self, ProviderWithArguments):
-            self._register_arguments()
-        return frozenset(self._parents)
-
-    @asynccontextmanager
-    async def resolution_context(
-        self,
-    ) -> typing.AsyncIterator[typing.Collection["AbstractProvider[typing.Any]"]]:
-        """Yield dependencies known only while resolving this provider asynchronously.
-
-        Injection prepares the yielded providers and keeps this context active until
-        the root provider has resolved. The default implementation has no runtime
-        dependencies. Custom providers should yield a read-only collection and must
-        not rely on its iteration order.
-
-        Yields:
-            The dependencies discovered for the current asynchronous resolution.
-
-        """
-        yield ()
-
-    @contextmanager
-    def resolution_context_sync(
-        self,
-    ) -> typing.Iterator[typing.Collection["AbstractProvider[typing.Any]"]]:
-        """Yield dependencies known only while resolving this provider synchronously.
-
-        Injection prepares the yielded providers and keeps this context active until
-        the root provider has resolved. The default implementation has no runtime
-        dependencies. Custom providers should yield a read-only collection and must
-        not rely on its iteration order.
-
-        Yields:
-            The dependencies discovered for the current synchronous resolution.
-
-        """
-        yield ()
 
     @abc.abstractmethod
     async def resolve(self) -> T_co:

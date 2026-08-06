@@ -9,6 +9,7 @@ from that_depends.providers.context_resources import (
 )
 from that_depends.providers.factories import AsyncFactory, Factory
 from that_depends.providers.local_singleton import ThreadLocalSingleton
+from that_depends.providers.mixin import ProviderWithArguments, ProviderWithResolutionContext
 from that_depends.providers.object import Object
 from that_depends.providers.resources import Resource
 from that_depends.providers.selector import Selector
@@ -27,6 +28,8 @@ __all__ = [
     "Factory",
     "List",
     "Object",
+    "ProviderWithArguments",
+    "ProviderWithResolutionContext",
     "Resource",
     "Selector",
     "Singleton",

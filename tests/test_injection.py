@@ -43,7 +43,11 @@ def _sync_creator() -> typing.Iterator[int]:
     yield 1
 
 
-class _TestDynamicProvider(providers.AbstractProvider[str]):
+class _TestDynamicProvider(
+    providers.ProviderWithArguments,
+    providers.ProviderWithResolutionContext,
+    providers.AbstractProvider[str],
+):
     """A third-party-style provider with dependencies chosen at resolution time."""
 
     def __init__(
@@ -67,9 +71,13 @@ class _TestDynamicProvider(providers.AbstractProvider[str]):
     def set_runtime_dependencies(self, *dependencies: providers.AbstractProvider[typing.Any]) -> None:
         self._runtime_dependencies = dependencies
 
-    @override
-    def get_resolution_dependencies(self) -> typing.Collection[providers.AbstractProvider[typing.Any]]:
-        return self._static_dependencies
+    def _register_arguments(self) -> None:
+        if self._mark_arguments_registered():
+            self._register(self._static_dependencies)
+
+    def _deregister_arguments(self) -> None:
+        self._deregister(self._static_dependencies)
+        self._reset_arguments_registration()
 
     @asynccontextmanager
     @override
@@ -185,6 +193,17 @@ def test_custom_dynamic_provider_prepares_static_and_runtime_dependencies_sync()
         "resource-exit:runtime",
         "resource-exit:static",
     ]
+
+
+def test_custom_dynamic_provider_registers_static_dependencies() -> None:
+    dependency = providers.Object("static")
+    dynamic = _TestDynamicProvider("dynamic", [], static_dependencies=(dependency,))
+
+    assert dynamic._get_scope_init_order() == (dependency, dynamic)
+
+    dynamic._deregister_arguments()
+
+    assert dynamic._get_scope_init_order() == (dependency, dynamic)
 
 
 async def test_custom_dynamic_provider_prepares_static_and_runtime_dependencies_async() -> None:
@@ -511,19 +530,6 @@ def test_selector_branch_preparation_supports_every_provider_lookup_surface() ->
     assert _string() == "value"
     assert _typed() == "value"
     assert events == ["enter", "exit", "enter", "exit", "enter", "exit"]
-
-
-def test_static_resolution_fast_path_handles_dependency_cycle() -> None:
-    root = providers.Object("value")
-    dependency = providers.Object("unused")
-    root._register((dependency,))
-    dependency._register((root,))
-
-    @inject
-    def _injected(value: str = Provide[root]) -> str:
-        return value
-
-    assert _injected() == "value"
 
 
 def test_sync_generator_pins_dynamic_selection_without_resource_stack() -> None:

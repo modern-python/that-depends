@@ -7,14 +7,14 @@ from contextvars import ContextVar
 from typing_extensions import override
 
 from that_depends.providers.base import AbstractProvider
-from that_depends.providers.mixin import ProviderWithArguments
+from that_depends.providers.mixin import ProviderWithArguments, ProviderWithResolutionContext
 from that_depends.utils import UNSET, Unset, is_set
 
 
 T_co = typing.TypeVar("T_co", covariant=True)
 
 
-class Selector(ProviderWithArguments, AbstractProvider[T_co]):
+class Selector(ProviderWithArguments, ProviderWithResolutionContext, AbstractProvider[T_co]):
     """Chooses a provider based on a key returned by a selector function.
 
     This class allows you to dynamically select and resolve one of several
@@ -83,9 +83,8 @@ class Selector(ProviderWithArguments, AbstractProvider[T_co]):
         Registration is idempotent because providers attach their arguments lazily
         when the dependency graph is first inspected.
         """
-        if not self._mark_arguments_registered():
-            return
-        self._register((self._selector,))
+        if self._mark_arguments_registered():
+            self._register((self._selector,))
 
     def _deregister_arguments(self) -> None:
         """Detach the provider-valued selector from this provider's dependency graph."""
