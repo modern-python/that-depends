@@ -1,4 +1,10 @@
 import abc
+import contextlib
+import typing
+
+
+if typing.TYPE_CHECKING:
+    from that_depends.providers.base import AbstractProvider
 
 
 class CannotTearDownSyncError(RuntimeError):
@@ -49,3 +55,19 @@ class ProviderWithArguments(abc.ABC):
     @abc.abstractmethod
     def _deregister_arguments(self) -> None:
         """Deregister arguments for the provider."""
+
+
+class ProviderWithResolutionContext(abc.ABC):
+    """Interface for providers with dependencies chosen at resolution time."""
+
+    @abc.abstractmethod
+    def resolution_context(
+        self,
+    ) -> contextlib.AbstractAsyncContextManager[typing.Collection["AbstractProvider[typing.Any]"]]:
+        """Expose dependencies for one asynchronous root resolution."""
+
+    @abc.abstractmethod
+    def resolution_context_sync(
+        self,
+    ) -> contextlib.AbstractContextManager[typing.Collection["AbstractProvider[typing.Any]"]]:
+        """Expose dependencies for one synchronous root resolution."""

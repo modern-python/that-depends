@@ -1,22 +1,27 @@
 """Selection based providers."""
 
 import typing
+from contextlib import asynccontextmanager, contextmanager
+from contextvars import ContextVar
 
 from typing_extensions import override
 
 from that_depends.providers.base import AbstractProvider
-from that_depends.utils import is_set
+from that_depends.providers.mixin import ProviderWithArguments, ProviderWithResolutionContext
+from that_depends.utils import UNSET, Unset, is_set
 
 
 T_co = typing.TypeVar("T_co", covariant=True)
 
 
-class Selector(AbstractProvider[T_co]):
+class Selector(ProviderWithArguments, ProviderWithResolutionContext, AbstractProvider[T_co]):
     """Chooses a provider based on a key returned by a selector function.
 
     This class allows you to dynamically select and resolve one of several
     named providers at runtime. The provider key is determined by a
-    user-supplied selector function.
+    user-supplied selector function. During injection, only the selected
+    provider branch is prepared. That selection remains stable for one root
+    provider resolution and is evaluated again by later resolutions.
 
     Examples:
         ```python
@@ -35,7 +40,7 @@ class Selector(AbstractProvider[T_co]):
 
     """
 
-    __slots__ = "_override", "_providers", "_selector"
+    __slots__ = "_override", "_providers", "_selected_provider", "_selector"
 
     def __init__(
         self, selector: typing.Callable[[], str] | AbstractProvider[str] | str, **providers: AbstractProvider[T_co]
@@ -67,34 +72,149 @@ class Selector(AbstractProvider[T_co]):
         super().__init__()
         self._selector: typing.Final[typing.Callable[[], str] | AbstractProvider[str] | str] = selector
         self._providers: typing.Final = providers
+        self._selected_provider: typing.Final[ContextVar[AbstractProvider[T_co] | Unset]] = ContextVar(
+            f"selector-{id(self)}",
+            default=UNSET,
+        )
+
+    def _register_arguments(self) -> None:
+        """Register the provider-valued selector as a static dependency.
+
+        Registration is idempotent because providers attach their arguments lazily
+        when the dependency graph is first inspected.
+        """
+        if self._mark_arguments_registered():
+            self._register((self._selector,))
+
+    def _deregister_arguments(self) -> None:
+        """Detach the provider-valued selector from this provider's dependency graph."""
+        self._deregister((self._selector,))
+        self._reset_arguments_registration()
+
+    @contextmanager
+    def _pin_selected_provider(self, provider: AbstractProvider[T_co]) -> typing.Iterator[None]:
+        """Keep a selected provider stable for the current resolution context.
+
+        Args:
+            provider: Provider selected for the active root resolution.
+
+        Yields:
+            Control while the provider is pinned in the current context.
+
+        """
+        token = self._selected_provider.set(provider)
+        try:
+            yield
+        finally:
+            self._selected_provider.reset(token)
+
+    @asynccontextmanager
+    @override
+    async def resolution_context(
+        self,
+    ) -> typing.AsyncIterator[typing.Collection[AbstractProvider[typing.Any]]]:
+        """Expose the selected provider for one asynchronous root resolution.
+
+        Overrides bypass provider selection because resolving the selector returns
+        the override directly. Otherwise, the selected provider is pinned so the
+        injection traversal and final resolution use the same branch.
+
+        Yields:
+            The selected provider, or an empty collection while overridden.
+
+        """
+        if is_set(self._override):
+            yield ()
+            return
+
+        selected_provider = await self._select_provider()
+        with self._pin_selected_provider(selected_provider):
+            yield (selected_provider,)
+
+    @contextmanager
+    @override
+    def resolution_context_sync(
+        self,
+    ) -> typing.Iterator[typing.Collection[AbstractProvider[typing.Any]]]:
+        """Expose the selected provider for one synchronous root resolution.
+
+        Overrides bypass provider selection because resolving the selector returns
+        the override directly. Otherwise, the selected provider is pinned so the
+        injection traversal and final resolution use the same branch.
+
+        Yields:
+            The selected provider, or an empty collection while overridden.
+
+        """
+        if is_set(self._override):
+            yield ()
+            return
+
+        selected_provider = self._select_provider_sync()
+        with self._pin_selected_provider(selected_provider):
+            yield (selected_provider,)
 
     @override
     async def resolve(self) -> T_co:
         if is_set(self._override):
             return typing.cast(T_co, self._override)
-
-        if isinstance(self._selector, AbstractProvider):
-            selected_key = await self._selector.resolve()
-        else:
-            selected_key = self._get_selected_key()
-
-        self._validate_key(selected_key)
-
-        return await self._providers[selected_key].resolve()
+        return await (await self._select_provider()).resolve()
 
     @override
     def resolve_sync(self) -> T_co:
         if is_set(self._override):
             return typing.cast(T_co, self._override)
+        return self._select_provider_sync().resolve_sync()
+
+    async def _select_provider(self) -> AbstractProvider[T_co]:
+        """Return the provider selected for asynchronous resolution.
+
+        A provider pinned by :meth:`resolution_context` takes precedence over
+        evaluating the selector again.
+
+        Returns:
+            The provider associated with the selected key.
+
+        Raises:
+            TypeError: If the selector is not a supported type.
+            KeyError: If the selected key has no associated provider.
+
+        """
+        selected_provider = self._selected_provider.get()
+        if is_set(selected_provider):
+            return selected_provider
+
+        if isinstance(self._selector, AbstractProvider):
+            selected_key = await self._selector.resolve()
+        else:
+            selected_key = self._get_selected_key()
+        self._validate_key(selected_key)
+        return self._providers[selected_key]
+
+    def _select_provider_sync(self) -> AbstractProvider[T_co]:
+        """Return the provider selected for synchronous resolution.
+
+        A provider pinned by :meth:`resolution_context_sync` takes precedence over
+        evaluating the selector again.
+
+        Returns:
+            The provider associated with the selected key.
+
+        Raises:
+            TypeError: If the selector is not a supported type.
+            KeyError: If the selected key has no associated provider.
+
+        """
+        selected_provider = self._selected_provider.get()
+        if is_set(selected_provider):
+            return selected_provider
 
         if isinstance(self._selector, AbstractProvider):
             selected_key = self._selector.resolve_sync()
         else:
             selected_key = self._get_selected_key()
-
         self._validate_key(selected_key)
-
-        return self._providers[selected_key].resolve_sync()
+        return self._providers[selected_key]
 
     def _get_selected_key(self) -> str:
         if callable(self._selector):

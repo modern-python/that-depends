@@ -334,7 +334,6 @@ class ContextResource(
         """
         super().__init__(creator, *args, **kwargs)
         self._from_creator: typing.Callable[..., typing.Iterator[T_co] | typing.AsyncIterator[T_co]] = creator
-        self._is_context_resource = True
         self._context: ContextVar[ResourceContext[T_co]] = ContextVar(f"{self._creator.__name__}-context")
         self._token: Token[ResourceContext[T_co]] | None = None
         self._async_lock: Final = asyncio.Lock()

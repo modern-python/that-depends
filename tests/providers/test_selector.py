@@ -140,6 +140,46 @@ async def test_selector_with_provider_selector_async() -> None:
     assert (await StringProviderSelectorContainer.selector.resolve()) == "Provider 1"
 
 
+def test_selector_registers_only_its_key_provider_as_static_dependency() -> None:
+    def _selector_key() -> typing.Iterator[str]:  # pragma: no cover
+        yield "selected"
+
+    selector_key = providers.ContextResource(_selector_key)
+    selected = providers.Object("value")
+    selector = providers.Selector(selector_key, selected=selected)
+
+    assert selector._get_scope_init_order() == (selector_key, selector)
+    assert selector._get_scope_init_order() == (selector_key, selector)
+
+    selector._deregister_arguments()
+
+    assert selector._get_scope_init_order() == (selector_key, selector)
+
+
+def test_selector_resolution_context_exposes_and_pins_selected_provider() -> None:
+    expected_selection_count = 2
+    selected_key = "one"
+    selection_count = 0
+    one = providers.Object("one")
+    two = providers.Object("two")
+
+    def _select() -> str:
+        nonlocal selection_count
+        selection_count += 1
+        return selected_key
+
+    selector = providers.Selector(_select, one=one, two=two)
+
+    assert isinstance(selector, providers.ProviderWithResolutionContext)
+    with selector.resolution_context_sync() as dependencies:
+        assert dependencies == (one,)
+        selected_key = "two"
+        assert selector.resolve_sync() == "one"
+
+    assert selector.resolve_sync() == "two"
+    assert selection_count == expected_selection_count
+
+
 class InvalidSelectorContainer(BaseContainer):
     selector = providers.Selector(
         None,  # type: ignore[arg-type]

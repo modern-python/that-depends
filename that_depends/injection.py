@@ -3,7 +3,7 @@ import inspect
 import re
 import typing
 import warnings
-from contextlib import AsyncExitStack
+from contextlib import AsyncExitStack, ExitStack
 from types import TracebackType
 
 from typing_extensions import Self
@@ -11,8 +11,8 @@ from typing_extensions import Self
 from that_depends.container import BaseContainer
 from that_depends.exceptions import TypeNotBoundError
 from that_depends.meta import BaseContainerMeta
-from that_depends.providers import AbstractProvider
-from that_depends.providers.context_resources import ContextScope, ContextScopes, container_context
+from that_depends.providers import AbstractProvider, ProviderWithResolutionContext
+from that_depends.providers.context_resources import ContextResource, ContextScope, ContextScopes, container_context
 
 
 class ContextProviderError(Exception):
@@ -28,10 +28,18 @@ _PROVIDE_MESSAGE: typing.Final[str] = (
 )
 
 
+class _RuntimeContextTraversalRequired:
+    """Mark a provider graph that requires runtime context traversal."""
+
+
+_RUNTIME_CONTEXT_TRAVERSAL_REQUIRED = _RuntimeContextTraversalRequired()
+_ContextResources = tuple[ContextResource[typing.Any], ...] | _RuntimeContextTraversalRequired
+
+
 class _DirectInjectionParameter(typing.NamedTuple):
     field_name: str
     provider: AbstractProvider[typing.Any]
-    scope_context_init_order: tuple[AbstractProvider[typing.Any], ...]
+    context_resources: _ContextResources
 
 
 class _StringInjectionParameter(typing.NamedTuple):
@@ -49,6 +57,19 @@ class _InjectionPlan(typing.NamedTuple):
     direct_parameters: tuple[_DirectInjectionParameter, ...]
     string_parameters: tuple[_StringInjectionParameter, ...]
     typed_parameters: tuple[_TypedInjectionParameter, ...]
+
+
+class _ProviderVisits(typing.NamedTuple):
+    """Track traversal state shared by one provider resolution.
+
+    Attributes:
+        traversed: Providers whose dependency contexts have already been visited.
+        initialized_contexts: Context resources already entered by the injection call.
+
+    """
+
+    traversed: set[AbstractProvider[typing.Any]]
+    initialized_contexts: set[AbstractProvider[typing.Any]]
 
 
 class _SyncInjectionStack:
@@ -95,6 +116,30 @@ class _ContextManagerExitState:
 
 
 @functools.cache
+def _get_static_context_resources(
+    provider: AbstractProvider[typing.Any],
+) -> _ContextResources:
+    """Collect context resources from a provider's static dependency graph.
+
+    The result is cached with the injection plan. A private marker signals that at
+    least one provider exposes a resolution context, so injection must walk the graph
+    at runtime to discover dynamic dependencies.
+
+    Args:
+        provider: Root provider whose dependency graph should be inspected.
+
+    Returns:
+        The statically reachable context resources, or a marker requesting runtime
+        traversal.
+
+    """
+    provider_order = provider._get_scope_init_order()  # noqa: SLF001
+    if any(isinstance(dependency, ProviderWithResolutionContext) for dependency in provider_order):
+        return _RUNTIME_CONTEXT_TRAVERSAL_REQUIRED
+    return tuple(dependency for dependency in provider_order if isinstance(dependency, ContextResource))
+
+
+@functools.cache
 def _build_injection_plan(func: typing.Callable[..., typing.Any]) -> _InjectionPlan:
     signature = inspect.signature(func)
     parameters = tuple(signature.parameters.items())
@@ -125,7 +170,7 @@ def _build_injection_plan(func: typing.Callable[..., typing.Any]) -> _InjectionP
                 _DirectInjectionParameter(
                     field_name,
                     default,
-                    default._get_scope_context_init_order(),  # noqa: SLF001
+                    _get_static_context_resources(default),
                 )
             )
         elif isinstance(default, _Provide):
@@ -295,13 +340,23 @@ async def _resolve_arguments_async(
         if direct_parameter.field_name in provided_names:
             continue
 
-        if direct_parameter.scope_context_init_order:
-            await _setup_scope_contexts_async(
-                direct_parameter.scope_context_init_order,
-                scope,
-                stack,
-                context_providers,
-            )
+        context_resources = direct_parameter.context_resources
+        if context_resources:
+            if isinstance(context_resources, tuple):
+                await _prepare_static_context_resources_async(
+                    context_resources,
+                    scope,
+                    stack,
+                    context_providers,
+                )
+            else:
+                kwargs[direct_parameter.field_name] = await _resolve_provider_with_scope_async(
+                    direct_parameter.provider,
+                    scope,
+                    stack,
+                    context_providers,
+                )
+                continue
         kwargs[direct_parameter.field_name] = await direct_parameter.provider.resolve()
 
     for string_parameter in plan.string_parameters:
@@ -346,13 +401,23 @@ def _resolve_arguments_sync(
         if direct_parameter.field_name in provided_names:
             continue
 
-        if direct_parameter.scope_context_init_order:
-            _setup_scope_contexts_sync(
-                direct_parameter.scope_context_init_order,
-                scope,
-                stack,
-                context_providers,
-            )
+        context_resources = direct_parameter.context_resources
+        if context_resources:
+            if isinstance(context_resources, tuple):
+                _prepare_static_context_resources_sync(
+                    context_resources,
+                    scope,
+                    stack,
+                    context_providers,
+                )
+            else:
+                kwargs[direct_parameter.field_name] = _resolve_provider_with_scope_sync(
+                    direct_parameter.provider,
+                    scope,
+                    stack,
+                    context_providers,
+                )
+                continue
         kwargs[direct_parameter.field_name] = direct_parameter.provider.resolve_sync()
 
     for string_parameter in plan.string_parameters:
@@ -406,13 +471,6 @@ def _resolve_sync(
     *args: P.args,
     **kwargs: P.kwargs,
 ) -> T:
-    if scope is None:
-        injected, kwargs = _resolve_arguments_sync(plan, scope, container, None, *args, **kwargs)  # type: ignore[assignment]
-        if not injected:
-            warnings.warn(_INJECTION_WARNING_MESSAGE, RuntimeWarning, stacklevel=3)
-
-        return func(*args, **kwargs)
-
     with _SyncInjectionStack() as stack:
         injected, kwargs = _resolve_arguments_sync(plan, scope, container, stack, *args, **kwargs)  # type: ignore[assignment]
 
@@ -448,50 +506,130 @@ async def _resolve_provider_with_scope_async(
     stack: AsyncExitStack | None,
     providers: set[AbstractProvider[typing.Any]],
 ) -> T:
-    """Resolve a provider with given scope and stack.
+    """Resolve a provider and initialize its matching asynchronous resources.
 
-    Use `stack=None` to ensure ContextResource providers are not allowed.
+    Static graphs use their cached resource list. Graphs with runtime dependencies
+    are traversed while their resolution contexts remain active. Passing ``None``
+    as the stack explicitly disallows context-resource initialization.
 
     Args:
-        provider: provider to resolve.
-        scope: scope to resolve provider in.
-        stack: stack to use for context resources.
-        providers: providers traversed.
+        provider: Provider to resolve.
+        scope: Scope in which matching context resources should be initialized.
+        stack: Stack that owns initialized context resources, or ``None`` to reject
+            resources that require initialization.
+        providers: Context resources already initialized by the injection call.
 
     Returns:
-        resolved value for the provider.
+        The value resolved by the provider.
 
     Raises:
-        ContextProviderError: if the stack is None.
+        ContextProviderError: If a matching context resource requires initialization
+            but no stack was supplied.
 
     """
-    scope_context_init_order = provider._get_scope_context_init_order()  # noqa: SLF001
-    if scope_context_init_order:
-        await _setup_scope_contexts_async(scope_context_init_order, scope, stack, providers)
-    return await provider.resolve()
+    static_resources = _get_static_context_resources(provider)
+    if not static_resources:
+        return await provider.resolve()
+    if isinstance(static_resources, tuple):
+        await _prepare_static_context_resources_async(static_resources, scope, stack, providers)
+        return await provider.resolve()
+
+    async with AsyncExitStack() as resolution_stack:
+        visits = _ProviderVisits(set(), providers)
+        await _prepare_provider_contexts_async(provider, scope, stack, resolution_stack, visits)
+        return await provider.resolve()
 
 
-async def _setup_scope_contexts_async(
-    scope_init_order: tuple[AbstractProvider[typing.Any], ...],
+async def _prepare_static_context_resources_async(
+    resources: tuple[ContextResource[typing.Any], ...],
     scope: ContextScope | None,
     stack: AsyncExitStack | None,
-    providers: set[AbstractProvider[typing.Any]],
+    initialized: set[AbstractProvider[typing.Any]],
 ) -> None:
-    if not scope:
+    """Enter statically discovered asynchronous context resources once.
+
+    Args:
+        resources: Context resources reachable from the root provider.
+        scope: Scope in which matching resources should be initialized.
+        stack: Stack that owns initialized resources, or ``None`` to reject them.
+        initialized: Context resources already entered by the injection call.
+
+    Raises:
+        ContextProviderError: If a matching resource requires initialization but no
+            stack was supplied.
+
+    """
+    if scope is None:
         return
-    for provider in scope_init_order:
-        if provider in providers:
+    for resource in resources:
+        if resource in initialized or resource._scope not in (ContextScopes.ANY, scope):  # noqa: SLF001
             continue
-        providers.add(provider)
-        provider_scope = provider._scope  # noqa: SLF001
-        if provider_scope in (ContextScopes.ANY, scope):
-            if stack is None:
+        if stack is None:
+            msg = (
+                f"No stack exists, cannot initialize context for {resource} using scope {scope}.\n"
+                f"Note: @inject cannot initialize context for ContextResources when wrapping a generator."
+            )
+            raise ContextProviderError(msg)
+        initialized.add(resource)
+        await stack.enter_async_context(resource.context_async(force=True))
+
+
+async def _prepare_provider_contexts_async(
+    provider: AbstractProvider[typing.Any],
+    scope: ContextScope | None,
+    resource_stack: AsyncExitStack | None,
+    resolution_stack: AsyncExitStack,
+    visits: _ProviderVisits,
+) -> None:
+    """Prepare one provider's asynchronous static and runtime dependencies.
+
+    Dependencies are visited before the provider itself. Resolution contexts are
+    kept open on ``resolution_stack`` until the root provider has resolved, while
+    context resources live on ``resource_stack`` for the entire injection call.
+
+    Args:
+        provider: Provider whose dependency contexts should be prepared.
+        scope: Scope in which matching context resources should be initialized.
+        resource_stack: Stack that owns context resources, or ``None`` to reject
+            resources that require initialization.
+        resolution_stack: Stack that owns provider resolution contexts.
+        visits: Traversal and resource-initialization state for this resolution.
+
+    Raises:
+        ContextProviderError: If a matching context resource requires initialization
+            but no resource stack was supplied.
+
+    """
+    for dependency in provider._get_scope_init_order():  # noqa: SLF001
+        if dependency in visits.traversed:
+            continue
+        visits.traversed.add(dependency)
+
+        if isinstance(dependency, ProviderWithResolutionContext):
+            runtime_dependencies = await resolution_stack.enter_async_context(dependency.resolution_context())
+            for runtime_dependency in runtime_dependencies:
+                await _prepare_provider_contexts_async(
+                    runtime_dependency,
+                    scope,
+                    resource_stack,
+                    resolution_stack,
+                    visits,
+                )
+
+        if (
+            scope is not None
+            and isinstance(dependency, ContextResource)
+            and dependency.get_scope() in (ContextScopes.ANY, scope)
+            and dependency not in visits.initialized_contexts
+        ):
+            if resource_stack is None:
                 msg = (
-                    f"No stack exists, cannot initialize context for {provider} using scope {scope}.\n"
+                    f"No stack exists, cannot initialize context for {dependency} using scope {scope}.\n"
                     f"Note: @inject cannot initialize context for ContextResources when wrapping a generator."
                 )
                 raise ContextProviderError(msg)
-            await stack.enter_async_context(provider.context_async(force=True))
+            visits.initialized_contexts.add(dependency)
+            await resource_stack.enter_async_context(dependency.context_async(force=True))
 
 
 def _resolve_provider_with_scope_sync(
@@ -500,34 +638,131 @@ def _resolve_provider_with_scope_sync(
     stack: _SyncInjectionStack | None,
     providers: set[AbstractProvider[typing.Any]],
 ) -> T:
-    scope_context_init_order = provider._get_scope_context_init_order()  # noqa: SLF001
-    if scope_context_init_order:
-        _setup_scope_contexts_sync(scope_context_init_order, scope, stack, providers)
-    return provider.resolve_sync()
+    """Resolve a provider and initialize its matching synchronous resources.
+
+    Static graphs use their cached resource list. Graphs with runtime dependencies
+    are traversed while their resolution contexts remain active. Passing ``None``
+    as the stack explicitly disallows context-resource initialization.
+
+    Args:
+        provider: Provider to resolve.
+        scope: Scope in which matching context resources should be initialized.
+        stack: Stack that owns initialized context resources, or ``None`` to reject
+            resources that require initialization.
+        providers: Context resources already initialized by the injection call.
+
+    Returns:
+        The value resolved by the provider.
+
+    Raises:
+        ContextProviderError: If a matching context resource requires initialization
+            but no stack was supplied.
+
+    """
+    static_resources = _get_static_context_resources(provider)
+    if not static_resources:
+        return provider.resolve_sync()
+    if isinstance(static_resources, tuple):
+        _prepare_static_context_resources_sync(static_resources, scope, stack, providers)
+        return provider.resolve_sync()
+
+    with ExitStack() as resolution_stack:
+        visits = _ProviderVisits(set(), providers)
+        _prepare_provider_contexts_sync(provider, scope, stack, resolution_stack, visits)
+        return provider.resolve_sync()
 
 
-def _setup_scope_contexts_sync(
-    scope_init_order: tuple[AbstractProvider[typing.Any], ...],
+def _prepare_static_context_resources_sync(
+    resources: tuple[ContextResource[typing.Any], ...],
     scope: ContextScope | None,
     stack: _SyncInjectionStack | None,
-    providers: set[AbstractProvider[typing.Any]],
+    initialized: set[AbstractProvider[typing.Any]],
 ) -> None:
-    if not scope:
+    """Enter statically discovered synchronous context resources once.
+
+    Args:
+        resources: Context resources reachable from the root provider.
+        scope: Scope in which matching resources should be initialized.
+        stack: Stack that owns initialized resources, or ``None`` to reject them.
+        initialized: Context resources already entered by the injection call.
+
+    Raises:
+        ContextProviderError: If a matching resource requires initialization but no
+            stack was supplied.
+
+    """
+    if scope is None:
         return
-    for provider in scope_init_order:
-        if provider in providers:
+    for resource in resources:
+        if resource in initialized or resource._scope not in (ContextScopes.ANY, scope):  # noqa: SLF001
             continue
-        providers.add(provider)
-        provider_scope = provider._scope  # noqa: SLF001
-        if provider_scope in (ContextScopes.ANY, scope):
-            if stack is None:
+        if stack is None:
+            msg = (
+                f"No stack exists, cannot initialize context for {resource} using scope {scope}.\n"
+                f"Note: @inject cannot initialize context for ContextResources when wrapping a generator."
+            )
+            raise ContextProviderError(msg)
+        initialized.add(resource)
+        _, exit_state = resource._enter_injection_context_sync(force=True)  # noqa: SLF001
+        stack.push_exit_state(exit_state)
+
+
+def _prepare_provider_contexts_sync(
+    provider: AbstractProvider[typing.Any],
+    scope: ContextScope | None,
+    resource_stack: _SyncInjectionStack | None,
+    resolution_stack: ExitStack,
+    visits: _ProviderVisits,
+) -> None:
+    """Prepare one provider's synchronous static and runtime dependencies.
+
+    Dependencies are visited before the provider itself. Resolution contexts are
+    kept open on ``resolution_stack`` until the root provider has resolved, while
+    context resources live on ``resource_stack`` for the entire injection call.
+
+    Args:
+        provider: Provider whose dependency contexts should be prepared.
+        scope: Scope in which matching context resources should be initialized.
+        resource_stack: Stack that owns context resources, or ``None`` to reject
+            resources that require initialization.
+        resolution_stack: Stack that owns provider resolution contexts.
+        visits: Traversal and resource-initialization state for this resolution.
+
+    Raises:
+        ContextProviderError: If a matching context resource requires initialization
+            but no resource stack was supplied.
+
+    """
+    for dependency in provider._get_scope_init_order():  # noqa: SLF001
+        if dependency in visits.traversed:
+            continue
+        visits.traversed.add(dependency)
+
+        if isinstance(dependency, ProviderWithResolutionContext):
+            runtime_dependencies = resolution_stack.enter_context(dependency.resolution_context_sync())
+            for runtime_dependency in runtime_dependencies:
+                _prepare_provider_contexts_sync(
+                    runtime_dependency,
+                    scope,
+                    resource_stack,
+                    resolution_stack,
+                    visits,
+                )
+
+        if (
+            scope is not None
+            and isinstance(dependency, ContextResource)
+            and dependency.get_scope() in (ContextScopes.ANY, scope)
+            and dependency not in visits.initialized_contexts
+        ):
+            if resource_stack is None:
                 msg = (
-                    f"No stack exists, cannot initialize context for {provider} using scope {scope}.\n"
+                    f"No stack exists, cannot initialize context for {dependency} using scope {scope}.\n"
                     f"Note: @inject cannot initialize context for ContextResources when wrapping a generator."
                 )
                 raise ContextProviderError(msg)
-            _, exit_state = provider._enter_injection_context_sync(force=True)  # noqa: SLF001
-            stack.push_exit_state(exit_state)
+            visits.initialized_contexts.add(dependency)
+            resource_stack.enter_context(dependency.context_sync(force=True))
 
 
 class StringProviderDefinition:
