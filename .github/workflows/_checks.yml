@@ -53,10 +53,14 @@ jobs:
       - uses: actions/checkout@v6
       # --offline blocks network requests and excludes every external URL, so this gate
       # is deterministic: it fails only on a relative link or file path a diff broke.
+      # Tag-pinned and cross-repo URLs do not match the --remap pattern and stay
+      # excluded: they point at trees this checkout does not have.
       - name: Check local links
         uses: lycheeverse/lychee-action@v2
         with:
           args: >-
             --offline
             --no-progress
+            --remap
+            'https://github\.com/${{ github.repository }}/(?:blob|tree)/main/(.*) file://${{ github.workspace }}/$1'
             '**/*.md'
