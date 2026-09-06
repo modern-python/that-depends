@@ -68,7 +68,7 @@ This is the preferred style over explicit `resolve()` / `resolve_sync()` calls i
 | `Factory` / `AsyncFactory` | New value on each resolution |
 | `Resource` | Cached value with teardown |
 | `ContextResource` | Per-context / per-scope resource |
-| `Sequence` / `Mapping` | Aggregate multiple providers into read-only collection types |
+| `List` / `Dict` | Aggregate multiple providers into a read-only sequence or mapping |
 | `Selector` | Choose one provider from a key |
 | `State` | Pass runtime state through context |
 
@@ -236,7 +236,7 @@ async def di_teardown() -> AsyncIterator[None]:
 ## Notes on advanced features
 
 - `Generator` injection is supported, but generator injection cannot initialize `ContextResource` contexts for you. Pre-initialize the context first if needed.
-- `Selector`, `Sequence`, and `Mapping` help compose providers instead of manually wiring branches and aggregates in application code.
+- `Selector`, `List`, and `Dict` help compose providers instead of manually wiring branches and aggregates in application code.
 - `State` is useful for runtime values that should flow through provider resolution.
 - For framework integrations, see FastAPI, FastStream, and Litestar support in the docs.
 

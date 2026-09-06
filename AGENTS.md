@@ -48,10 +48,6 @@ sits inside the package directory, so it **ships in the wheel** and users get it
 the dependency. Treat it as public surface: a change to recommended usage, a renamed
 provider, or a new provider belongs there as well as in `docs/`.
 
-`.gitignore` ignores `.agents` at any depth. The existing `SKILL.md` is tracked, so it
-is unaffected, but a *new* file under `that_depends/.agents/` is invisible to
-`git add` — use `git add -f`.
-
 ## Architecture
 
 Every module under `that_depends/` is named for what it does; read it. What a
