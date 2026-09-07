@@ -58,7 +58,7 @@ want to move existing projects across.
 
 ## 📦 [PyPI](https://pypi.org/project/that-depends)
 
-## 📝 [License](LICENSE)
+## 📝 [License](https://github.com/modern-python/that-depends/blob/main/LICENSE)
 
 ## Part of `modern-python`
 

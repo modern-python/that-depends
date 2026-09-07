@@ -86,6 +86,10 @@ Fill in [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md). 
 this repo's own copy, kept local because it names `mypy` and `pyrefly`, and contributors
 do fill it in. Do not replace it with a free-form body, and do not edit the template.
 
+Every link in `README.md` must be absolute: `https://github.com/modern-python/<repo>/blob/main/<path>`,
+or `.../tree/main/<path>` for a directory. Never a relative path: `README.md` is also the PyPI long
+description, and PyPI does not rewrite relative links, so a relative one 404s on the package page.
+
 Unlike the rest of the org, **you are not the last reader of your diff** — a second
 party reviews and merges it. Write for them: what changed, why, and what you chose not
 to do. Keep one PR to one thing.
