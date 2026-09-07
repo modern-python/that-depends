@@ -98,8 +98,7 @@ This repo has no `docs/adr/` and no `CONTEXT.md`. A decision that outlives the P
 in [`docs/dev/main-decisions.md`](docs/dev/main-decisions.md), which is a **user-facing
 page** — write it for a reader of the docs site, not as an internal record. Real work
 that is not scheduled becomes a GitHub issue on `modern-python/that-depends`
-(`gh issue create`). There is no third place, and no truth-home directory: behaviour is
-reviewed with the diff, not promoted to a page.
+(`gh issue create`).
 
 ## Releases
 
