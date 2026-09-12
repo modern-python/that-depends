@@ -99,7 +99,7 @@ isort.no-lines-before = ["standard-library", "local-folder"]
 per-file-ignores = { "tests/*"= ["D1", "SLF001"]}
 
 [tool.pytest.ini_options]
-addopts = "--cov=. --cov-report term-missing"
+addopts = ""
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 filterwarnings = [
@@ -107,6 +107,7 @@ filterwarnings = [
 ]
 
 [tool.coverage.report]
+fail_under = 100
 exclude_also = ["if typing.TYPE_CHECKING:"]
 
 [tool.pyrefly]
