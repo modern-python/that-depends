@@ -20,6 +20,12 @@ lint-ci:
 test *args:
     uv run --no-sync pytest {{ args }}
 
+test-ci:
+    uv run --no-sync pytest --cov=. --cov-report term-missing --cov-report xml
+
+test-branch:
+    @just test --cov=. --cov-branch
+
 # Auth via PyPI Trusted Publishing (OIDC); uv publish auto-detects the CI id-token.
 publish:
     rm -rf dist
