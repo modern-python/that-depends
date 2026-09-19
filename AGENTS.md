@@ -119,3 +119,17 @@ from the git tag — publishing triggers on a GitHub release and `just publish` 
 - Docstrings use the `Args:` / `Returns:` form of `providers/base.py`, adding `Raises:`
   where a caller needs it (`injection.py`, `providers/selector.py`). State the contract;
   do not narrate the implementation.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub issues on `modern-python/that-depends`, via `gh`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical roles, each label string equal to its name. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
