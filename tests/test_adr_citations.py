@@ -7,7 +7,7 @@ import typing
 
 _REPO_ROOT: typing.Final = pathlib.Path(__file__).resolve().parent.parent
 _ADR_DIR: typing.Final = "docs/adr/"
-_CITATION: typing.Final = re.compile(r"docs/adr/\d{4}-[a-z0-9-]+\.md")
+_CITATION: typing.Final = re.compile(r"docs/adr/\d{4}(?:-[a-z0-9-]+\.md)?")
 _UNWALKED_DIR: typing.Final = "node_modules"
 
 
@@ -45,6 +45,8 @@ def test_every_adr_path_cited_from_python_resolves() -> None:
     offline link gate reads Markdown only, so a path in a docstring, a comment or a guard message
     is otherwise checked by nothing, and an `INVARIANT:` docstring that names its ADR silently
     loses the rationale the test depends on. A user who trips a guard is handed a link to follow.
+    A bare `docs/adr/NNNN` is reported as well: it names no file, so it would survive the same
+    rename or drop unnoticed and point at whatever record holds that number next.
     """
     unresolved = unresolved_citations(_REPO_ROOT)
 
@@ -62,6 +64,18 @@ def test_a_citation_of_a_missing_adr_is_reported_with_its_citing_file(tmp_path: 
     )
 
     assert unresolved_citations(tmp_path) == [("pkg/mod.py", f"{_ADR_DIR}9999-missing.md")]
+
+
+def test_a_short_form_citation_is_reported_even_when_the_adr_exists(tmp_path: pathlib.Path) -> None:
+    """`docs/adr/NNNN` with no slug names nothing on disk, so a rename or a drop never breaks it."""
+    (tmp_path / _ADR_DIR).mkdir(parents=True)
+    (tmp_path / _ADR_DIR / "0002-kept.md").write_text("# kept\n", encoding="utf-8")
+    (tmp_path / "pkg").mkdir()
+    (tmp_path / "pkg" / "mod.py").write_text(
+        f'"""Argued in {_ADR_DIR}0002 and {_ADR_DIR}0002-kept.md."""\n', encoding="utf-8"
+    )
+
+    assert unresolved_citations(tmp_path) == [("pkg/mod.py", f"{_ADR_DIR}0002")]
 
 
 def test_a_citation_split_across_adjacent_string_literals_is_found(tmp_path: pathlib.Path) -> None:
