@@ -8,7 +8,7 @@ TITLE="Scheduled dependency check failed"
 # updates color/description without error if present.
 gh label create "$LABEL" \
   --color "FBCA04" \
-  --description "Weekly dependency check failures" \
+  --description "Scheduled dependency check failures" \
   --force
 
 # Find an open issue with our label, if any. --jq '.[0].number // empty'
@@ -17,7 +17,7 @@ existing=$(gh issue list --label "$LABEL" --state open --json number --jq '.[0].
 
 if [ -z "$existing" ]; then
   body=$(printf '%s\n\n%s\n\n%s\n\n%s' \
-    "The weekly scheduled dependency check failed." \
+    "The scheduled dependency check failed." \
     "First failing run: ${RUN_URL}" \
     "Likely cause: a transitive dev or lint dependency (ruff, mypy, pyrefly, pytest, faststream, typing-extensions) released a breaking change. Reproduce locally with \`just install\` then \`just lint\` and \`just test\`." \
     "Close this issue once fixed. The next scheduled failure will open a fresh issue.")
