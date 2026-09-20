@@ -23,10 +23,10 @@ version = "0"
 
 [project.optional-dependencies]
 fastapi = [
-    "fastapi",
+    "fastapi>=0.115.3",
 ]
 faststream = [
-    "faststream"
+    "faststream>=0.3.14"
 ]
 
 [project.urls]
