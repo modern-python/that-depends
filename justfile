@@ -17,6 +17,17 @@ lint-ci:
     uv run mypy . --disable-error-code=unused-ignore
     uv run pyrefly check --no-progress-bar
 
+adr_check_source := "https://raw.githubusercontent.com/modern-python/.github/main/tests/test_adr_citations.py"
+
+# Tracks main on purpose: the shared check is unpinned.
+adr-check:
+    #!/usr/bin/env sh
+    set -eu
+    dir="$(mktemp -d .adr-check.XXXXXX)"
+    trap 'rm -rf "$dir"' EXIT
+    curl -fsSL "{{ adr_check_source }}" -o "$dir/test_adr_citations.py"
+    uv run --no-sync pytest --rootdir=. --noconftest -o addopts= "$dir/test_adr_citations.py"
+
 test *args:
     uv run --no-sync pytest {{ args }}
 
