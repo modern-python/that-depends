@@ -47,6 +47,36 @@ jobs:
           flags: unittests
           name: codecov-${{ matrix.python-version }}
 
+  floors:
+    # CI6. Nothing else in CI installs the declared floors: `pytest` resolves highest, and the
+    # scheduled run does the same. Wheel coverage is per interpreter, so every matrix entry runs.
+    # Skipped on the schedule: the floors do not move, and the scheduled `pytest` already covers
+    # the newest releases, which are what users install.
+    # 3.14 is out: the dev group's mkdocs pulls watchdog, which ships no cp314 wheel, so under
+    # --no-build the resolver climbs to mkdocs 2.0.dev and this leg would measure upstream's gap
+    # rather than a floor. Moving the docs tooling out of the dev group (TL3) would restore it.
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.10"
+          - "3.11"
+          - "3.12"
+          - "3.13"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+        with:
+          cache-dependency-glob: "**/pyproject.toml"
+      - run: uv python install ${{ matrix.python-version }}
+      - run: uv python pin ${{ matrix.python-version }}
+      - run: uv venv
+      - run: uv pip compile pyproject.toml --all-extras --no-deps --resolution lowest-direct -o floors.txt
+      - run: uv pip install -r pyproject.toml --all-extras --group dev --constraints floors.txt --no-build
+      - run: uv run --no-sync pytest .
+
   links:
     runs-on: ubuntu-latest
     steps:
