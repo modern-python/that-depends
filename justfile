@@ -40,5 +40,4 @@ unhook:
     uv run pre-commit uninstall
 
 docs:
-    uv pip install -r docs/requirements.txt
-    uv run mkdocs serve
+    uvx --with-requirements docs/requirements.txt mkdocs serve
