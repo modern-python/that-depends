@@ -52,9 +52,6 @@ jobs:
     # scheduled run does the same. Wheel coverage is per interpreter, so every matrix entry runs.
     # Skipped on the schedule: the floors do not move, and the scheduled `pytest` already covers
     # the newest releases, which are what users install.
-    # 3.14 is out: the dev group's mkdocs pulls watchdog, which ships no cp314 wheel, so under
-    # --no-build the resolver climbs to mkdocs 2.0.dev and this leg would measure upstream's gap
-    # rather than a floor. Moving the docs tooling out of the dev group (TL3) would restore it.
     if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     strategy:
@@ -65,6 +62,7 @@ jobs:
           - "3.11"
           - "3.12"
           - "3.13"
+          - "3.14"
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v7

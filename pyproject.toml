@@ -49,9 +49,7 @@ dev = [
     "pre-commit",
     "litestar",
     "faststream[nats]",
-    "mkdocs>=1.6.1",
     "pytest-randomly",
-    "mkdocs-llmstxt>=0.4.0",
     "pyrefly>=0.61.1",
 ]
 
