@@ -29,7 +29,7 @@ fastapi = [
     "fastapi>=0.115.3",
 ]
 faststream = [
-    "faststream>=0.5.19",
+    "faststream>=0.5.29",
     "packaging",
 ]
 

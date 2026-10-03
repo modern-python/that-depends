@@ -1,4 +1,4 @@
-import pytest
+from tests.integrations import import_or_skip
 
 
-pytest.importorskip("fastapi")
+import_or_skip("fastapi")

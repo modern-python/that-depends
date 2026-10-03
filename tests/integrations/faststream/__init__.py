@@ -1,5 +1,5 @@
-import pytest
+from tests.integrations import import_or_skip
 
 
-pytest.importorskip("faststream")
-pytest.importorskip("nats")
+import_or_skip("faststream")
+import_or_skip("nats")
