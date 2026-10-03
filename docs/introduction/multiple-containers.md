@@ -2,13 +2,23 @@
 
 You can use providers from other containers as following:
 ```python
-from tests import container
+import datetime
+import typing
+
 from that_depends import BaseContainer, providers
 
 
+def create_sync_resource() -> typing.Iterator[datetime.datetime]:
+    yield datetime.datetime.now(tz=datetime.timezone.utc)
+
+
+async def create_async_resource() -> typing.AsyncIterator[datetime.datetime]:
+    yield datetime.datetime.now(tz=datetime.timezone.utc)
+
+
 class InnerContainer(BaseContainer):
-    sync_resource = providers.Resource(container.create_sync_resource)
-    async_resource = providers.Resource(container.create_async_resource)
+    sync_resource = providers.Resource(create_sync_resource)
+    async_resource = providers.Resource(create_async_resource)
 
 
 class OuterContainer(BaseContainer):

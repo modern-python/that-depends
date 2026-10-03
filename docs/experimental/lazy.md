@@ -29,9 +29,11 @@ You can use the lazy provider in exactly the same way as you would use the refer
 
 ```python
 # first_container.py
+import typing
+
 from that_depends import BaseContainer, providers, ContextScopes
 
-def my_creator() -> int:
+def my_creator() -> typing.Iterator[int]:
     yield 42
 
 class FirstContainer(BaseContainer):

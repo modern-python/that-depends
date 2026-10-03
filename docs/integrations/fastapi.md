@@ -93,7 +93,9 @@ This will enable you to use dependency injection in your `FastAPI` endpoints:
 If you wish to initialize the container context you can simply pass arguments to `create_fastapi_route_class()`:
 
 ```python
-my_route_class = create_fastapi_route_class(Container, global_context={"key": "value"}, scope=ContextScopes.REQUEST)
+from that_depends import ContextScopes
+
+my_route_class = create_fastapi_route_class(MyContainer, global_context={"key": "value"}, scope=ContextScopes.REQUEST)
 ```
 
 In the above example, all `ContextResources` in our container that are `REQUEST` scoped will be initialized
@@ -220,13 +222,14 @@ Then in your FastAPI app:
 ```python
 # main.py
 from fastapi import FastAPI, Depends
-from that_depends.providers.context_resources import DIContextMiddleware
+from that_depends.providers.context_resources import ContextScopes, DIContextMiddleware
 from mycontainer import MyScopedContainer
 
 app = FastAPI()
 app.add_middleware(
     DIContextMiddleware,
-    MyContainer,
+    MyScopedContainer,
+    scope=ContextScopes.REQUEST,
 )
 
 @app.get("/")
@@ -269,9 +272,9 @@ def test_read_db(client: TestClient):
 
 1. **Global vs. Request Context**: Decide whether your container’s dependencies should be globally shared (e.g., singletons) or created anew per request (e.g., database or session).  
 2. **Combining with FastAPI’s `Depends`**: Generally, you can pass `Depends(MyContainer.some_provider)` to route handlers. Under the hood, that-depends will be invoked.  
-3. **Overriding**: You can override a provider in tests by calling `MyContainer.some_provider.override(...)` or using the context manager `with MyContainer.some_provider.override_context(...):`.
+3. **Overriding**: You can override a provider in tests by calling `MyContainer.some_provider.override_sync(...)` or using the context manager `with MyContainer.some_provider.override_context_sync(...):`.
 4. **Performance**: If you have expensive creation logic (like a DB engine that can be reused globally), prefer using a `Singleton` or `Object` provider. If you need ephemeral resources, use `ContextResource` with the `DIContextMiddleware`.
-5. **Custom Context**: If you do not want to rely on the middleware, you can manually create a context in any async function by calling `async with container_context():`. 
+5. **Custom Context**: If you do not want to rely on the middleware, you can manually create a context in any async function by calling `async with container_context(MyContainer):`. 
 6. **Multiple Containers**: You can define multiple containers and connect them (e.g., `ContainerA.connect_containers(ContainerB)`), or add them all to the `DIContextMiddleware`. For advanced usage, see the that-depends documentation on “container connection.”
 
 
@@ -285,7 +288,7 @@ Sometimes you want to pass the `fastapi.Request` (or other request-scoped data) 
 # request_deps.py
 from fastapi import Request
 from typing import AsyncIterator
-from that_depends import container_context, fetch_context_item
+from that_depends import container_context
 
 async def init_di_context(request: Request) -> AsyncIterator[None]:
     # We store the request in a that_depends global context
@@ -299,6 +302,7 @@ Then in your `FastAPI` route:
 # main.py (extended)
 from fastapi import FastAPI, Request, Depends
 from starlette.responses import JSONResponse
+from that_depends import fetch_context_item
 
 from request_deps import init_di_context
 from mycontainer import MyContainer

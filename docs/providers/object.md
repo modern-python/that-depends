@@ -10,5 +10,5 @@ class DIContainer(BaseContainer):
     object_provider = providers.Object(1)
 
 
-assert DIContainer.object_provider() == 1
+assert DIContainer.object_provider.resolve_sync() == 1
 ```

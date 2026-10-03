@@ -88,7 +88,7 @@ The `.provider` property gives you an *async function* to await, and `.provider_
 ```python
 # In a synchronous function or interactive session
 >>> msg = MyContainer.sync_message.provider_sync
->>> print(msg)
+>>> print(msg())
 Hello from sync provider!
 ```
 
@@ -101,7 +101,7 @@ import asyncio
 
 async def main():
     # Acquire the async resource by awaiting the provider property
-    msg = await MyContainer.async_message.provider
+    msg = await MyContainer.async_message.provider()
     print(msg)
 
 asyncio.run(main())
@@ -124,7 +124,7 @@ class AnotherClass:
         return self._factory_callable()
 
 
-# Passing MyContainer.sync_message.sync_provider to AnotherClass
+# Passing MyContainer.sync_message.provider_sync to AnotherClass
 provider_callable = MyContainer.sync_message.provider_sync
 another_instance = AnotherClass(provider_callable)
 print(another_instance.get_message())  # "Hello from sync provider!"
@@ -162,19 +162,25 @@ Under the hood, `greeting` calls `greet` with the result of `name.resolve_sync()
 If your providers use `ContextResource` or require a named scope (for instance, `REQUEST`), you need to wrap your resolves in a context manager:
 
 ```python
-from that_depends.providers import container_context, ContextScopes
+import typing
+
+from that_depends import BaseContainer, ContextScopes, container_context
+from that_depends.providers import ContextResource, Factory
+
+
+def create_session() -> typing.Iterator[str]:
+    yield "session"
 
 
 class ContextfulContainer(BaseContainer):
     default_scope = ContextScopes.REQUEST
-    # ... define context-based providers ...
+    session = ContextResource(create_session)
+    greeting = Factory(lambda session: f"Hello from {session}", session.cast)
 
 
 with container_context(ContextfulContainer, scope=ContextScopes.REQUEST):
-    result = ContextfulContainer.some_resource.provider_sync()
-    # ...
+    result = ContextfulContainer.greeting.provider_sync()
 ```
 
-You still call `.provider_sync` or `.provider`, but the container or context usage ensures resources are valid within the required scope.
-
-This pattern simplifies passing creation logic around in your code, preserving testability and clarity—whether you need sync or async behavior.
+Call `.provider_sync` or `.provider` on the factory inside the context, so the resources it depends on are valid within the required scope.
+These properties exist only on `Factory` and `AsyncFactory`; resolve a `ContextResource` with `.resolve_sync()` or `.resolve()`.

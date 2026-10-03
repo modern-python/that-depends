@@ -36,6 +36,11 @@ supports the following:
 
 ### Define a creator
 ```python
+import logging
+
+logger = logging.getLogger(__name__)
+
+
 async def create_async_resource():
     logger.debug("Async resource initiated")
     try:
