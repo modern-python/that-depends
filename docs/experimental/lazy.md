@@ -1,4 +1,4 @@
-# Lazy Provider
+# Lazy provider
 
 The `LazyProvider` enables you to reference other providers without explicitly 
 importing them into your module.
@@ -7,7 +7,7 @@ This can be helpful if you have a circular dependency between providers in
 multiple containers.
 
 
-## Creating a Lazy Provider
+## Creating a lazy provider
 
 === "Single import string"
     ```python

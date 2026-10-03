@@ -1,4 +1,4 @@
-# Injection into Generator Functions
+# Injection into generator functions
 
 
 `that-depends` supports dependency injections into generator functions. However, this comes
@@ -43,9 +43,9 @@ You can use the `@inject` decorator to inject dependencies into generator functi
         yield value
     ```
 
-## Supported Generators
+## Supported generators
 
-### Synchronous Generators
+### Synchronous generators
 
 `that-depends` supports injection into sync generator functions with the following signature:
 
@@ -60,7 +60,7 @@ This means that wrapping a sync generator with `@inject` will always preserve al
 - It will raise `StopIteration` when the generator is exhausted or otherwise returns.
 
 
-### Asynchronous Generators
+### Asynchronous generators
 
 `that-depends` supports injection into async generator functions with the following signature:
 
@@ -73,7 +73,7 @@ This means that wrapping an async generator with `@inject` will have the followi
 - The generator will yield as expected
 - The generator will **not** accept values via `asend()`
 
-If you need to send values to an async generator, you can simply resolve dependencies in the generator body:
+If you need to send values to an async generator, you can resolve dependencies in the generator body:
 
 ```python
 
@@ -95,7 +95,7 @@ as part of dependency injection into a generator.
 
 This is the case for both async and sync injection.
 
-**For example:**
+For example:
 ```python
 def sync_resource() -> typing.Iterator[float]:
     yield random.random() 
@@ -139,12 +139,10 @@ with container_context(scope=ContextScopes.REQUEST):
     next(injected())
 ```
 
-Since no context initialization was needed, the generator will work as expected.
-
 1. Scope provided to `@inject` no longer matches scope of the `sync_provider`
 
 
-### Container Context
+### Container context
 
 Similarly to above, the `@container_context` also does **not** support generators:
 

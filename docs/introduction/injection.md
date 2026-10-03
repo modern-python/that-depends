@@ -1,14 +1,14 @@
-# Injecting Providers in **that-depends**
+# Injecting providers in `that-depends`
 
-`that-depends` uses a decorator-based approach for both synchronous and asynchronous functions. By decorating a function with `@inject` and marking certain parameters as `Provide[...]`, **that-depends** will automatically resolve the specified providers at call time.
+`that-depends` uses a decorator-based approach for both synchronous and asynchronous functions. By decorating a function with `@inject` and marking certain parameters as `Provide[...]`, `that-depends` will automatically resolve the specified providers at call time.
 
 ---
 
 ## Overview
 
-In **that-depends**, you define your dependencies as `AbstractProvider` instances—e.g., `Singleton`, `Factory`, `Resource`, or others. These providers typically live inside a subclass of `BaseContainer`, making them globally accessible.
+In `that-depends`, you define your dependencies as `AbstractProvider` instances, such as `Singleton`, `Factory`, or `Resource`. These providers typically live inside a subclass of `BaseContainer`, which makes them globally accessible.
 
-When you want to use a provider in a function, you can mark a parameter’s **default value** as:
+When you want to use a provider in a function, you can mark a parameter's default value as:
 
 ```python
 my_param = Provide[MyContainer.some_provider]
@@ -18,11 +18,11 @@ You then decorate the function with `@inject`. This tells `that-depends` to auto
 
 ---
 
-## Quick Start
+## Quick start
 
-Below is a simple example demonstrating how to define a container, declare a provider, and inject that provider into a function.
+This example defines a container, declares a provider, and injects that provider into a function.
 
-### 1. Define a Container and a Provider
+### 1. Define a container and a provider
 
 ```python
 from that_depends import BaseContainer
@@ -31,9 +31,9 @@ from that_depends.providers import Singleton
 class MyContainer(BaseContainer):
     greeting_provider = Singleton(lambda: "Hello from MyContainer")
 ```
-For more details on Containers, refer to the [Containers](ioc-container.md) documentation.
+For more details on containers, refer to the [Containers](ioc-container.md) documentation.
 
-### 2. Inject the Provider into a Function
+### 2. Inject the provider into a function
 
 ```python
 from that_depends import inject, Provide
@@ -48,7 +48,7 @@ Here:
 1. We used `@inject` above `greet_user`.
 2. We declared a parameter `greeting`, whose default value is `Provide[MyContainer.greeting_provider]`.
 
-### 3. Call the Function
+### 3. Call the function
 
 ```python
 print(greet_user())  # "Greeting: Hello from MyContainer"
@@ -56,12 +56,12 @@ print(greet_user())  # "Greeting: Hello from MyContainer"
 
 ---
 
-## The `@inject` Decorator in Detail
+## The `@inject` decorator in detail
 
 
-### Synchronous vs Asynchronous Functions
+### Synchronous and asynchronous functions
 
-`@inject` works on both sync and async functions. Just note that injecting async providers into sync functions is not supported.
+`@inject` works on both sync and async functions, but you cannot inject async providers into sync functions.
 
 ```python
 @inject
@@ -72,9 +72,9 @@ async def async_greet_user(greeting: str = Provide[MyContainer.greeting_provider
 
 ---
 
-## Using `Provide[...]` as a Default
+## Using `Provide[...]` as a default
 
-It is recommended to wrap your provider in `Provide[...]` when using it as a default in an injected function since it provides correct type resolution:
+Wrap your provider in `Provide[...]` when you use it as a default in an injected function, so that the parameter gets the correct type:
 
 ```python
 @inject
@@ -88,17 +88,17 @@ def greet_user_direct(
 
 ---
 
-## Injection Warnings
+## Injection warnings
 
 If `@inject` finds **no** parameters whose default values are providers, it will issue a warning:
 
 > `Expected injection, but nothing found. Remove @inject decorator.`
 
-This is to avoid accidentally decorating a function that doesn’t actually require injection.
+The warning catches functions decorated by mistake that do not require injection.
 
 ---
 
-## Specifying a Scope
+## Specifying a scope
 
 By default, `@inject` uses the `ContextScopes.INJECT` scope. If you want to override that, do:
 
@@ -111,7 +111,7 @@ def greet_user(greeting: str = Provide[MyContainer.greeting_provider]):
     ...
 ```
 
-When `greet_user` is called, **that-depends**:
+When `greet_user` is called, `that-depends`:
 
 1. Initializes the context for all `REQUEST` (or `ANY`) scoped `args` and `kwargs`.
 2. Resolves all providers in the `args` and `kwargs` of the function.
@@ -121,7 +121,7 @@ For more details regarding scopes and context management, see the [Context Resou
 
 ---
 
-## Overriding Providers
+## Overriding providers
 
 In tests or specialized scenarios, you may want to override a provider’s value temporarily. You can do so with the container’s `override_providers_sync()` method or the provider’s own `override_context_sync()`:
 
@@ -139,24 +139,27 @@ For more details on overriding providers, see the [Overriding Providers](../test
 
 ---
 
-## Frequently Asked Questions
+## Frequently asked questions
 
-1. **Do I need to call `@inject` every time I reference a provider?**  
-   No—only when you want **automatic** injection of providers into function parameters. If you are resolving dependencies manually (e.g., `MyContainer.greeting_provider.resolve_sync()`), then `@inject` is not needed.
+### Do I need to call `@inject` every time I reference a provider?
 
-   2. **What if I provide a custom argument to a parameter that has a default provider?**  
-      If you explicitly pass a value, that value overrides the injected default:
+No, only when you want automatic injection of providers into function parameters. If you resolve dependencies manually (e.g., `MyContainer.greeting_provider.resolve_sync()`), you do not need `@inject`.
 
-      ~~~~python
-      @inject
-      def foo(x: int = Provide[MyContainer.number_factory]) -> int:
-          return x
+### What if I provide a custom argument to a parameter that has a default provider?
 
-      print(foo())     # uses number_factory -> 42
-      print(foo(99))   # explicitly uses 99
-      ~~~~
+A value you pass explicitly overrides the injected default:
 
-3. **Can I combine `@inject` with other decorators?**  
-   Yes, you can. Generally, put `@inject` **below** others, depending on the order you need. If you run into issues, experiment with the order or handle context manually.
+~~~~python
+@inject
+def foo(x: int = Provide[MyContainer.number_factory]) -> int:
+    return x
+
+print(foo())     # uses number_factory -> 42
+print(foo(99))   # explicitly uses 99
+~~~~
+
+### Can I combine `@inject` with other decorators?
+
+Yes. Generally, put `@inject` below the others, depending on the order you need. If you run into issues, experiment with the order or handle context manually.
 
 ---

@@ -1,6 +1,6 @@
 # Usage with multiple containers
 
-You can use providers from other containers as following:
+You can use providers from other containers as follows:
 ```python
 import datetime
 import typing

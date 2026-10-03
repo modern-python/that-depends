@@ -1,4 +1,4 @@
-# Context-Dependent Resources
+# Context-dependent resources
 
 `that-depends` provides a way to manage two types of contexts:
 
@@ -12,11 +12,11 @@ To interact with both types of contexts, there are two separate interfaces:
    and `ContextResource` providers implement.
 
 ---
-## Quick Start
+## Quick start
 
 You must initialize a context before you can resolve a `ContextResource`.
 
-**Setup:**
+Start with a container that defines `ContextResource` providers:
 ```python
 import typing
 
@@ -55,7 +55,7 @@ await func()  # returns "async resource"
 This will initialize a new context for `async_resource` each time `func` is called.
 
 ---
-## Global Context
+## Global context
 
 A global context can be initialized by using the `container_context` context manager.
 
@@ -99,7 +99,7 @@ async with container_context(global_context={"key": "value"}):
         fetch_context_item("key")  # returns 'value'
 ```
 
-Additionally, you can use the `global_context` argument in combination with `preserve_global_context` to
+You can also use the `global_context` argument in combination with `preserve_global_context` to
 extend the global context. This merges the two contexts together by key, with the new `global_context` taking precedence:
 ```python
 async with container_context(global_context={"key_1": "value_1", "key_2": "value_2"}):
@@ -128,7 +128,7 @@ with container_context(global_context={"key": 4}):
 
 ---
 
-## Context Resources
+## Context resources
 
 To resolve a `ContextResource`, you must first initialize a new context for that resource.
 ```python
@@ -173,7 +173,7 @@ async def my_func():
 
 ### More granular context initialization
 
-If you do not wish to simply reinitialize the context for all containers, you can initialize a context for a specific container:
+Instead of reinitializing the context for all containers, you can initialize a context for a specific container:
 ```python
 # this will init a new context for all ContextResources in MyContainer and any connected containers.
 async with container_context(MyContainer):
@@ -189,7 +189,7 @@ async with container_context(MyContainer.async_resource):
 It is not necessary to use `container_context()` to do this. Instead, you can use the `SupportsContext` protocol described 
 [here](#quick-reference).
 
-### Context Hierarchy
+### Context hierarchy
 
 Resources are cached in the context after their first resolution.  
 They are torn down when `container_context` exits:
@@ -226,8 +226,8 @@ Each time you call `await insert_into_database()`, a new instance of `session` w
 | Reset all resources in a container                   | `async with container_context(my_container):` | `async with my_container.context_async():` | `@my_container.context`           |
 | Reset all sync resources in a container              | `with container_context(my_container):`       | `with my_container.context_sync():`        | `@my_container.context`           |
 
-> **Note:** the `context()` wrapper is technically not part of the `SupportsContext` API, however all classes which 
-> implement this `SupportsContext` also implement this method. 
+> The `context()` wrapper is technically not part of the `SupportsContext` API, but all classes that
+> implement `SupportsContext` also implement this method.
 ---
 
 ## Middleware
@@ -236,7 +236,7 @@ For `ASGI` applications, `that-depends` provides the `DIContextMiddleware` to ma
 
 The `DIContextMiddleware` accepts containers and resources as arguments and automatically initializes the context for the provided resources when an endpoint is called.
 
-**Example with `FastAPI`:**
+For example, with `FastAPI`:
 ```python
 import fastapi
 from that_depends.providers import DIContextMiddleware, ContextResource

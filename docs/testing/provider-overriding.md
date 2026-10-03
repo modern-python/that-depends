@@ -1,7 +1,7 @@
 # Provider overriding
 
 Any provider in a container can be overridden, for example with a stub in tests.
-**Override affects all providers that use the overridden provider (_see example_)**.
+Overriding a provider affects all providers that use it, as the example below shows.
 
 ## Example
 
@@ -105,7 +105,7 @@ def main():
 ---
 ## Using with Litestar
 In order to be able to inject dependencies of any type instead of existing objects, 
-we need to **change the typing** for the injected parameter as follows:
+we need to change the typing of the injected parameter as follows:
 
 ```python3
 import typing
@@ -156,7 +156,7 @@ router = Router(
 app = Litestar(route_handlers=[router])
 ```
 
-Now we are ready to write tests with **overriding** and this will work with **any types**:
+Tests can then override the dependency with a value of any type:
 
 ```python3
 def test_litestar_endpoint_with_overriding() -> None:

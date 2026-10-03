@@ -1,11 +1,11 @@
-# Named Scopes
+# Named scopes
 
 Named scopes allow you to define the lifecycle of a `ContextResource`. 
-In essence, they provide a tool to manage when `ContextResources` can be resolved and when they should be finalized.
+They control when `ContextResources` can be resolved and when they should be finalized.
 
 Before continuing, make sure you're familiar with `ContextResource` providers by reading their [documentation](../providers/context-resources.md).
 
-## Quick Start
+## Quick start
 
 By default, `ContextResources` have the named scope `ANY`, meaning they will be re-initialized each time you enter a named scope.
 A container that defines a `ContextResource` without an explicit scope must assign `default_scope` before it, otherwise defining the container raises `DefaultScopeNotDefinedError`.
@@ -133,7 +133,7 @@ await injected() # will resolve
 
 - `INJECT`: The default scope of the `@inject` wrapper. Read more in the [Named scopes with the @inject wrapper](#named-scopes-with-the-inject-wrapper) section.
 
-> **Note:** The default scope, before entering any named scope, is `None`. You can pass `None` as a scope to providers, but since it cannot be entered, in most scenarios passing `None` simply means you did not specify a scope.
+> The default scope, before entering any named scope, is `None`. You can pass `None` as a scope to providers, but since it cannot be entered, in most scenarios passing `None` means you did not specify a scope.
 
 ## Named scopes with the `@inject` wrapper
 
@@ -146,7 +146,7 @@ def foo(...):
 ```
 
 The `@inject` wrapper will enter a new context for each injected provider that matches the specified scope.
-However, it will not enter the scope by default!
+However, it does not enter the scope by default.
 
 Here is a simple example:
 ```python hl_lines="5 10"
@@ -190,7 +190,7 @@ injected()
 2. Context for `Container.provider` is initialized and will exit when the function returns.
 3. This assertion will pass since the context for this provider is still the same.
 
-This implementation might seem complex at first glance, but it provides the following advantages:
+This design has the following advantages:
 
 - Only context for `ContextResource` providers you need is initialized. This improves performance.
 - It discourages explicit resolution via `.resolve()` or `.resolve_sync()` in the function body.

@@ -39,20 +39,20 @@ class DIContainer(BaseContainer):
 > Note: If you have a class that has dependencies which need to be resolved asynchronously, you can use `AsyncFactory` to create instances of that class. The factory will handle the async resolution of dependencies.
 
 
-## Retrieving provider as a Callable
+## Retrieving a provider as a callable
 
 When you use a factory‑based provider such as `Factory` (for sync logic) or `AsyncFactory` (for async logic), the resulting provider instance has two special properties:
 
-- **`.provider`** — returns an *async callable* that, when awaited, resolves the resource.  
-- **`.provider_sync`** — returns a *sync callable* that, when called, resolves the resource.
+- `.provider` returns an *async callable* that, when awaited, resolves the resource.  
+- `.provider_sync` returns a *sync callable* that, when called, resolves the resource.
 
-You can think of these as no-argument functions that produce the resource you defined—similar to calling `resolve()` or `resolve_sync()` directly, but in a more convenient form when you want a standalone function handle.
+You can think of these as no-argument functions that produce the resource you defined. They behave like calling `resolve()` or `resolve_sync()` directly and are convenient when you want a standalone function handle.
 
 ---
 
-### Basic Usage
+### Basic usage
 
-#### Defining Providers in a Container
+#### Defining providers in a container
 
 Suppose you have a `BaseContainer` subclass that defines both a sync and an async resource:
 
@@ -79,11 +79,11 @@ Here, `sync_message` is a `Factory` which calls a plain function, while `async_m
 
 ---
 
-#### Resolving Resources via `.provider` and `.provider_sync`
+#### Resolving resources via `.provider` and `.provider_sync`
 
 The `.provider` property gives you an *async function* to await, and `.provider_sync` gives you a *synchronous* callable. They effectively wrap `.resolve()` and `.resolve_sync()`.
 
-**Synchronous Resolution**
+##### Synchronous resolution
 
 ```python
 # In a synchronous function or interactive session
@@ -94,7 +94,7 @@ Hello from sync provider!
 
 Here, `provider_sync` is a no-argument function that immediately returns the resolved value.
 
-**Asynchronous Resolution**
+##### Asynchronous resolution
 
 ```python
 import asyncio
@@ -111,7 +111,7 @@ Within an async function, `MyContainer.async_message.provider` gives a no-argume
 
 ---
 
-### Passing the Provider Function Around
+### Passing the provider function around
 
 Sometimes you may want to store or pass around the provider function itself (rather than resolving it immediately):
 
@@ -134,7 +134,7 @@ Because `.provider_sync` is just a callable returning your dependency, it can be
 
 ---
 
-### Example: Using Factories with Parameters
+### Example: using factories with parameters
 
 `Factory` and `AsyncFactory` can accept dependencies (including other providers) as parameters:
 
@@ -157,7 +157,7 @@ Under the hood, `greeting` calls `greet` with the result of `name.resolve_sync()
 
 ---
 
-### Context Considerations
+### Context considerations
 
 If your providers use `ContextResource` or require a named scope (for instance, `REQUEST`), you need to wrap your resolves in a context manager:
 

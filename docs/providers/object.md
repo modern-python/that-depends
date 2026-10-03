@@ -1,6 +1,6 @@
 # Object
 
-Object provider returns an object “as is”.
+Object provider returns an object "as is".
 
 ```python
 from that_depends import BaseContainer, providers

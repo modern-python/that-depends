@@ -1,11 +1,11 @@
 # Usage with `FastStream`
 
 !!! info "See also"
-    [`modern-di-faststream`](https://github.com/modern-python/modern-di-faststream) — the
+    [`modern-di-faststream`](https://github.com/modern-python/modern-di-faststream) is the
     equivalent FastStream integration for [`modern-di`](https://github.com/modern-python/modern-di),
     the newer sibling DI framework.
 
-`that-depends` is out of the box compatible with `faststream.Depends()`:
+`that-depends` works out of the box with `faststream.Depends()`:
 
 ```python hl_lines="14"
 from typing import Annotated
@@ -30,10 +30,10 @@ async def process(
 1. This would be the same as `Provide[Container.suffix_factory]`
 
 
-## Context Middleware
+## Context middleware
 
-If you are using [ContextResource](../providers/context-resources.md) provider, you likely will want to
-initialize a context before processing message with `faststream.`
+If you are using [ContextResource](../providers/context-resources.md) provider, you will likely want to
+initialize a context before processing messages with `faststream.`
 
 `that-depends` provides integration for these use cases:
 
