@@ -1,4 +1,4 @@
-import pytest
+from tests.integrations import import_or_skip
 
 
-pytest.importorskip("litestar")
+import_or_skip("litestar")
