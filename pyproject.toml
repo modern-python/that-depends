@@ -20,13 +20,17 @@ classifiers = [
     "Topic :: Software Development :: Libraries",
 ]
 version = "0"
+dependencies = [
+    "typing-extensions>=4.14.1",
+]
 
 [project.optional-dependencies]
 fastapi = [
     "fastapi>=0.115.3",
 ]
 faststream = [
-    "faststream>=0.3.14"
+    "faststream>=0.5.19",
+    "packaging",
 ]
 
 [project.urls]
@@ -45,11 +49,11 @@ dev = [
     "pytest-repeat",
     "ruff",
     "mypy",
-    "typing-extensions",
     "pre-commit",
     "litestar",
     "faststream[nats]",
     "pytest-randomly",
+    "tomli",
     "pyrefly>=0.61.1",
 ]
 

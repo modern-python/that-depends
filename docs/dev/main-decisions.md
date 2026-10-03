@@ -8,3 +8,6 @@
 3. Focus on maximum compatibility with mypy:
    - no need for `# type: ignore`
    - no need for `typing.cast`
+4. The only runtime dependency is `typing-extensions`:
+   - it backports `override`, `Self`, `TypeIs` and `TypeVar` defaults to Python 3.10;
+   - integrations declare their own imports in extras, and `tests/test_packaging.py` checks both.
