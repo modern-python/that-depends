@@ -15,6 +15,7 @@ from that_depends import BaseContainer
 
 class Container(BaseContainer):
     # define your providers here
+    ...
 ```
 
 Then you can build your dependency graph within the container:
@@ -27,9 +28,9 @@ class Container(BaseContainer):
     session = providers.Factory(create_db_session, config=config.db) # (1)!
     
     user_repository = providers.Factory(
-        UserRepository, 
+        UserRepository,
+        config.users,
         session=session.cast, # (3)!
-        config.users
     ) # (2)!
 
 

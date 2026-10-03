@@ -20,7 +20,7 @@ You must initialize a context before you can resolve a `ContextResource`.
 ```python
 import typing
 
-from that_depends import BaseContainer, providers, inject, Provide
+from that_depends import BaseContainer, ContextScopes, providers, inject, Provide
 
 
 async def my_async_resource() -> typing.AsyncIterator[str]:
@@ -38,6 +38,7 @@ def my_sync_resource() -> typing.Iterator[str]:
         print("Teardown of sync resource")
 
 class MyContainer(BaseContainer):
+    default_scope = ContextScopes.ANY
     async_resource = providers.ContextResource(my_async_resource)
     sync_resource = providers.ContextResource(my_sync_resource)
 ```
@@ -85,8 +86,8 @@ The values stored in the `global_context` can be resolved as long as:
 async with container_context(global_context={"key": "value"}):
     # run some code
     fetch_context_item("key")
-    async with container_context(preserve_global_context=False):  # this will reset all contexts, including the global context.
-        fetch_context_item("key")  # Error! key not found
+    async with container_context(MyContainer, preserve_global_context=False):  # this will reset all contexts, including the global context.
+        fetch_context_item("key")  # returns None, the key is not found
 ```
 
 If you want to maintain the global context, you can initialize a new context with the `preserve_global_context` argument:
@@ -167,7 +168,7 @@ async def my_func():
         # trying to resolve async dependency
         await MyContainer.async_resource.resolve()
 
-> RuntimeError: AsyncResource cannot be resolved in a sync context.
+> RuntimeError: Context is not set. Use container_context
 ```
 
 ### More granular context initialization
@@ -247,9 +248,6 @@ my_app: fastapi.FastAPI
 
 # This will initialize the context for `my_context_resource_provider` and `MyContainer` whenever an endpoint is called.
 my_app.add_middleware(DIContextMiddleware, MyContainer, my_context_resource_provider)
-
-# This will initialize the context for all containers when an endpoint is called.
-my_app.add_middleware(DIContextMiddleware)
 ```
 
-> `DIContextMiddleware` also supports the `global_context` and `preserve_global_context` arguments.
+> `DIContextMiddleware` also supports the `global_context` and `scope` arguments.

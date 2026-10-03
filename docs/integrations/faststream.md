@@ -56,14 +56,29 @@ broker = RabbitBroker(middlewares=[DIContextMiddleware(Container, scope=ContextS
 Here is an example that includes life-cycle events:
 
 ```python
-import datetime
 import contextlib
+import dataclasses
+import datetime
 import typing
 
 from faststream import FastStream, Depends, Logger
 from faststream.rabbit import RabbitBroker
 
-from tests import container
+from that_depends import BaseContainer, providers
+
+
+async def create_async_resource() -> typing.AsyncIterator[datetime.datetime]:
+    yield datetime.datetime.now(tz=datetime.timezone.utc)
+
+
+@dataclasses.dataclass(kw_only=True, slots=True)
+class DependentFactory:
+    async_resource: datetime.datetime
+
+
+class DIContainer(BaseContainer):
+    async_resource = providers.Resource(create_async_resource)
+    dependent_factory = providers.Factory(DependentFactory, async_resource=async_resource.cast)
 
 
 @contextlib.asynccontextmanager
@@ -71,7 +86,7 @@ async def lifespan_manager() -> typing.AsyncIterator[None]:
     try:
         yield
     finally:
-        await container.DIContainer.tear_down()
+        await DIContainer.tear_down()
 
 
 broker = RabbitBroker()
@@ -82,8 +97,8 @@ app = FastStream(broker, lifespan=lifespan_manager)
 async def read_root(
     logger: Logger,
     some_dependency: typing.Annotated[
-        container.DependentFactory,
-        Depends(container.DIContainer.dependent_factory)
+        DependentFactory,
+        Depends(DIContainer.dependent_factory)
     ],
 ) -> datetime.datetime:
     startup_time = some_dependency.async_resource

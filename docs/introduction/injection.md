@@ -84,7 +84,7 @@ def greet_user_direct(
     return f"Greeting: {greeting}"
 ```
 
-1. Notice that although `greeting` is a `str`, `mypy` and you IDE will not complain.
+1. Notice that although `greeting` is a `str`, `mypy` and your IDE will not complain.
 
 ---
 
@@ -123,7 +123,7 @@ For more details regarding scopes and context management, see the [Context Resou
 
 ## Overriding Providers
 
-In tests or specialized scenarios, you may want to override a provider’s value temporarily. You can do so with the container’s `override_providers()` method or the provider’s own `override_context()`:
+In tests or specialized scenarios, you may want to override a provider’s value temporarily. You can do so with the container’s `override_providers_sync()` method or the provider’s own `override_context_sync()`:
 
 ```python
 def test_greet_override():
@@ -135,7 +135,7 @@ def test_greet_override():
 
 This is especially helpful for unit tests where you want to substitute real dependencies (e.g., database connections) with mocks or stubs.
 
-For more details on overring providers, see the [Overriding Providers](../testing/provider-overriding.md) documentation.
+For more details on overriding providers, see the [Overriding Providers](../testing/provider-overriding.md) documentation.
 
 ---
 

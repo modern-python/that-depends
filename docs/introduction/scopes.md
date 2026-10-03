@@ -8,6 +8,8 @@ Before continuing, make sure you're familiar with `ContextResource` providers by
 ## Quick Start
 
 By default, `ContextResources` have the named scope `ANY`, meaning they will be re-initialized each time you enter a named scope.
+A container that defines a `ContextResource` without an explicit scope must assign `default_scope` before it, otherwise defining the container raises `DefaultScopeNotDefinedError`.
+Set `default_scope = ContextScopes.ANY` to keep the `ANY` behavior.
 You can change the scope of a `ContextResource` in two ways:
 
 ### Setting the scope for providers
@@ -16,13 +18,13 @@ You can change the scope of a `ContextResource` in two ways:
    
       ~~~~python hl_lines="2"
       class MyContainer(BaseContainer):
-          default_scope = ContextScope.APP
+          default_scope = ContextScopes.APP
           p = providers.ContextResource(my_resource)
       ~~~~
 
 2. By calling the `with_config()` method when creating a `ContextResource`. This also overrides the class default:
       ~~~~python
-      p = providers.ContextResource(my_resource).with_config(scope=ContextScope.APP)
+      p = providers.ContextResource(my_resource).with_config(scope=ContextScopes.APP)
       ~~~~
 
 ### Entering and exiting scopes
@@ -67,7 +69,7 @@ async with p.context_async():
 Similarly, this will also not work:
 ```python
 async with container_context(p, scope=ContextScopes.REQUEST): 
-    # will raise and InvalidContextError since you are entering `REQUEST` scope
+    # will raise an InvalidContextError since you are entering `REQUEST` scope
     ...
 ```
 
@@ -78,7 +80,7 @@ await p.resolve()  # will raise an exception
 
 async with container_context(p, scope=ContextScopes.APP):
    val_1 = await p.resolve()  # will resolve
-   async with container_context(p, scope=ContextScopes.REQUEST):
+   async with container_context(scope=ContextScopes.REQUEST):
       val_2 = await p.resolve()  # will resolve
       assert val_1 == val_2  # but value stays the same since context is the same
 ```
@@ -114,7 +116,7 @@ class Container(BaseContainer):
 @Container.context(force=True)
 @inject
 async def injected(val = Provide[Container.p]):
-   return p 
+   return val
 
 await injected() # will resolve
 ```
@@ -188,7 +190,7 @@ injected()
 2. Context for `Container.provider` is initialized and will exit when the function returns.
 3. This assertion will pass since the context for this provider is still the same.
 
-This implementation might seem complex at first glance, but it providers the following advantages:
+This implementation might seem complex at first glance, but it provides the following advantages:
 
 - Only context for `ContextResource` providers you need is initialized. This improves performance.
 - It discourages explicit resolution via `.resolve()` or `.resolve_sync()` in the function body.

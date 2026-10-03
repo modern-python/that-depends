@@ -1,11 +1,10 @@
 # Resource Provider
 
-A **Resource** is a special provider that:
-
-- **Resolves** its dependency only **once** and **caches** the resolved instance for future injections.
-- **Includes** teardown (finalization) logic, unlike a plain `Singleton`.
-- **Supports** generator or async generator functions for creation (allowing a `yield` plus teardown in `finally`).
-- **Also** allows usage of classes that implement standard Python context managers (`typing.ContextManager` or `typing.AsyncContextManager`), but *does not* automatically integrate with `container_context`.
+A `Resource` resolves once, caches the instance, and runs teardown logic from a generator or context manager.
+A plain `Singleton` has no teardown step.
+The creator can be a generator or async generator function, with teardown after the `yield` in `finally`,
+or a class that implements `typing.ContextManager` or `typing.AsyncContextManager`.
+A `Resource` does not automatically integrate with `container_context`.
 
 This makes `Resource` ideal for dependencies that need:
 

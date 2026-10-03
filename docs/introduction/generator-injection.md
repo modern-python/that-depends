@@ -109,7 +109,7 @@ def injected(val: float = Provide[Container.dependent_provider]) -> typing.Gener
     yield val 
 
 # This will raise a `ContextProviderError`!
-next(_injected())
+next(injected())
 ```
 
 1. Matches context scope of `sync_provider` provider, which is a dependency of the `dependent_provider` provider.
@@ -136,7 +136,7 @@ def injected(val: float = Provide[Container.dependent_provider]) -> typing.Gener
 
 with container_context(scope=ContextScopes.REQUEST):
     # This will resolve as expected
-    next(_injected())
+    next(injected())
 ```
 
 Since no context initialization was needed, the generator will work as expected.

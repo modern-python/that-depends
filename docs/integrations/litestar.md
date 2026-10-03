@@ -6,15 +6,23 @@
     sibling DI framework.
 
 ```python
-import typing
-import fastapi
 import contextlib
+import typing
+
 from litestar import Litestar, get
 from litestar.di import Provide
 from litestar.status_codes import HTTP_200_OK
 from litestar.testing import TestClient
 
-from tests import container
+from that_depends import BaseContainer, providers
+
+
+async def create_async_resource() -> typing.AsyncIterator[str]:
+    yield "async resource"
+
+
+class DIContainer(BaseContainer):
+    async_resource = providers.Resource(create_async_resource)
 
 
 @get("/")
@@ -23,16 +31,16 @@ async def index(injected: str) -> str:
 
 
 @contextlib.asynccontextmanager
-async def lifespan_manager(_: fastapi.FastAPI) -> typing.AsyncIterator[None]:
+async def lifespan_manager(_: Litestar) -> typing.AsyncIterator[None]:
     try:
         yield
     finally:
-        await container.DIContainer.tear_down()
+        await DIContainer.tear_down()
 
 
 app = Litestar(
     route_handlers=[index],
-    dependencies={"injected": Provide(container.DIContainer.async_resource)},
+    dependencies={"injected": Provide(DIContainer.async_resource)},
     lifespan=[lifespan_manager],
 )
 

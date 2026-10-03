@@ -1,10 +1,6 @@
 # Provider overriding
 
-DI container provides, in addition to direct dependency injection, another very important functionality: 
-**dependencies or providers overriding**.
-
-Any provider registered with the container can be overridden. 
-This can help you replace objects with simple stubs, or with other objects.
+Any provider in a container can be overridden, for example with a stub in tests.
 **Override affects all providers that use the overridden provider (_see example_)**.
 
 ## Example
