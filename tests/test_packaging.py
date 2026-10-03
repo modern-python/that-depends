@@ -1,14 +1,18 @@
 import ast
-import importlib.metadata
 import pathlib
 import re
 import sys
 
+import pytest
+
 import that_depends
 
 
+tomllib = pytest.importorskip("tomllib")
+
 _PACKAGE_DIR = pathlib.Path(that_depends.__file__).parent
 _INTEGRATIONS_DIR = _PACKAGE_DIR / "integrations"
+_PROJECT = tomllib.loads((_PACKAGE_DIR.parent / "pyproject.toml").read_text())["project"]
 
 
 def _top_level_imports(path: pathlib.Path) -> set[str]:
@@ -31,11 +35,10 @@ def _third_party_imports(paths: list[pathlib.Path]) -> set[str]:
 
 
 def _declared(*, include_extras: bool) -> set[str]:
-    return {
-        _normalize(re.split(r"[\s;<>=!~\[]", requirement, maxsplit=1)[0])
-        for requirement in importlib.metadata.requires("that-depends") or []
-        if include_extras or "extra ==" not in requirement
-    }
+    requirements = list(_PROJECT.get("dependencies", []))
+    if include_extras:
+        requirements += [req for extra in _PROJECT.get("optional-dependencies", {}).values() for req in extra]
+    return {_normalize(re.split(r"[\s;<>=!~\[]", requirement, maxsplit=1)[0]) for requirement in requirements}
 
 
 def test_core_runtime_imports_are_unconditional_dependencies() -> None:
