@@ -53,6 +53,7 @@ dev = [
     "litestar",
     "faststream[nats]",
     "pytest-randomly",
+    "tomli",
     "pyrefly>=0.61.1",
 ]
 

@@ -3,12 +3,13 @@ import pathlib
 import re
 import sys
 
-import pytest
-
 import that_depends
 
 
-tomllib = pytest.importorskip("tomllib")
+if sys.version_info >= (3, 11):  # pragma: no cover
+    import tomllib
+else:  # pragma: no cover
+    import tomli as tomllib
 
 _PACKAGE_DIR = pathlib.Path(that_depends.__file__).parent
 _INTEGRATIONS_DIR = _PACKAGE_DIR / "integrations"
