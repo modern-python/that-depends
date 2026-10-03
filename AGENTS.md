@@ -1,6 +1,6 @@
 # AGENTS.md
 
-`that-depends` is a zero-dependency, typed dependency-injection framework for Python
+`that-depends` is a typed dependency-injection framework for Python
 3.10+. It is the org's most-used package and the only repo here with real external
 contributor traffic: most merged PRs come from someone other than the maintainer.
 Assume a human reviews your diff.

@@ -29,7 +29,6 @@ It is production-ready and gives you the following:
 - Dependency context management with scopes.
 - Overriding dependencies for tests.
 - Injecting dependencies in functions and coroutines without wiring.
-- Package with zero dependencies.
 
 
 ### Installation
