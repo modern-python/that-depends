@@ -7,7 +7,7 @@ It is useful when you want to pass a value into your Container that other provid
 
 ## Creating a state provider
 
-The `State` provider does not accept any arguments when it created.
+The `State` provider does not accept any arguments when it is created.
 ```python
 from that_depends import BaseContainer, providers
 class Container(BaseContainer):
@@ -31,12 +31,12 @@ class Container(BaseContainer):
 
     ```
 
-> Note: If you try to resolve a `State` provider without initializing it first it will raise an `StateNotInitializedError`.
+> Note: If you try to resolve a `State` provider without initializing it first it will raise a `StateNotInitializedError`.
 
 
 ## Nested state
 
-The `State` provider will always resolve the last initialize value.
+The `State` provider will always resolve the last initialized value.
 
 ```python
 with Container.my_state.init(1):

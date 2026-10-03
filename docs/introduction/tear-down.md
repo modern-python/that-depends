@@ -37,12 +37,12 @@ context manager.
 
 ## Propagation
 
-Per default `that-depends` will propagate tear-down to dependent providers.
+By default, `that-depends` propagates tear-down to dependent providers.
 
 This means that if you have defined a provider `A` that is dependent on provider `B`,
 when calling `await B.tear_down()`, this will also execute `await A.tear_down()`.
 
-**For example:**
+For example:
 
 ```python
 class MyContainer(BaseContainer):
@@ -59,7 +59,7 @@ a_new = await MyContainer.A()
 assert a_new != a
 ```
 
-If you do not wish to propagate tear-down simply call `tear_down(propagate=False)` or `tear_down_sync(propagate=False)`.
+To skip propagation, call `tear_down(propagate=False)` or `tear_down_sync(propagate=False)`.
 
 --- 
 
@@ -69,7 +69,7 @@ If you need to call tear-down from a sync context you can use the `tear_down_syn
 keep in mind that because dependent resources might be async, this will fail to correctly finalize these async
 resources.
 
-Per default this will raise a `CannotTearDownSyncError`:
+By default, this raises a `CannotTearDownSyncError`:
 
 ```python
 async def async_creator(val: float) -> typing.AsyncIterator[float]:

@@ -1,6 +1,6 @@
 # Selector
 
-The Selector provider chooses between provider based on a key. This resolves into a single dependency.
+The Selector provider chooses between providers based on a key. This resolves into a single dependency.
 
 The selector can be a callable that returns a string, an instance of `AbstractProvider` or a string.
 
@@ -50,7 +50,7 @@ class DIContainer(BaseContainer):
 
 ## Fixed string selectors
 
-This can be useful for quickly testing.
+This can be useful for quick testing.
 
 ```python
 class DIContainer(BaseContainer):

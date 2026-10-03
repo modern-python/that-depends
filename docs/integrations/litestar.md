@@ -1,7 +1,7 @@
 # Usage with `Litestar`
 
 !!! info "See also"
-    [`modern-di-litestar`](https://github.com/modern-python/modern-di-litestar) — the equivalent
+    [`modern-di-litestar`](https://github.com/modern-python/modern-di-litestar) is the equivalent
     Litestar integration for [`modern-di`](https://github.com/modern-python/modern-di), the newer
     sibling DI framework.
 

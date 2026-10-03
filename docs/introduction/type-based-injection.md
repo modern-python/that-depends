@@ -3,7 +3,7 @@
 `that-depends` also supports dependency injection without explicitly referencing
 the provider of the dependency.
 
-## Quick Start
+## Quick start
 
 In order to make use of this, you need to bind providers to the type they will provide:
 ```python
@@ -11,7 +11,7 @@ class Container(BaseContainer):
     my_provider = providers.Factory(lambda: random.random()).bind(float)
 ```
 
-Then provide inject into your functions or generators:
+Then inject into your functions or generators:
 
 === "Option 1"
     ```python
@@ -29,7 +29,7 @@ Then provide inject into your functions or generators:
 
 ## Default bind
 
-Per default, providers will **not** be bound to any type, even if your creator 
+By default, providers are **not** bound to any type, even if your creator 
 function has type hints. So make sure to always bind your providers.
 
 You can also bind multiple types to the same provider:
@@ -40,7 +40,7 @@ class Container(BaseContainer):
 
 ## Contravariant binding
 
-Per default injection will be invariant to the bound types.
+By default, injection is invariant to the bound types.
 
 If you wish to enable contravariance for your bound types you can do so by setting
 `#!python contravariant=True` in the `bind` method:

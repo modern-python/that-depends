@@ -1,4 +1,4 @@
-# Resource Provider
+# Resource provider
 
 A `Resource` resolves once, caches the instance, and runs teardown logic from a generator or context manager.
 A plain `Singleton` has no teardown step.
@@ -6,21 +6,18 @@ The creator can be a generator or async generator function, with teardown after 
 or a class that implements `typing.ContextManager` or `typing.AsyncContextManager`.
 A `Resource` does not automatically integrate with `container_context`.
 
-This makes `Resource` ideal for dependencies that need:
-
-1. A **single creation** step,
-2. A **single finalization** step,
-3. **Thread/async safety**—all consumers receive the same resource object, and concurrency is handled.
+Use `Resource` for dependencies that need a single creation step, a single finalization step, and thread and async safety.
+All consumers receive the same resource object, and concurrency is handled.
 
 ---
 
-## How It Works
+## How it works
 
-### Defining a Sync or Async Resource
+### Defining a sync or async resource
 
-You can define your creation logic as either a **generator** or a **context manager** class (sync or async). 
+You can define your creation logic as either a generator or a context manager class (sync or async). 
 
-**Synchronous generator** example:
+A synchronous generator:
 
 ```python
 import typing
@@ -33,7 +30,7 @@ def create_sync_resource() -> typing.Iterator[str]:
         print("Tearing down sync resource")
 ```
 
-**Asynchronous generator** example:
+An asynchronous generator:
 
 ```python
 import typing
@@ -59,9 +56,9 @@ class MyContainer(BaseContainer):
 
 ---
 
-## Resolving and Teardown
+## Resolving and teardown
 
-Once defined, you can explicitly **resolve** the resource and **tear it down**:
+Once defined, you can explicitly resolve the resource and tear it down:
 
 ```python
 # Synchronous resource usage
@@ -82,17 +79,17 @@ async def main():
 asyncio.run(main())
 ```
 
-- **`resolve_sync()`** or **`resolve()`**: Creates (if needed) and returns the resource instance.
-- **`tear_down_sync()`** or **`tear_down()`**: Closes/cleans up the resource (triggering your `finally` block or exiting the context manager) and resets the cached instance to `None`. A subsequent resolve call will then recreate it.
+- `resolve_sync()` or `resolve()` creates the resource instance if needed and returns it.
+- `tear_down_sync()` or `tear_down()` cleans up the resource (running your `finally` block or exiting the context manager) and resets the cached instance to `None`. The next resolve call recreates it.
 
 ---
 
-## Concurrency Safety
+## Concurrency safety
 
-`Resource` is **safe** to use under **threading** and **asyncio** concurrency. Internally, a lock ensures only one resource instance is created per container:
+`Resource` is safe to use under threading and asyncio concurrency. Internally, a lock ensures only one resource instance is created per container:
 
-- Multiple threads calling `resolve_sync()` simultaneously will produce a **single** instance for that container.
-- Multiple coroutines calling `resolve()` simultaneously will likewise produce **only one** instance for that container in an async environment.
+- Multiple threads calling `resolve_sync()` simultaneously will produce a single instance for that container.
+- Multiple coroutines calling `resolve()` simultaneously will likewise produce only one instance for that container in an async environment.
 
 ```python
 # Even if multiple coroutines call resolve in parallel,
@@ -106,9 +103,9 @@ MyContainer.sync_resource.resolve_sync()
 
 ---
 
-## Using Context Managers Directly
+## Using context managers directly
 
-If your resource is a standard **context manager** or **async context manager** class, `Resource` will handle entering and exiting it under the hood. For example:
+If your resource is a standard context manager or async context manager class, `Resource` will handle entering and exiting it under the hood. For example:
 
 ```python
 import typing

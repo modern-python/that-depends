@@ -39,17 +39,17 @@ pip install that-depends
 ## Ecosystem
 
 `that-depends` is part of the [`modern-python`](https://github.com/modern-python) family.
-If you're starting a new project, consider [`modern-di`](https://github.com/modern-python/modern-di) —
+If you're starting a new project, consider [`modern-di`](https://github.com/modern-python/modern-di),
 the newer DI framework from the same author, with separate framework adapters:
 
-- [`modern-di`](https://github.com/modern-python/modern-di) — core DI framework with scopes
+- [`modern-di`](https://github.com/modern-python/modern-di): core DI framework with scopes
 - [`modern-di-fastapi`](https://github.com/modern-python/modern-di-fastapi),
   [`modern-di-litestar`](https://github.com/modern-python/modern-di-litestar),
   [`modern-di-faststream`](https://github.com/modern-python/modern-di-faststream),
   [`modern-di-typer`](https://github.com/modern-python/modern-di-typer),
   [`modern-di-pytest`](https://github.com/modern-python/modern-di-pytest)
 
-`that-depends` remains actively maintained — see the
+`that-depends` remains actively maintained. See the
 [migration guide](https://modern-di.modern-python.org/migration/from-that-depends/) if you
 want to move existing projects across.
 
@@ -61,5 +61,4 @@ want to move existing projects across.
 
 ## Part of `modern-python`
 
-Browse the full list of templates and libraries in
-[`modern-python`](https://github.com/modern-python) — see the org profile for the categorized index.
+The [`modern-python`](https://github.com/modern-python) org profile has the full categorized list of templates and libraries.

@@ -17,10 +17,11 @@ To inject a provider by name, use the `Provide` marker with a string argument th
 Container.Provider[.attribute.attribute...]
 ```
 
-The string will be validated when it is passed to `Provide[]`, thus will raise an exception
-immediately.
+`Provide[]` checks the format of the string as soon as it receives it and raises a `ValueError`
+immediately if the string does not match. It does not check that the container or provider exists;
+that happens when the injected function is called.
 
-**For example**:
+For example:
 
 ```python
 from that_depends import BaseContainer, inject, Provide
@@ -58,8 +59,8 @@ assert read() == "Damian"
 ---
 ## Considerations
 
-This feature is primarily intended as a fallback when other options are not optimal or
-simply not available, thus is recommended to be used sparingly.
+This feature is intended mainly as a fallback when other options are unsuitable or
+unavailable, so use it sparingly.
 
 If you do decide to use injection by name, consider the following:
 
@@ -77,4 +78,4 @@ If you do decide to use injection by name, consider the following:
   
     injected() # will resolve
     ```
-- Validation of whether you have provided a correct container name and provider name will only happen when the function is called.
+- `Provide[]` only checks the format of the string. The container and provider names are checked when the function is called, and an unknown container or provider raises a `ValueError` at that point.

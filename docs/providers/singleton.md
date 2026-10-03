@@ -1,8 +1,8 @@
-# Singleton Provider
+# Singleton provider
 
-A **Singleton** provider creates its instance once and caches it for all future injections or resolutions. When the instance is first requested (via `resolve_sync()` or `resolve()`), the underlying factory is called. On subsequent calls, the cached instance is returned without calling the factory again.
+A `Singleton` provider creates its instance once and caches it for all future injections or resolutions. When the instance is first requested (via `resolve_sync()` or `resolve()`), the underlying factory is called. On subsequent calls, the cached instance is returned without calling the factory again.
 
-## How it Works
+## How it works
 
 ```python
 import random
@@ -37,7 +37,7 @@ async def with_singleton(number: float = Provide[MyContainer.singleton]):
    ...
 ```
 
-### Teardown Support
+### Teardown support
 If you need to reset the singleton (for example, in tests or at application shutdown), you can call:
 ```python 
 await MyContainer.singleton.tear_down()
@@ -49,15 +49,11 @@ For further details refer to the [teardown documentation](../introduction/tear-d
 
 ---
 
-## Concurrency Safety
+## Concurrency safety
 
-`Singleton` is **thread-safe** and **async-safe**:
-
-1. **Async Concurrency**  
-   If multiple coroutines call `resolve()` concurrently, the factory function is guaranteed to be called only once. All callers receive the same cached instance.
-
-2. **Thread Concurrency**  
-   If multiple threads call `resolve_sync()` at the same time, the factory is only called once. All threads receive the same cached instance.
+`Singleton` is thread-safe and async-safe.
+If multiple coroutines call `resolve()` concurrently, the factory function is guaranteed to be called only once, and all callers receive the same cached instance.
+If multiple threads call `resolve_sync()` at the same time, the factory is also called only once, and all threads receive the same cached instance.
 
 ```python
 import threading
@@ -87,9 +83,9 @@ for t in threads:
 
 ---
 
-## ThreadLocalSingleton Provider
+## ThreadLocalSingleton provider
 
-If you want each *thread* to have its own, separately cached instance, use **ThreadLocalSingleton**. This provider creates a new instance per thread and reuses that instance on subsequent calls *within the same thread*.
+If you want each *thread* to have its own, separately cached instance, use `ThreadLocalSingleton`. This provider creates a new instance per thread and reuses that instance on subsequent calls *within the same thread*.
 
 ```python
 import random
@@ -123,13 +119,13 @@ thread2.start()
 # thread1 and thread2 each get a different cached value
 ```
 
-You can still use `.resolve()` with `ThreadLocalSingleton`, which will also maintain isolation per thread. However, note that this does *not* isolate instances per asynchronous Task – only per OS thread.
+You can still use `.resolve()` with `ThreadLocalSingleton`, which also keeps instances isolated per thread. The isolation is per OS thread, *not* per asynchronous task.
 
 ---
 
 ## Example with `pydantic-settings`
 
-Consider a scenario where your application configuration is defined via [**pydantic-settings**](https://docs.pydantic.dev/latest/concepts/pydantic_settings/). Often, you only want to parse this configuration (e.g., from environment variables) once, then reuse it throughout the application.
+Consider a scenario where your application configuration is defined via [pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/). Often, you only want to parse this configuration (e.g., from environment variables) once, then reuse it throughout the application.
 
 ```python
 from pydantic_settings import BaseSettings
@@ -147,9 +143,9 @@ class Settings(BaseSettings):
     db: DatabaseConfig = DatabaseConfig()
 ```
 
-### Defining the Container
+### Defining the container
 
-Below, we define a container with a **Singleton** provider for our settings. We also define a separate async factory that connects to the database using those settings.
+Below, we define a container with a `Singleton` provider for our settings. We also define a separate async factory that connects to the database using those settings.
 
 ```python
 from that_depends import BaseContainer, providers
@@ -171,7 +167,7 @@ class MyContainer(BaseContainer):
     )
 ```
 
-### Injecting or Resolving in Code
+### Injecting or resolving in code
 
 You can now inject these values directly into your functions with the `@inject` decorator:
 

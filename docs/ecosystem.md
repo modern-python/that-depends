@@ -1,11 +1,11 @@
 # Ecosystem
 
-`that-depends` is part of the [`modern-python`](https://github.com/modern-python) organization —
+`that-depends` is part of the [`modern-python`](https://github.com/modern-python) organization,
 a collection of open-source templates and libraries for production-ready Python applications.
 
 ## Newer DI framework: `modern-di`
 
-If you're starting a new project, consider [`modern-di`](https://github.com/modern-python/modern-di) —
+If you're starting a new project, consider [`modern-di`](https://github.com/modern-python/modern-di),
 the newer DI framework from the same author. It ships as a small core plus a family of thin
 framework adapters, in contrast to `that-depends`'s batteries-included approach.
 
@@ -28,9 +28,9 @@ walks through the API differences if you want to move an existing project across
 
 End-to-end examples using `modern-di` for dependency injection:
 
-- [`fastapi-sqlalchemy-template`](https://github.com/modern-python/fastapi-sqlalchemy-template) —
+- [`fastapi-sqlalchemy-template`](https://github.com/modern-python/fastapi-sqlalchemy-template):
   dockerized web application with DI on FastAPI, SQLAlchemy 2, PostgreSQL
-- [`litestar-sqlalchemy-template`](https://github.com/modern-python/litestar-sqlalchemy-template) —
+- [`litestar-sqlalchemy-template`](https://github.com/modern-python/litestar-sqlalchemy-template):
   dockerized web application on LiteStar, SQLAlchemy 2, PostgreSQL
 
 ## Full project index

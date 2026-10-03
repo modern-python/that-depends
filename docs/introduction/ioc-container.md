@@ -1,9 +1,9 @@
-# The Dependency Injection Container
+# The dependency injection container
 
 Containers serve as a central place to store and manage providers. You also define
 your dependency graph in the containers.
 
-While providers can be defined outside of containers with that depends, this is not recommended
+While providers can be defined outside of containers with `that-depends`, this is not recommended
 if you want to use any [context features](../providers/context-resources.md)
 
 
@@ -39,4 +39,4 @@ class Container(BaseContainer):
 1. The configuration will be resolved and then the `.db` attribute will be passed to the `create_db_session` creator
 as a keyword argument when resolving the `session` provider.
 2. Depends on both the session and configuration providers.
-3. Providers have the `cast` property that will change their type to the return type of their creator, use it to prevent type errors.
+3. Providers have the `cast` property that will change their type to the return type of their creator; use it to prevent type errors.

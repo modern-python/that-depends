@@ -49,7 +49,7 @@ async def create_async_resource():
         logger.debug("Async resource destructed")
 ```
 
-### Setup Dependency Injection Container with Providers
+### Set up a dependency injection container with providers
 ```python
 from that_depends import BaseContainer, providers
 
