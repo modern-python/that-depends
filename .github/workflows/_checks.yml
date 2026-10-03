@@ -40,6 +40,8 @@ jobs:
       - run: uv python pin ${{ matrix.python-version }}
       - run: just install
       - run: uv run --with "faststream${{ matrix.faststream-version }}" pytest . --cov=. --cov-report xml
+        env:
+          REQUIRE_INTEGRATIONS: "1"
       - uses: codecov/codecov-action@v5.4.3
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
