@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 
 from litestar import Litestar, get
 from litestar.di import Provide
@@ -9,7 +9,7 @@ from tests import container
 
 
 @get("/")
-async def index(injected: datetime.datetime) -> datetime.datetime:
+async def index(injected: dt.datetime) -> dt.datetime:
     return injected
 
 
@@ -21,6 +21,6 @@ async def test_litestar_di() -> None:
         response = client.get("/")
         assert response.status_code == HTTP_200_OK, response.text
         assert (
-            datetime.datetime.fromisoformat(response.json().replace("Z", "+00:00"))
+            dt.datetime.fromisoformat(response.json().replace("Z", "+00:00"))
             == await container.DIContainer.async_resource()
         )

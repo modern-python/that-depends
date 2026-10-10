@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 
 import pytest
 
@@ -18,7 +18,7 @@ async def test_factory_providers() -> None:
     assert DIContainer.simple_factory.resolve_sync() is not simple_factory
     assert dependent_factory.sync_resource == sync_resource
     assert dependent_factory.async_resource == async_resource
-    assert isinstance(async_factory, datetime.datetime)
+    assert isinstance(async_factory, dt.datetime)
 
 
 async def test_factories_cannot_deregister_arguments() -> None:

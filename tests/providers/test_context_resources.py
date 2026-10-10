@@ -1,5 +1,5 @@
 import asyncio
-import datetime
+import datetime as dt
 import logging
 import threading
 import time
@@ -133,7 +133,7 @@ async def test_async_context_resource_in_sync_context(async_context_resource: pr
 
 
 async def test_context_resource_different_context(
-    context_resource: providers.ContextResource[datetime.datetime],
+    context_resource: providers.ContextResource[dt.datetime],
 ) -> None:
     async with container_context(context_resource):
         context_resource_instance1 = await context_resource()
@@ -145,7 +145,7 @@ async def test_context_resource_different_context(
 
 
 async def test_context_resource_included_context(
-    context_resource: providers.ContextResource[datetime.datetime],
+    context_resource: providers.ContextResource[dt.datetime],
 ) -> None:
     async with container_context(context_resource):
         context_resource_instance1 = await context_resource()
@@ -159,7 +159,7 @@ async def test_context_resource_included_context(
 
 
 async def test_context_resources_overriding(context_resource: providers.ContextResource[str]) -> None:
-    context_resource_mock = datetime.datetime.now(tz=datetime.timezone.utc)
+    context_resource_mock = dt.datetime.now(tz=dt.timezone.utc)
     context_resource.override_sync(context_resource_mock)
 
     context_resource_result = await context_resource()

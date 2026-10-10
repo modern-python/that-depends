@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import logging
 import typing
 
@@ -28,7 +28,7 @@ class DIContainer(BaseContainer):
     alias = "selector_container"
     sync_resource = providers.Resource(create_sync_resource)
     async_resource = providers.Resource(create_async_resource)
-    selector: providers.Selector[datetime.datetime] = providers.Selector(
+    selector: providers.Selector[dt.datetime] = providers.Selector(
         selector_state.get_selector_state,
         sync_resource=sync_resource,
         async_resource=async_resource,
@@ -64,7 +64,7 @@ async def test_selector_provider_sync_missing() -> None:
 
 
 async def test_selector_provider_overriding() -> None:
-    now = datetime.datetime.now(tz=datetime.timezone.utc)
+    now = dt.datetime.now(tz=dt.timezone.utc)
     DIContainer.selector.override_sync(now)
     selected_async = await DIContainer.selector()
     selected_sync = DIContainer.selector.resolve_sync()
