@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import typing
 
 import pytest
@@ -9,9 +9,9 @@ from that_depends.providers.mixin import CannotTearDownSyncError
 
 
 async def test_batch_providers_overriding() -> None:
-    async_resource_mock = datetime.datetime.fromisoformat("2023-01-01")
-    sync_resource_mock = datetime.datetime.fromisoformat("2024-01-01")
-    async_factory_mock = datetime.datetime.fromisoformat("2025-01-01")
+    async_resource_mock = dt.datetime.fromisoformat("2023-01-01")
+    sync_resource_mock = dt.datetime.fromisoformat("2024-01-01")
+    async_factory_mock = dt.datetime.fromisoformat("2025-01-01")
     simple_factory_mock = container.SimpleFactory(dep1="override", dep2=999)
     singleton_mock = container.SingletonFactory(dep1=False)
     object_mock = object()
@@ -44,8 +44,8 @@ async def test_batch_providers_overriding() -> None:
 
 
 async def test_batch_providers_overriding_sync_resolve() -> None:
-    async_resource_mock = datetime.datetime.fromisoformat("2023-01-01")
-    sync_resource_mock = datetime.datetime.fromisoformat("2024-01-01")
+    async_resource_mock = dt.datetime.fromisoformat("2023-01-01")
+    sync_resource_mock = dt.datetime.fromisoformat("2024-01-01")
     simple_factory_mock = container.SimpleFactory(dep1="override", dep2=999)
     singleton_mock = container.SingletonFactory(dep1=False)
     object_mock = object()
@@ -106,9 +106,9 @@ def test_providers_overriding_fail_with_unknown_provider() -> None:
 
 
 async def test_providers_overriding() -> None:
-    async_resource_mock = datetime.datetime.fromisoformat("2023-01-01")
-    sync_resource_mock = datetime.datetime.fromisoformat("2024-01-01")
-    async_factory_mock = datetime.datetime.fromisoformat("2025-01-01")
+    async_resource_mock = dt.datetime.fromisoformat("2023-01-01")
+    sync_resource_mock = dt.datetime.fromisoformat("2024-01-01")
+    async_factory_mock = dt.datetime.fromisoformat("2025-01-01")
     simple_factory_mock = container.SimpleFactory(dep1="override", dep2=999)
     singleton_mock = container.SingletonFactory(dep1=False)
     object_mock = object()
@@ -138,8 +138,8 @@ async def test_providers_overriding() -> None:
 
 
 async def test_providers_overriding_sync_resolve() -> None:
-    async_resource_mock = datetime.datetime.fromisoformat("2023-01-01")
-    sync_resource_mock = datetime.datetime.fromisoformat("2024-01-01")
+    async_resource_mock = dt.datetime.fromisoformat("2023-01-01")
+    sync_resource_mock = dt.datetime.fromisoformat("2024-01-01")
     simple_factory_mock = container.SimpleFactory(dep1="override", dep2=999)
     singleton_mock = container.SingletonFactory(dep1=False)
     object_mock = object()

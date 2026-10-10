@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import logging
 import types
 import typing
@@ -7,26 +7,26 @@ import typing
 logger = logging.getLogger(__name__)
 
 
-async def create_async_resource() -> typing.AsyncIterator[datetime.datetime]:
+async def create_async_resource() -> typing.AsyncIterator[dt.datetime]:
     logger.debug("Async resource initiated")
     try:
-        yield datetime.datetime.now(tz=datetime.timezone.utc)
+        yield dt.datetime.now(tz=dt.timezone.utc)
     finally:
         logger.debug("Async resource destructed")
 
 
-def create_sync_resource() -> typing.Iterator[datetime.datetime]:
+def create_sync_resource() -> typing.Iterator[dt.datetime]:
     logger.debug("Resource initiated")
     try:
-        yield datetime.datetime.now(tz=datetime.timezone.utc)
+        yield dt.datetime.now(tz=dt.timezone.utc)
     finally:
         logger.debug("Resource destructed")
 
 
-class ContextManagerResource(typing.ContextManager[datetime.datetime]):
-    def __enter__(self) -> datetime.datetime:
+class ContextManagerResource(typing.ContextManager[dt.datetime]):
+    def __enter__(self) -> dt.datetime:
         logger.debug("Resource initiated")
-        return datetime.datetime.now(tz=datetime.timezone.utc)
+        return dt.datetime.now(tz=dt.timezone.utc)
 
     def __exit__(
         self,
@@ -37,10 +37,10 @@ class ContextManagerResource(typing.ContextManager[datetime.datetime]):
         logger.debug("Resource destructed")
 
 
-class AsyncContextManagerResource(typing.AsyncContextManager[datetime.datetime]):
-    async def __aenter__(self) -> datetime.datetime:
+class AsyncContextManagerResource(typing.AsyncContextManager[dt.datetime]):
+    async def __aenter__(self) -> dt.datetime:
         logger.debug("Async resource initiated")
-        return datetime.datetime.now(tz=datetime.timezone.utc)
+        return dt.datetime.now(tz=dt.timezone.utc)
 
     async def __aexit__(
         self,

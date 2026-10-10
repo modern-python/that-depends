@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import typing
 
 import fastapi
@@ -34,8 +34,8 @@ def fastapi_app() -> fastapi.FastAPI:
             fastapi.Depends(container.DIContainer.singleton),
         ],
         singleton_attribute: typing.Annotated[bool, fastapi.Depends(container.DIContainer.singleton.dep1)],
-        context_resource: typing.Annotated[datetime.datetime, fastapi.Depends(container.DIContainer.context_resource)],
-    ) -> datetime.datetime:
+        context_resource: typing.Annotated[dt.datetime, fastapi.Depends(container.DIContainer.context_resource)],
+    ) -> dt.datetime:
         assert dependency.sync_resource == free_dependency.dependent_factory.sync_resource
         assert dependency.async_resource == free_dependency.dependent_factory.async_resource
         assert singleton.dep1 is True
@@ -57,6 +57,6 @@ async def test_read_main(fastapi_client: TestClient) -> None:
     response = fastapi_client.get("/")
     assert response.status_code == status.HTTP_200_OK
     assert (
-        datetime.datetime.fromisoformat(response.json().replace("Z", "+00:00"))
+        dt.datetime.fromisoformat(response.json().replace("Z", "+00:00"))
         == await container.DIContainer.async_resource()
     )

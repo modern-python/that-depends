@@ -1,5 +1,5 @@
 import dataclasses
-import datetime
+import datetime as dt
 import logging
 import typing
 
@@ -9,18 +9,18 @@ from that_depends import BaseContainer, providers
 logger = logging.getLogger(__name__)
 
 
-def create_sync_resource() -> typing.Iterator[datetime.datetime]:
+def create_sync_resource() -> typing.Iterator[dt.datetime]:
     logger.debug("Resource initiated")
     try:
-        yield datetime.datetime.now(tz=datetime.timezone.utc)
+        yield dt.datetime.now(tz=dt.timezone.utc)
     finally:
         logger.debug("Resource destructed")
 
 
-async def create_async_resource() -> typing.AsyncIterator[datetime.datetime]:
+async def create_async_resource() -> typing.AsyncIterator[dt.datetime]:
     logger.debug("Async resource initiated")
     try:
-        yield datetime.datetime.now(tz=datetime.timezone.utc)
+        yield dt.datetime.now(tz=dt.timezone.utc)
     finally:
         logger.debug("Async resource destructed")
 
@@ -31,15 +31,15 @@ class SimpleFactory:
     dep2: int
 
 
-async def async_factory(now: datetime.datetime) -> datetime.datetime:
-    return now + datetime.timedelta(hours=1)
+async def async_factory(now: dt.datetime) -> dt.datetime:
+    return now + dt.timedelta(hours=1)
 
 
 @dataclasses.dataclass(kw_only=True, slots=True)
 class DependentFactory:
     simple_factory: SimpleFactory
-    sync_resource: datetime.datetime
-    async_resource: datetime.datetime
+    sync_resource: dt.datetime
+    async_resource: dt.datetime
 
 
 @dataclasses.dataclass(kw_only=True, slots=True)

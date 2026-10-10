@@ -1,5 +1,5 @@
 import asyncio
-import datetime
+import datetime as dt
 import random
 import typing
 import warnings
@@ -140,7 +140,7 @@ async def test_injection(
     default_zero: int = 0,
 ) -> None:
     assert simple_factory.dep1
-    assert isinstance(dependent_factory.async_resource, datetime.datetime)
+    assert isinstance(dependent_factory.async_resource, dt.datetime)
     assert default_zero == 0
     assert fixture_one == 1
 

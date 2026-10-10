@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 
 import pytest
 
@@ -21,7 +21,7 @@ OuterContainer.connect_containers(InnerContainer)
 
 async def test_included_container() -> None:
     sequence = await OuterContainer.sequence()
-    assert all(isinstance(x, datetime.datetime) for x in sequence)
+    assert all(isinstance(x, dt.datetime) for x in sequence)
 
     await OuterContainer.tear_down()
     assert not is_set(InnerContainer.sync_resource._context.instance)

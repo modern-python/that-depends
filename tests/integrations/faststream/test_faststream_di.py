@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import typing
 
 from faststream import Depends
@@ -28,13 +28,13 @@ async def index_subscriber(
         Depends(container.DIContainer.singleton),
     ],
     singleton_attribute: typing.Annotated[bool, Depends(container.DIContainer.singleton.dep1)],
-    context_resource: typing.Annotated[datetime.datetime, Depends(container.DIContainer.context_resource)],
-) -> datetime.datetime:
+    context_resource: typing.Annotated[dt.datetime, Depends(container.DIContainer.context_resource)],
+) -> dt.datetime:
     assert dependency.sync_resource == free_dependency.dependent_factory.sync_resource
     assert dependency.async_resource == free_dependency.dependent_factory.async_resource
     assert singleton.dep1 is True
     assert singleton_attribute is True
-    assert isinstance(context_resource, datetime.datetime)
+    assert isinstance(context_resource, dt.datetime)
     return dependency.async_resource
 
 
@@ -44,6 +44,5 @@ async def test_read_main() -> None:
 
         result_str = typing.cast(str, await result.decode())
         assert (
-            datetime.datetime.fromisoformat(result_str.replace("Z", "+00:00"))
-            == await container.DIContainer.async_resource()
+            dt.datetime.fromisoformat(result_str.replace("Z", "+00:00")) == await container.DIContainer.async_resource()
         )

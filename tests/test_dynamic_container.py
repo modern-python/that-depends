@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 
 import pytest
 
@@ -8,7 +8,7 @@ from that_depends import BaseContainer, providers
 
 class DIContainer(BaseContainer):
     alias = "dynamic_container"
-    sync_resource: providers.Resource[datetime.datetime]
+    sync_resource: providers.Resource[dt.datetime]
 
 
 async def test_dynamic_container_not_supported() -> None:
