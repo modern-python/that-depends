@@ -53,11 +53,11 @@ the newer DI framework from the same author, with separate framework adapters:
 [migration guide](https://modern-di.modern-python.org/migration/from-that-depends/) if you
 want to move existing projects across.
 
-## 📚 [Documentation](https://that-depends.modern-python.org)
+## Links
 
-## 📦 [PyPI](https://pypi.org/project/that-depends)
-
-## 📝 [License](https://github.com/modern-python/that-depends/blob/main/LICENSE)
+- [Documentation](https://that-depends.modern-python.org)
+- [PyPI](https://pypi.org/project/that-depends)
+- [License](https://github.com/modern-python/that-depends/blob/main/LICENSE)
 
 ## Part of `modern-python`
 
