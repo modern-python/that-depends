@@ -6,30 +6,30 @@ contributor traffic: most merged PRs come from someone other than the maintainer
 Assume a human reviews your diff.
 
 `modern-di` is the newer framework from the same author, and this repo links to it, but
-`that-depends` is actively maintained rather than deprecated. Do not rewrite anything
+`that-depends` is still actively maintained. Do not rewrite anything
 here toward `modern-di`'s design, and do not carry conventions across in either
-direction — the two repos diverge deliberately.
+direction; the two repos diverge deliberately.
 
 ## Commands
 
 `just` (task runner) and `uv` (package manager). The [`justfile`](justfile) is the
-source of truth — `just --list`, or read it. Two behaviours to know before running
+source of truth: run `just --list`, or read it. Two behaviours to know before running
 anything:
 
 - `just lint` **rewrites files**. `just lint-ci` is the read-only twin and is what CI
-  runs. Use `lint-ci` when you want an answer rather than a mutation.
+  runs. Use `lint-ci` when you only want to check.
 - `just install` also installs the [`.pre-commit-config.yaml`](.pre-commit-config.yaml)
   hooks, so committing can change your working tree before the commit lands.
   `just unhook` removes them.
 
-Type checking is **two** checkers — `mypy` in strict mode and `pyrefly` — and both must
+Type checking is **two** checkers, `mypy` in strict mode and `pyrefly`, and both must
 be clean. There is no `ty` here, despite the org-level tooling note.
 
 ## Docs
 
 Docs are MkDocs Material, but **Read the Docs builds and hosts them**
-([`.readthedocs.yaml`](.readthedocs.yaml) → `docs/requirements.txt` → `mkdocs.yml`) —
-not the GitHub Pages workflow the rest of the org uses. Two consequences:
+([`.readthedocs.yaml`](.readthedocs.yaml) → `docs/requirements.txt` → `mkdocs.yml`),
+unlike the rest of the org, which uses the GitHub Pages workflow. Two consequences:
 
 - **Nothing builds the docs in CI.** A broken link or a bad snippet lands on `main` and
   only surfaces in the Read the Docs build afterwards. `just docs` serves the site
@@ -62,7 +62,7 @@ single-file read will not tell you:
   `_ContainerMetaDict.__setitem__` reads it while the class body is still executing and
   raises `DefaultScopeNotDefinedError` otherwise. Statement order inside the class body
   is load-bearing.
-- **Every public operation has a sync and an async twin** — `resolve`/`resolve_sync`,
+- **Every public operation has a sync and an async twin**: `resolve`/`resolve_sync`,
   `override`/`override_sync`, `tear_down`/`tear_down_sync`,
   `context_async`/`context_sync`. Adding one half of a pair is an incomplete change.
 
@@ -90,7 +90,7 @@ Every link in `README.md` must be absolute: `https://github.com/modern-python/<r
 or `.../tree/main/<path>` for a directory. Never a relative path: `README.md` is also the PyPI long
 description, and PyPI does not rewrite relative links, so a relative one 404s on the package page.
 
-Unlike the rest of the org, **you are not the last reader of your diff** — a second
+Unlike the rest of the org, **you are not the last reader of your diff**: a second
 party reviews and merges it. Write for them: what changed, why, and what you chose not
 to do. Keep one PR to one thing.
 
@@ -100,13 +100,13 @@ work.
 
 This repo has no `docs/adr/` and no `CONTEXT.md`. A decision that outlives the PR goes
 in [`docs/dev/main-decisions.md`](docs/dev/main-decisions.md), which is a **user-facing
-page** — write it for a reader of the docs site, not as an internal record. Issues live
+page**: write it for a reader of the docs site, not as an internal record. Issues live
 on `modern-python/that-depends` itself (`gh issue create`), not on the org repo.
 
 ## Releases
 
 `pyproject.toml` carries `version = "0"` as a placeholder. The published version comes
-from the git tag — publishing triggers on a GitHub release and `just publish` runs
+from the git tag: publishing triggers on a GitHub release and `just publish` runs
 `uv version $GITHUB_REF_NAME`. **Never hand-edit `version`**; cut a release instead.
 
 ## Code style
