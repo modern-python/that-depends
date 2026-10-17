@@ -13,7 +13,7 @@ direction; the two repos diverge deliberately.
 ## Commands
 
 `just` (task runner) and `uv` (package manager). The [`justfile`](justfile) is the
-source of truth: run `just --list`, or read it. Two behaviours to know before running
+source of truth: `just --list`, or read it. Two behaviours to know before running
 anything:
 
 - `just lint` **rewrites files**. `just lint-ci` is the read-only twin and is what CI
