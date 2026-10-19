@@ -103,6 +103,10 @@ in [`docs/dev/main-decisions.md`](docs/dev/main-decisions.md), which is a **user
 page**: write it for a reader of the docs site, not as an internal record. Issues live
 on `modern-python/that-depends` itself (`gh issue create`), not on the org repo.
 
+Before pushing a raised dependency floor, run the `floors` steps from
+[`_checks.yml`](.github/workflows/_checks.yml) locally. If resolution fails, raise the direct floor
+it names.
+
 ## Releases
 
 `pyproject.toml` carries `version = "0"` as a placeholder. The published version comes
