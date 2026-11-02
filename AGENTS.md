@@ -1,7 +1,7 @@
 # AGENTS.md
 
 `that-depends` is a typed dependency-injection framework for Python
-3.10+. It is the org's most-used package and the only repo here with real external
+3.11+. It is the org's most-used package and the only repo here with real external
 contributor traffic: most merged PRs come from someone other than the maintainer.
 Assume a human reviews your diff.
 
@@ -118,7 +118,7 @@ from the git tag: publishing triggers on a GitHub release and `just publish` run
 - `ruff` (`select = ["ALL"]`, with an ignore list) and `mypy` in strict mode are
   configured in [`pyproject.toml`](pyproject.toml). Two consequences that catch new
   code: a public class, function or method without a docstring fails lint, and the
-  package targets Python 3.10, so no 3.11+ syntax. `tests/` is exempt from the
+  package targets Python 3.11, so no 3.12+ syntax. `tests/` is exempt from the
   docstring and private-access rules.
 - Docstrings use the `Args:` / `Returns:` form of `providers/base.py`, adding `Raises:`
   where a caller needs it (`injection.py`, `providers/selector.py`). State the contract;

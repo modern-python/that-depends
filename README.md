@@ -23,7 +23,7 @@ Simple, typed dependency injection framework for Python.
 
 Features:
 - Simple async-first DI framework with IOC-container.
-- Python 3.10+ support.
+- Python 3.11+ support.
 - Full coverage by types annotations (mypy in strict mode, pyrefly).
 - Built-in FastAPI, FastStream and Litestar integrations.
 - Dependency context management with scopes.

@@ -159,7 +159,7 @@ async def test_context_resource_included_context(
 
 
 async def test_context_resources_overriding(context_resource: providers.ContextResource[str]) -> None:
-    context_resource_mock = dt.datetime.now(tz=dt.timezone.utc)
+    context_resource_mock = dt.datetime.now(tz=dt.UTC)
     context_resource.override_sync(context_resource_mock)
 
     context_resource_result = await context_resource()

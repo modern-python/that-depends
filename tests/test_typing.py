@@ -1,6 +1,5 @@
 import typing
-
-from typing_extensions import assert_type
+from typing import assert_type
 
 from that_depends import Provide, providers
 from that_depends.experimental.providers import LazyProvider

@@ -140,6 +140,8 @@ plugins:
           - testing/provider-overriding.md: Overriding providers
         Experimental features:
           - experimental/lazy.md: The Lazy provider
+        Python Support:
+          - dev/main-decisions.md: Python support policy and compatibility decisions
         Ecosystem:
           - ecosystem.md: Related projects in the modern-python organization
 

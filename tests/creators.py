@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 async def create_async_resource() -> typing.AsyncIterator[dt.datetime]:
     logger.debug("Async resource initiated")
     try:
-        yield dt.datetime.now(tz=dt.timezone.utc)
+        yield dt.datetime.now(tz=dt.UTC)
     finally:
         logger.debug("Async resource destructed")
 
@@ -18,7 +18,7 @@ async def create_async_resource() -> typing.AsyncIterator[dt.datetime]:
 def create_sync_resource() -> typing.Iterator[dt.datetime]:
     logger.debug("Resource initiated")
     try:
-        yield dt.datetime.now(tz=dt.timezone.utc)
+        yield dt.datetime.now(tz=dt.UTC)
     finally:
         logger.debug("Resource destructed")
 
@@ -26,7 +26,7 @@ def create_sync_resource() -> typing.Iterator[dt.datetime]:
 class ContextManagerResource(typing.ContextManager[dt.datetime]):
     def __enter__(self) -> dt.datetime:
         logger.debug("Resource initiated")
-        return dt.datetime.now(tz=dt.timezone.utc)
+        return dt.datetime.now(tz=dt.UTC)
 
     def __exit__(
         self,
@@ -40,7 +40,7 @@ class ContextManagerResource(typing.ContextManager[dt.datetime]):
 class AsyncContextManagerResource(typing.AsyncContextManager[dt.datetime]):
     async def __aenter__(self) -> dt.datetime:
         logger.debug("Async resource initiated")
-        return dt.datetime.now(tz=dt.timezone.utc)
+        return dt.datetime.now(tz=dt.UTC)
 
     async def __aexit__(
         self,

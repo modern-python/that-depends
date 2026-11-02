@@ -43,6 +43,4 @@ async def test_read_main() -> None:
         result = await br.request(None, TEST_SUBJECT)
 
         result_str = typing.cast(str, await result.decode())
-        assert (
-            dt.datetime.fromisoformat(result_str.replace("Z", "+00:00")) == await container.DIContainer.async_resource()
-        )
+        assert dt.datetime.fromisoformat(result_str) == await container.DIContainer.async_resource()
