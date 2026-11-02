@@ -36,9 +36,6 @@ Features:
 pip install that-depends
 ```
 
-Starting with 4.3.0, Python 3.11 or newer is required. Python 3.10 users can install
-`that-depends<4.3`. See the [Python support policy](https://github.com/modern-python/that-depends/blob/main/docs/dev/main-decisions.md#python-support-policy).
-
 ## Ecosystem
 
 `that-depends` is part of the [`modern-python`](https://github.com/modern-python) family.
