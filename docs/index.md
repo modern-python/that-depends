@@ -15,11 +15,14 @@ supports the following:
 - Dependency injection anywhere
 - Fully typed and tested
 - Compatibility with popular frameworks like `FastAPI` and `LiteStar`
-- Python 3.10+ support
+- Python 3.11+ support
 
 ---
 
 ## Installation
+
+Starting with 4.3.0, Python 3.11 or newer is required. Python 3.10 users can install
+`that-depends<4.3`. See the [Python support policy](dev/main-decisions.md#python-support-policy).
 
 === "pip"
     ```bash

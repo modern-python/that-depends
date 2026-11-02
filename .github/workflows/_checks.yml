@@ -11,8 +11,8 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with:
           cache-dependency-glob: "**/pyproject.toml"
-      - run: uv python install 3.10
-      - run: uv python pin 3.10
+      - run: uv python install 3.11
+      - run: uv python pin 3.11
       - run: just install lint-ci
       - run: just adr-check
 
@@ -22,7 +22,6 @@ jobs:
       fail-fast: false
       matrix:
         python-version:
-          - "3.10"
           - "3.11"
           - "3.12"
           - "3.13"
@@ -53,7 +52,7 @@ jobs:
 
   floors:
     # CI10. Nothing else in CI installs the declared floors: `pytest` resolves highest, and the
-    # scheduled run does the same. This job installs them exactly on 3.10, and the lowest
+    # scheduled run does the same. This job installs them exactly on 3.11, and the lowest
     # versions with a wheel on every other entry.
     # Skipped on the schedule: the floors do not move, and the scheduled `pytest` already covers
     # the newest releases, which are what users install.
@@ -63,7 +62,6 @@ jobs:
       fail-fast: false
       matrix:
         python-version:
-          - "3.10"
           - "3.11"
           - "3.12"
           - "3.13"
@@ -76,9 +74,9 @@ jobs:
       - run: uv python install ${{ matrix.python-version }}
       - run: uv python pin ${{ matrix.python-version }}
       - run: uv venv
-      - if: matrix.python-version == '3.10'
+      - if: matrix.python-version == '3.11'
         run: uv pip compile pyproject.toml --all-extras --no-deps --resolution lowest-direct -o floors.txt
-      - if: matrix.python-version != '3.10'
+      - if: matrix.python-version != '3.11'
         run: uv pip compile pyproject.toml --all-extras --resolution lowest-direct --no-build -o floors.txt
       - run: uv pip install -r pyproject.toml --all-extras --group dev --constraints floors.txt --no-build
       - run: uv run --no-sync pytest .

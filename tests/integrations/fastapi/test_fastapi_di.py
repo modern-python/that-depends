@@ -56,7 +56,4 @@ def fastapi_client(fastapi_app: fastapi.FastAPI) -> TestClient:
 async def test_read_main(fastapi_client: TestClient) -> None:
     response = fastapi_client.get("/")
     assert response.status_code == status.HTTP_200_OK
-    assert (
-        dt.datetime.fromisoformat(response.json().replace("Z", "+00:00"))
-        == await container.DIContainer.async_resource()
-    )
+    assert dt.datetime.fromisoformat(response.json()) == await container.DIContainer.async_resource()

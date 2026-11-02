@@ -64,7 +64,7 @@ async def test_selector_provider_sync_missing() -> None:
 
 
 async def test_selector_provider_overriding() -> None:
-    now = dt.datetime.now(tz=dt.timezone.utc)
+    now = dt.datetime.now(tz=dt.UTC)
     DIContainer.selector.override_sync(now)
     selected_async = await DIContainer.selector()
     selected_sync = DIContainer.selector.resolve_sync()

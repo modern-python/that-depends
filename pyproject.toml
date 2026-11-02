@@ -5,13 +5,12 @@ authors = [
     { name = "Artur Shiriev", email = "me@shiriev.ru" },
 ]
 readme = "README.md"
-requires-python = ">=3.10,<4"
+requires-python = ">=3.11,<4"
 license = "MIT"
 keywords = ["dependency-injection", "di", "ioc-container", "scopes", "mocks", "python"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -54,7 +53,6 @@ dev = [
     "litestar",
     "faststream[nats]",
     "pytest-randomly",
-    "tomli",
     "pyrefly>=0.61.1",
 ]
 
@@ -67,7 +65,7 @@ module-name = "that_depends"
 module-root = ""
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.11"
 strict = true
 
 
@@ -75,7 +73,6 @@ strict = true
 fix = true
 unsafe-fixes = true
 line-length = 120
-target-version = "py310"
 extend-exclude = [
     "docs",
 ]
@@ -114,5 +111,5 @@ fail_under = 100
 exclude_also = ["if typing.TYPE_CHECKING:"]
 
 [tool.pyrefly]
-python-version = "3.10"
+python-version = "3.11"
 preset = "legacy"

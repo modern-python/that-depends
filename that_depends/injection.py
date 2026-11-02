@@ -5,8 +5,7 @@ import typing
 import warnings
 from contextlib import AsyncExitStack, ExitStack
 from types import TracebackType
-
-from typing_extensions import Self
+from typing import Self
 
 from that_depends.container import BaseContainer
 from that_depends.exceptions import TypeNotBoundError

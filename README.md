@@ -23,7 +23,7 @@ Simple, typed dependency injection framework for Python.
 
 Features:
 - Simple async-first DI framework with IOC-container.
-- Python 3.10+ support.
+- Python 3.11+ support.
 - Full coverage by types annotations (mypy in strict mode, pyrefly).
 - Built-in FastAPI, FastStream and Litestar integrations.
 - Dependency context management with scopes.
@@ -35,6 +35,9 @@ Features:
 ```bash
 pip install that-depends
 ```
+
+Starting with 4.3.0, Python 3.11 or newer is required. Python 3.10 users can install
+`that-depends<4.3`. See the [Python support policy](https://github.com/modern-python/that-depends/blob/main/docs/dev/main-decisions.md#python-support-policy).
 
 ## Ecosystem
 

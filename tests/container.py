@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 def create_sync_resource() -> typing.Iterator[dt.datetime]:
     logger.debug("Resource initiated")
     try:
-        yield dt.datetime.now(tz=dt.timezone.utc)
+        yield dt.datetime.now(tz=dt.UTC)
     finally:
         logger.debug("Resource destructed")
 
@@ -20,7 +20,7 @@ def create_sync_resource() -> typing.Iterator[dt.datetime]:
 async def create_async_resource() -> typing.AsyncIterator[dt.datetime]:
     logger.debug("Async resource initiated")
     try:
-        yield dt.datetime.now(tz=dt.timezone.utc)
+        yield dt.datetime.now(tz=dt.UTC)
     finally:
         logger.debug("Async resource destructed")
 

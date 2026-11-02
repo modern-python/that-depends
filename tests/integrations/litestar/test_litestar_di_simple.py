@@ -20,7 +20,4 @@ async def test_litestar_di() -> None:
     with TestClient(app=app) as client:
         response = client.get("/")
         assert response.status_code == HTTP_200_OK, response.text
-        assert (
-            dt.datetime.fromisoformat(response.json().replace("Z", "+00:00"))
-            == await container.DIContainer.async_resource()
-        )
+        assert dt.datetime.fromisoformat(response.json()) == await container.DIContainer.async_resource()
