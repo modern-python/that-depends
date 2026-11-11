@@ -59,6 +59,8 @@ want to move existing projects across.
 - [PyPI](https://pypi.org/project/that-depends)
 - [License](https://github.com/modern-python/that-depends/blob/main/LICENSE)
 
+If this project saves you time, consider giving it a star on GitHub.
+
 ## Part of `modern-python`
 
 The [`modern-python`](https://github.com/modern-python) org profile has the full categorized list of templates and libraries.
