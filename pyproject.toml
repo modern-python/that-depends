@@ -30,6 +30,7 @@ fastapi = [
 ]
 faststream = [
     "faststream>=0.5.29",
+    "pydantic>=2; python_version >= '3.15'",
     "packaging",
 ]
 
